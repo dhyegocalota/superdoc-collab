@@ -67,3 +67,20 @@ Red commits: c5461e3f (server: one live claim, heavy room admission, expiry) and
 | `documents-routes.test.ts::while a tab of the owner holds the device claim only that tab is answered Create` | `expected [ 'create', 'join', 'join', 'join' ] to deeply equal [ 'create', 'create', 'join', 'join' ]` |
 
 The open request now carries `?tab=`; the scripted-answers helper in `e2e/open-answers.ts` and three web tests that mocked the exact open URL were updated. Hypotheses to attack: a refused heavy admission fails the job once (Failed card), a device job expires after `DEVICE_JOB_LIFETIME_MS` (the host bootstrap timeout), and a socket without a tab id cannot share a claim.
+
+## Reviewer follow-up
+
+Red commits ea3bcdbb (server upload) and 595a3b27 (web device refusal). Green: 13fe5444 and 902bbcb6.
+
+| Test | Red before because |
+|------|--------------------|
+| `documents-routes.test.ts::at four gigabytes the heap holds no room…` | `Error: largestHoldableMegabytes is not implemented for 638` |
+| `documents-routes.test.ts::at six gigabytes the heap holds the heavy file…` | `expected [ 413, true, 503 ] to deeply equal [ 413, true, 201 ]` (a 503 for a re-send that fits) |
+| `documents-routes.test.ts::a device upload never enters the lane…` | `expected [ 429, 429 ] to deeply equal [ 201, 429 ]` |
+| `document-page.test.tsx::a phone opened on a device job as its creator is refused…` | `Unable to find an element with the text: This screen is too narrow…` |
+
+Pin: `a wide screen opened on a device job as its creator mounts the editor to convert`.
+
+The restartable stack now sets the server heap at 40 percent of the memory limit, as the image entrypoint does. The two small-memory device cases declare a roomy heap budget, because their point is the memory guard, and the 4 GB case asserts the honest refusal. The 6 GB case runs the heavy fixture end to end through the device. The live editor opens at the top; the scroll position of the preview is not carried (the spec says so).
+
+Hypotheses to attack: the 413 for a document beyond the heap never offers the device, even when the form says `preparation=device`; a phone that opens a pending device job as its creator sees the reason and Back and no editor; a device upload is not refused by a full queue.

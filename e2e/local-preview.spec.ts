@@ -10,6 +10,9 @@ import {
   DEMO_USERS,
   DOCX_MIME_TYPE,
   documentApiPath,
+  largestHoldableMegabytes,
+  roomHeapBudgetMegabytes,
+  roomHoldShortMessage,
   RoomMode,
   ShareLinkRole,
   type BootstrapProgress,
@@ -25,6 +28,7 @@ import { DeviceRefusal } from '../apps/web/src/features/local-preview/device-gua
 import { preparedOnDeviceDetail } from '../apps/web/src/features/open-progress/open-progress-copy';
 import { scriptNextOpenAnswers } from './open-answers';
 import { RestartablePort, startRestartableStack, stopRestartableStack } from './restartable-stack';
+import { serverHeapMegabytesOf } from './stack';
 
 const PREVIEW_SURFACE_TEST_ID = 'local-preview';
 const LIVE_EDITOR_TEST_ID = 'document-editor';
@@ -54,6 +58,8 @@ const DOCUMENT_WORKER_PATTERN = /browser-worker-entry/;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const DEVICE_JOINER_TIMEOUT_MS = 120_000;
 const FOUR_GIGABYTES = 4096;
+const SIX_GIGABYTES = 6144;
+const ROOMY_HEAP_BUDGET_MEGABYTES = 2000;
 
 function preparingAnswer(): BootstrapProgress {
   return {
@@ -209,7 +215,10 @@ test.describe('a server with no memory to prepare a file', () => {
   test.beforeAll(async () => {
     origin = await startRestartableStack({
       port: RestartablePort.LocalPreview,
-      overrides: { MEMORY_LIMIT_MEGABYTES: String(BOOTSTRAP_MEMORY_RESERVE_MEGABYTES) },
+      overrides: {
+        MEMORY_LIMIT_MEGABYTES: String(BOOTSTRAP_MEMORY_RESERVE_MEGABYTES),
+        ROOM_HEAP_BUDGET_MEGABYTES: String(ROOMY_HEAP_BUDGET_MEGABYTES),
+      },
     });
   });
 
@@ -256,6 +265,33 @@ test.describe('a four gigabyte server and the heavy fixture', () => {
     origin = await startRestartableStack({
       port: RestartablePort.LocalPreview,
       overrides: { MEMORY_LIMIT_MEGABYTES: String(FOUR_GIGABYTES) },
+    });
+  });
+
+  test.afterAll(async () => {
+    await stopRestartableStack();
+  });
+
+  test('cannot hold the document by any path, so the refusal names the largest size and offers no device', async ({ browser }) => {
+    const ana = await signedInContext({ browser, user: DEMO_USERS[0]!, origin });
+    await uploadThroughTheDialog({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
+    const roomHeapMegabytes = roomHeapBudgetMegabytes({
+      memoryLimitMegabytes: FOUR_GIGABYTES,
+      serverHeapMegabytes: serverHeapMegabytesOf(FOUR_GIGABYTES),
+    })!;
+    await expect(ana.page.getByRole('alert')).toHaveText(roomHoldShortMessage(largestHoldableMegabytes(roomHeapMegabytes)));
+    await expect(ana.page.getByRole('button', { name: DEVICE_OFFER_LABEL })).toHaveCount(0);
+  });
+});
+
+test.describe('a six gigabyte server and the heavy fixture', () => {
+  test.describe.configure({ mode: 'serial' });
+  let origin: string;
+
+  test.beforeAll(async () => {
+    origin = await startRestartableStack({
+      port: RestartablePort.LocalPreview,
+      overrides: { MEMORY_LIMIT_MEGABYTES: String(SIX_GIGABYTES) },
     });
   });
 

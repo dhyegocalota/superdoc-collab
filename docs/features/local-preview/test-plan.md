@@ -10,19 +10,19 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Unit
 
-- [ ] `local-file-store.test.ts` — keep then take returns the file; discard removes it; a second document does not see it
-- [ ] `use-local-preview.test.tsx` — Ready drops the file; Failed drops the file; no kept file returns null
-- [ ] `device-guard.test.ts` — viewport narrow: refused with the viewport reason; `deviceMemory` 2: refused with the memory reason; `deviceMemory` absent and wide: allowed; `deviceMemory` 4: allowed
-- [ ] `preview-open-view.test.ts` — zero pages: no pages part; 123 pages: "123 so far"; the server detail follows; the device owner name appears for joiners
-- [ ] `local-preview.test.tsx` — mounts a viewing-mode SuperDoc with the kept file, shows the badge, hides the panel after the first paragraph
-- [ ] `use-opened-document.test.tsx` — a Create answer is Ready; a Join answer Preparing is Waiting
-- [ ] `use-upload-document.test.tsx` — success keeps the file under the new id before navigating; 413 with `canPrepareOnDevice` exposes the offer; accepting it re-sends with `preparation=device`; a 413 without it exposes no offer
-- [ ] `room-bootstrap.test.ts` — a second claim from another tab is refused while the first has a live socket; a failed or expired job is not claimable; a non-owner claim returns null; a claim after Ready returns null; `deviceClosed` with the current attempt fails the job; with a stale attempt does nothing; `ready` clears the attempt of a device job; `received` raises `done` for the claimed attempt
-- [ ] `collaboration-runtime.test.ts` — the owner of an uncommitted device job gets Create; another member gets Join; after the commit everyone gets Join
-- [ ] `collaboration-server.test.ts` — a claimed member socket writes and commits; after the commit its next update is logged; a stale claimed socket is closed and its update is dropped
-- [ ] `documents-routes.test.ts` — guard refusal answers 413 with `canPrepareOnDevice: true`; the same upload with `preparation=device` answers 201 and registers a device job without queuing a bootstrap; a small file with `preparation=device` is prepared by the server
-- [ ] Edge: `preparation=device` with a value outside the enum — expected: 400, nothing stored
-- [ ] Edge: a reader or editor opening a device document — expected: Join, never Create
+- [x] `local-file-store.test.ts` — keep then take returns the file; discard removes it; a second document does not see it — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `use-local-preview.test.tsx` — Ready drops the file; Failed drops the file; no kept file returns null — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `device-guard.test.ts` — viewport narrow: refused with the viewport reason; `deviceMemory` 2: refused with the memory reason; `deviceMemory` absent and wide: allowed; `deviceMemory` 4: allowed — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `preview-open-view.test.ts` — zero pages: no pages part; 123 pages: "123 so far"; the server detail follows; the device owner name appears for joiners — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `local-preview.test.tsx` — mounts a viewing-mode SuperDoc with the kept file, shows the badge, hides the panel after the first paragraph — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `use-opened-document.test.tsx` — a Create answer is Ready; a Join answer Preparing is Waiting — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `use-upload-document.test.tsx` — success keeps the file under the new id before navigating; 413 with `canPrepareOnDevice` exposes the offer; accepting it re-sends with `preparation=device`; a 413 without it exposes no offer — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `room-bootstrap.test.ts` — a second claim from another tab is refused while the first has a live socket; a failed or expired job is not claimable; a non-owner claim returns null; a claim after Ready returns null; `deviceClosed` with the current attempt fails the job; with a stale attempt does nothing; `ready` clears the attempt of a device job; `received` raises `done` for the claimed attempt — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `collaboration-runtime.test.ts` — the owner of an uncommitted device job gets Create; another member gets Join; after the commit everyone gets Join — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `collaboration-server.test.ts` — a claimed member socket writes and commits; after the commit its next update is logged; a stale claimed socket is closed and its update is dropped — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] `documents-routes.test.ts` — guard refusal answers 413 with `canPrepareOnDevice: true`; the same upload with `preparation=device` answers 201 and registers a device job without queuing a bootstrap; a small file with `preparation=device` is prepared by the server — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] Edge: `preparation=device` with a value outside the enum — expected: 400, nothing stored — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
+- [x] Edge: a reader or editor opening a device document — expected: Join, never Create — evidence: unit runs at 902bbcb6, server 551 passed (collaboration, documents, http), web 611 passed (local-preview, documents, editor, open-progress), types 80 passed
 
 ## E2E (Playwright specs)
 
@@ -34,7 +34,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [ ] Happy path: upload the brief; expected: preview within about 3 s, badge, then the live editor with the same paragraphs
 - [ ] Heavy fixture on the 8 GB local server: expected: preview in about the old 42 s, counter ticking, tab responsive (scroll and click answer)
-- [ ] Heavy fixture on a scripted 4 GB limit: expected: the 413 message with the button, then the document opens from the device
+- [ ] Heavy fixture on a 4 GB stack (heap 1638 MB): expected: the 413 with the largest size and no device button; on a 6 GB stack (heap 2457 MB): the 413 with the button, then the document opens from the device
 - [ ] Rejected input: a narrow viewport (375 px) on the refused upload; expected: no button, the viewport reason
 - [ ] Browser Back mid-preview; expected: the documents list, the kept file dropped, the server preparation unaffected
 - [ ] Reload mid-preview; expected: the waiting page, no preview

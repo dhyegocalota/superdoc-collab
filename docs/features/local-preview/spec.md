@@ -19,7 +19,7 @@ SuperDoc v2 runs its document runtime in a worker of its own: `Config.workerUrls
 | Goal | Rule |
 |------|------|
 | Local preview | After a successful upload the home keeps the `File` in memory, keyed by the new document id, and navigates. While the open answer is Queued or Preparing and a kept file exists, the editor page mounts a read-only SuperDoc built from it and a badge "Preview · the shared copy is being prepared". |
-| Swap | When the open answer turns Ready the page mounts the live editor, the preview is destroyed and the file is dropped. No reload, no unsaved edits (the preview is read-only). A failed preparation drops the file and shows the existing failure card. |
+| Swap | When the open answer turns Ready the page mounts the live editor, the preview is destroyed and the file is dropped. No reload, no unsaved edits (the preview is read-only). The live editor opens at the top of the document: the preview's scroll position is not carried over. A failed preparation drops the file and shows the existing failure card. |
 | Progress | The panel's Preparing stage also reports the preview: `Opening a preview on this device · N pages so far · <server detail>`. The elapsed counter keeps ticking while the preview converts. The panel hides when the preview paints its first paragraph; the badge stays until the swap. |
 | Only the uploader | The kept file lives in the uploading tab's memory. A reload, another tab or another person sees the waiting page of [open-progress](../open-progress/spec.md). |
 | Device source | When `POST /api/documents` answers 413 for the memory guard, the body carries `canPrepareOnDevice: true`. The upload surfaces (dialog, drop zone, home) show the server's message and a button "Prepare on this device". |
@@ -70,8 +70,11 @@ editor page, device job, owner
 | The server fails the preparation | Existing failure card; kept file dropped |
 | The tab reloads mid-wait | The file is gone; the waiting page shows. The server preparation is unaffected |
 | The device guard refuses | The upload message stays, the button is replaced by the reason |
-| The creator's device closes mid-stream | Job Failed; joiners see the failure card; the owner's next open re-claims and converts again from the stored file |
-| A second owner tab opens | Its claim wins; the first socket's writes are dropped by the fence |
+| The creator's device closes mid-stream | Job Failed; everyone, owner included, sees the failure card; a reopen after the retry cooldown registers a fresh device job |
+| A second owner tab opens | Its socket is refused and its open answer is Join (the waiting state); the claiming tab keeps writing |
+| The owner opens a pending device job from a device that fails the guard | The page shows the guard's reason and Back, mounts no editor and converts nothing |
+| The heap cannot hold the room the device would build | The 413 says the server cannot hold a document this large at its current memory and names the largest size; no device button; a `preparation=device` re-send is refused the same way |
+| A device upload | Skips the lane refusals (queue full, busy), because it never enters the lane; the heavy room check still applies |
 | A forged `preparation=device` on a file the server can hold | Ignored: the server prepares it |
 
 ## Measured (2026-10-20)
@@ -85,6 +88,14 @@ Laptop, local stack, headless Chromium, one run each (`e2e/local-preview.spec.ts
 | Longest stall of a 100 ms heartbeat in the tab until that first paragraph | not applicable | not applicable | 0.5 to 0.7 s, asserted under 5 s |
 | Longest stall of the heartbeat while the heavy preview lays out the rest, until the swap | not applicable | not applicable | 2.1 to 5.1 s while other lanes loaded the machine, asserted under 10 s |
 | Distinct lines the panel showed before the first paragraph (the elapsed counter ticking) | not applicable | not applicable | 6 to 8 |
+
+Memory arithmetic for the heavy fixture (about 10 MB of document XML, estimated room heap 759 MB). The room heap budget is the smaller of the container budget (limit minus 512 MB reserve minus 2300 MB conversion) and the server heap (40 percent of the limit, as the image entrypoint sets it, minus 100 MB baseline minus 900 MB load spike); the heavy share of it is 75 percent.
+
+| Memory limit | Server heap | Room heap budget | Heavy share | Heavy fixture |
+|--------------|-------------|------------------|-------------|---------------|
+| 4 GB | 1638 MB | 638 MB | 478 MB | Not openable by any path: the server cannot prepare it and the heap cannot hold the room a device would build; needs 8 GB |
+| 6 GB | 2457 MB | 1457 MB | 1093 MB | Refused by the memory guard, held by the heap: prepared on the owner's device |
+| 8 GB | 3276 MB | 2276 MB | 1707 MB | Prepared by the server |
 
 The preview paints the first pages while SuperDoc keeps laying out, which is why it beats the 42 s of the old creator: that conversion produced the whole Yjs state before anything was shown. The shared copy is unchanged: ready about 40 s after the upload and about 13 s more to its first paragraph for a page opened after.
 

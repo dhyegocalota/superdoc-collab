@@ -23,7 +23,7 @@ export type DocumentRuntime = {
   bootstrapRoom: (documentId: string) => BootstrapProgress;
   bootstrapBlankRoom: (documentId: string) => BootstrapProgress;
   isPreparedOnDevice: (documentId: string) => boolean;
-  reopenDeviceJob: (parameters: { documentId: string; userId: string }) => void;
+  reopenDeviceJob: (parameters: { documentId: string; userId: string }) => boolean;
   isDeviceCreator: (parameters: { documentId: string; userId: string; tabId: string | null }) => boolean;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
   isBootstrapRunningFor: (parameters: { ownerUserId: string; documentXmlBytes: number }) => boolean;
@@ -83,7 +83,10 @@ export function createCollaborationRuntime({
     bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
     isPreparedOnDevice: (documentId) => roomBootstrap.isDeviceJob(documentId),
-    reopenDeviceJob: (parameters) => roomBootstrap.reopenDevice(parameters),
+    reopenDeviceJob: (parameters) => {
+      roomBootstrap.reopenDevice(parameters);
+      return false;
+    },
     isDeviceCreator: (parameters) => roomBootstrap.isDeviceCreator(parameters),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     isBootstrapRunningFor: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.isRunningFor({ ownerId: ownerUserId, documentXmlBytes }),

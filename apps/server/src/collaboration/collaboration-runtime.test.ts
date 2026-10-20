@@ -208,3 +208,22 @@ test('the runtime reports a device preparation and its creator from the registry
     runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR, tabId: null }),
   ]).toEqual([true, false]);
 });
+
+test('a device job is reopened only once the collaboration server no longer holds its room', () => {
+  const held = fakeRoomBootstrap();
+  const isHeld = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, roomBootstrap: held }).reopenDeviceJob({
+    documentId: DOCUMENT_ID,
+    userId: FIRST_EDITOR,
+  });
+  const released = fakeRoomBootstrap();
+  const isReleasedHeld = runtimeWith({ rooms: {}, roomBootstrap: released }).reopenDeviceJob({
+    documentId: DOCUMENT_ID,
+    userId: FIRST_EDITOR,
+  });
+  expect([isHeld, held.reopenDevice.mock.calls.length, isReleasedHeld, released.reopenDevice.mock.calls.length]).toEqual([
+    true,
+    0,
+    false,
+    1,
+  ]);
+});

@@ -1,4 +1,5 @@
-import { BootstrapStage, SECOND_MS, type BootstrapProgress } from '@superdoc-collab/types';
+import { BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
+import type { BootstrapReading } from '@/features/editor/bootstrap-reading';
 import {
   bytesProgressDetail,
   convertingDetail,
@@ -44,9 +45,11 @@ function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number |
 export function preparingView({
   bootstrap,
   elapsedSeconds,
+  startedAt,
 }: {
-  bootstrap: BootstrapProgress | null;
+  bootstrap: BootstrapReading | null;
   elapsedSeconds: number;
+  startedAt: number;
 }): OpenProgressView {
   const stage = OpenStage.Preparing;
   const elapsed = elapsedLabel(elapsedSeconds);

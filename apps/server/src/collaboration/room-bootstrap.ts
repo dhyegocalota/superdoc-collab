@@ -244,6 +244,13 @@ export class RoomBootstrap {
     return progress;
   }
 
+  requestOnDevice(documentId: string): BootstrapProgress {
+    this.expireDevice(documentId);
+    const answered = this.answerWithoutStarting(documentId);
+    if (answered !== null) return answered;
+    return this.registerDevice(documentId);
+  }
+
   requestBlank(documentId: string): BootstrapProgress {
     const answered = this.answerWithoutStarting(documentId);
     if (answered !== null) return answered;

@@ -11,6 +11,7 @@ import {
   DEVICE_JOB_LIFETIME_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
+  DEVICE_MS_PER_MEGABYTE,
 } from '@superdoc-collab/types';
 import { afterEach, expect, test, vi } from 'vitest';
 import { BOOTSTRAP_FAILED_MESSAGE, BootstrapInterruptedError, type BootstrapRequest } from '../history/projection-messages';
@@ -23,6 +24,7 @@ const FILE_BYTES = 9_500_000;
 const STATE_BYTES = 36_600_000;
 const ESTIMATED_BYTES = FILE_BYTES * BOOTSTRAP_STATE_BYTES_RATIO;
 const ESTIMATED_MS = (FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE;
+const DEVICE_ESTIMATED_MS = (FILE_BYTES / BYTES_PER_MEGABYTE) * DEVICE_MS_PER_MEGABYTE;
 const FRAME_BYTES = 1000;
 const URL = 'ws://127.0.0.1:4000/collaboration/bootstrap';
 
@@ -670,7 +672,25 @@ test('a document the server cannot hold is prepared on the device of its owner a
     done: 0,
     total: ESTIMATED_BYTES,
     stateBytes: null,
-    estimatedMs: ESTIMATED_MS,
+    estimatedMs: DEVICE_ESTIMATED_MS,
+    documentXmlBytes: FILE_BYTES,
+    preparingElapsedMs: 0,
+    queuePosition: null,
+    queueWaitMs: null,
+  });
+  await Promise.resolve();
+  expect(pending).toHaveLength(0);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
+});
+
+test('a document the server could hold is prepared on the device when the device is asked for and never queued', async () => {
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => 1_000_000 });
+  expect(bootstrap.requestOnDevice(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Preparing,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: DEVICE_ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: 0,
     queuePosition: null,

@@ -46,10 +46,7 @@
       "indexes": {
         "agent_actions_by_document": {
           "name": "agent_actions_by_document",
-          "columns": [
-            "document_name",
-            "created_at"
-          ],
+          "columns": ["document_name", "created_at"],
           "isUnique": false
         }
       },
@@ -102,10 +99,7 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "client_identities_document_name_yjs_client_id_pk": {
-          "columns": [
-            "document_name",
-            "yjs_client_id"
-          ],
+          "columns": ["document_name", "yjs_client_id"],
           "name": "client_identities_document_name_yjs_client_id_pk"
         }
       },
@@ -141,10 +135,7 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "snapshots_document_name_sequence_pk": {
-          "columns": [
-            "document_name",
-            "sequence"
-          ],
+          "columns": ["document_name", "sequence"],
           "name": "snapshots_document_name_sequence_pk"
         }
       },
@@ -208,10 +199,7 @@
       "indexes": {
         "updates_by_document": {
           "name": "updates_by_document",
-          "columns": [
-            "document_name",
-            "sequence"
-          ],
+          "columns": ["document_name", "sequence"],
           "isUnique": false
         }
       },

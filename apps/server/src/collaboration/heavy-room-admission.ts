@@ -1,6 +1,6 @@
-import { BOOTSTRAP_STATE_BYTES_RATIO, isHeavyRoomDocument } from '@superdoc-collab/types';
+import { BOOTSTRAP_STATE_BYTES_RATIO, HeavyRoomsRefusal, isHeavyRoomDocument } from '@superdoc-collab/types';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
-import { ROOM_UPLOAD_RESERVATION_TTL_MS, type RoomMemoryRelease } from './room-memory-release';
+import type { RoomMemoryRelease } from './room-memory-release';
 
 type Seat = { documentId: string; userId: string };
 type HeavyPlace = { documentName: string; estimatedStateBytes: number; userId: string };
@@ -9,7 +9,9 @@ export type HeavyRoomAdmission = {
   admits: (seat: Seat) => boolean;
   admitsDevice: (seat: Seat) => boolean;
   fits: (seat: Seat) => boolean;
+  refusalOf: (seat: Seat) => HeavyRoomsRefusal;
   reserveForUpload: (seat: Seat) => void;
+  releaseUpload: (documentId: string) => void;
   hasHeadroomFor: (parameters: { documentXmlBytes: number }) => boolean;
 };
 
@@ -51,10 +53,17 @@ export function createHeavyRoomAdmission({
       if (place === null) return true;
       return roomMemory.fits(place);
     },
+    refusalOf({ userId }) {
+      if (roomMemory.holdsMaximum(userId)) return HeavyRoomsRefusal.UserCap;
+      return HeavyRoomsRefusal.Full;
+    },
     reserveForUpload(seat) {
       const place = heavyPlaceOf(seat);
       if (place === null) return;
-      roomMemory.admit({ ...place, ttlMs: ROOM_UPLOAD_RESERVATION_TTL_MS });
+      roomMemory.reserveForUpload(place);
+    },
+    releaseUpload(documentId) {
+      roomMemory.unreserved(`${SUPERDOC_ROOM_PREFIX}${documentId}`);
     },
     hasHeadroomFor({ documentXmlBytes }) {
       if (!isHeavyRoomDocument(documentXmlBytes)) return true;

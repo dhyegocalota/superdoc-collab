@@ -102,18 +102,12 @@
       "indexes": {
         "edit_events_by_document": {
           "name": "edit_events_by_document",
-          "columns": [
-            "document_name",
-            "sequence"
-          ],
+          "columns": ["document_name", "sequence"],
           "isUnique": false
         },
         "edit_events_by_key": {
           "name": "edit_events_by_key",
-          "columns": [
-            "document_name",
-            "event_key"
-          ],
+          "columns": ["document_name", "event_key"],
           "isUnique": true
         }
       },

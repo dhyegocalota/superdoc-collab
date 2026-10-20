@@ -97,6 +97,14 @@ export function bootstrapBusyMessage(waitMs: number): string {
 export const HEAVY_ROOMS_RETRY_AFTER_MS = MINUTE_MS;
 export const HEAVY_ROOMS_FULL_CLOSE_CODE = 4503;
 export const HEAVY_ROOMS_FULL_REASON = 'Heavy rooms full';
+export const HEAVY_ROOMS_USER_CAP_REASON = 'Heavy rooms user cap';
+export const HEAVY_ROOMS_USER_CAP_CLOSE_CODE = 4504;
+export const HEAVY_ROOMS_USER_CAP_MESSAGE = `You already have ${MAX_HEAVY_ROOMS_PER_USER} large documents open. Close one to open another.`;
+export enum HeavyRoomsRefusal {
+  Full = 'full',
+  UserCap = 'user-cap',
+}
+export const HEAVY_ROOMS_FULL_SHORT_MESSAGE = 'Too many large documents are open.';
 export const HEAVY_ROOMS_FULL_MESSAGE = 'The server is holding as many large documents as it can; try again in a few minutes';
 export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -110,7 +118,7 @@ export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUMENT_XML_MEGABYTES} MB of text and layout cannot be opened.`;
 export const INVALID_PREPARATION_MESSAGE = 'The preparation source is not valid.';
 export const UPLOAD_RATE_LIMITED_MESSAGE = 'Too many uploads in a minute';
-export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'Another document of yours is still waiting to be prepared';
+export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'You already have a document being prepared and another waiting. Try again when one finishes.';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';

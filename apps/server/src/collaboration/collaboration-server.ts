@@ -2,6 +2,7 @@ import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
 import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
+  HeavyRoomsRefusal,
   ClientActor,
   DocumentRole,
   isTabId,
@@ -36,7 +37,7 @@ import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
 import type { HeavyRoomAdmission } from './heavy-room-admission';
-import { HeavyRoomsFullError } from './heavy-rooms-full-error';
+import { heavyRoomsErrorOf } from './heavy-rooms-full-error';
 import { createProcessRoomMemoryRelease, type RoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade, isBootstrapUpgrade } from './upgrade-path';
@@ -143,7 +144,7 @@ export function createCollaborationServer({
   onLogged,
   onStored,
   roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, measureRoom: () => null }),
-  heavyRooms = { admits: () => true, admitsDevice: () => true },
+  heavyRooms = { admits: () => true, admitsDevice: () => true, refusalOf: () => HeavyRoomsRefusal.Full },
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -154,7 +155,7 @@ export function createCollaborationServer({
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
   roomMemory?: RoomMemoryRelease;
-  heavyRooms?: Pick<HeavyRoomAdmission, 'admits' | 'admitsDevice'>;
+  heavyRooms?: Pick<HeavyRoomAdmission, 'admits' | 'admitsDevice' | 'refusalOf'>;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
@@ -184,12 +185,12 @@ export function createCollaborationServer({
     if (heavyRooms.admitsDevice({ documentId, userId })) return;
     console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
     roomBootstrap.deviceClosed({ documentId, attempt });
-    throw new HeavyRoomsFullError();
+    throw heavyRoomsErrorOf(heavyRooms.refusalOf({ documentId, userId }));
   }
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
     if (!heavyRooms.admits({ documentId, userId })) {
       console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
-      throw new HeavyRoomsFullError();
+      throw heavyRoomsErrorOf(heavyRooms.refusalOf({ documentId, userId }));
     }
     const answer = roomModes.resolve({ documentId, userId });
     if (answer.isSpent) {

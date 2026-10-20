@@ -1,6 +1,7 @@
 import {
   BOOTSTRAP_COMMIT_GRACE_MS,
   BOOTSTRAP_INTERRUPTED_RETRIES,
+  BOOTSTRAP_MAX_RETRIES,
   BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_PROGRESS_ENTRIES,
   BOOTSTRAP_RATE_CLAMP_MULTIPLE,
@@ -88,6 +89,7 @@ export class RoomBootstrap {
   private readonly running: Record<BootstrapLane, string | null> = { [BootstrapLane.Light]: null, [BootstrapLane.Heavy]: null };
   private readonly conversionRates = new Map<string | null, number>();
   private readonly commitWaiters = new Map<string, () => void>();
+  private readonly retries = new Map<string, number>();
   private blankState: Uint8Array | null = null;
   private blankConverting: string | null = null;
   private blankWaiting: string[] = [];
@@ -100,6 +102,8 @@ export class RoomBootstrap {
   private readonly commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
   private readonly isPreparableByServer: (documentId: string) => boolean;
   private readonly now: () => number;
+  private readonly onEnded: (documentId: string) => void;
+  private readonly spendRetry: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
 
   constructor({
     run,
@@ -109,6 +113,8 @@ export class RoomBootstrap {
     documentXmlBytesOf,
     filePathOf,
     commitBlank,
+    onEnded,
+    spendRetry,
     isPreparableByServer,
     now = () => Date.now(),
   }: {
@@ -119,6 +125,8 @@ export class RoomBootstrap {
     documentXmlBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
     commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+    onEnded: (documentId: string) => void;
+    spendRetry: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
     isPreparableByServer: (documentId: string) => boolean;
     now?: () => number;
   }) {
@@ -131,6 +139,8 @@ export class RoomBootstrap {
     this.commitBlank = commitBlank;
     this.isPreparableByServer = isPreparableByServer;
     this.now = now;
+    this.onEnded = onEnded;
+    this.spendRetry = spendRetry;
   }
 
   isDevicePending(documentId: string): boolean {
@@ -203,8 +213,8 @@ export class RoomBootstrap {
 
   request(documentId: string): BootstrapProgress {
     this.expireDevice(documentId);
-    const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return this.answerOf({ documentId, job: existing });
+    const answered = this.answerWithoutStarting(documentId);
+    if (answered !== null) return answered;
     if (!this.isPreparableByServer(documentId)) return this.registerDevice(documentId);
     const progress = this.register(documentId);
     this.enqueue(documentId);
@@ -212,8 +222,8 @@ export class RoomBootstrap {
   }
 
   requestBlank(documentId: string): BootstrapProgress {
-    const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return this.answerOf({ documentId, job: existing });
+    const answered = this.answerWithoutStarting(documentId);
+    if (answered !== null) return answered;
     const ownerId = this.ownerOf(documentId);
     if (this.blankState !== null && ownerId !== null) return this.commitFromState({ documentId, ownerId, state: this.blankState });
     if (this.blankConverting === null) {
@@ -280,6 +290,7 @@ export class RoomBootstrap {
     const total = this.totalOf(documentId);
     const attempt = job === null ? null : job.attempt;
     this.recordConversion(documentId);
+    this.retries.delete(documentId);
     this.jobs.set({
       key: documentId,
       value: {
@@ -306,10 +317,29 @@ export class RoomBootstrap {
   }
 
   forget(documentId: string): void {
+    this.onEnded(documentId);
+    this.retries.delete(documentId);
     this.blankWaiting = this.blankWaiting.filter((waitingId) => waitingId !== documentId);
     if (this.blankConverting === documentId) this.releaseBlankWaiters();
     this.jobs.delete(documentId);
     Object.values(this.queues).forEach((queue) => queue.remove(documentId));
+  }
+
+  private answerWithoutStarting(documentId: string): BootstrapProgress | null {
+    const existing = this.jobs.peek(documentId);
+    if (existing === null) return null;
+    if (this.isRetryable(existing) && this.spendRetryOf({ documentId, job: existing })) return null;
+    return this.answerOf({ documentId, job: existing });
+  }
+
+  private spendRetryOf({ documentId, job }: { documentId: string; job: BootstrapJob }): boolean {
+    const attempts = this.retries.get(documentId);
+    const retried = attempts === undefined ? 0 : attempts;
+    if (retried >= BOOTSTRAP_MAX_RETRIES) return false;
+    const isAllowed = this.spendRetry({ ownerId: this.ownerOf(documentId), documentXmlBytes: job.progress.documentXmlBytes });
+    if (!isAllowed) return false;
+    this.retries.set(documentId, retried + 1);
+    return true;
   }
 
   private register(documentId: string): BootstrapProgress {
@@ -496,6 +526,7 @@ export class RoomBootstrap {
   }
 
   private endAttempt(documentId: string): void {
+    this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({ key: documentId, value: { ...job, attempt: null } });
@@ -521,6 +552,7 @@ export class RoomBootstrap {
   }
 
   private fail({ documentId, error }: { documentId: string; error: unknown }): void {
+    this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({

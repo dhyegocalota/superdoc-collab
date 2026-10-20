@@ -10,6 +10,8 @@ import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, Upd
 import * as Y from 'yjs';
 import {
   ApiPath,
+  BootstrapLane,
+  bootstrapLaneOf,
   ClientActor,
   HOUR_MS,
   HttpStatus,
@@ -259,6 +261,7 @@ function createServices({
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
   const documentXmlBytesOf = cachedDocumentXmlBytes((documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))));
+  const heavyUploadBudget = new KeyedSlidingWindow({ windowMs: HOUR_MS, maxEvents: environment.heavyConversionsPerHour, now });
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
@@ -266,6 +269,13 @@ function createServices({
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
     ownerOf: (documentId) => documents.ownerOf(documentId),
     documentXmlBytesOf,
+    onEnded: (documentId) => heavyRooms.releaseUpload(documentId),
+    spendRetry: ({ ownerId, documentXmlBytes }) => {
+      if (ownerId === null || bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return true;
+      if (heavyUploadBudget.waitMs(ownerId) !== null) return false;
+      heavyUploadBudget.record(ownerId);
+      return true;
+    },
     isPreparableByServer: (documentId) => {
       const { memoryLimitMegabytes } = environment;
       if (memoryLimitMegabytes === null) return true;
@@ -353,7 +363,7 @@ function createServices({
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
-    heavyUploadBudget: new KeyedSlidingWindow({ windowMs: HOUR_MS, maxEvents: environment.heavyConversionsPerHour, now }),
+    heavyUploadBudget,
     timelinePipelines,
     insights,
     versions,

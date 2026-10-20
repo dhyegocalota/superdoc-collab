@@ -26,7 +26,7 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInOwner, signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
-import { HEAVY_ROOMS_FULL_REASON } from '@superdoc-collab/types';
+import { HEAVY_ROOMS_FULL_REASON, HEAVY_ROOMS_USER_CAP_REASON, HeavyRoomsRefusal } from '@superdoc-collab/types';
 import {
   createCollaborationServer,
   HEAVY_ROOMS_REFUSAL_LOG,
@@ -417,6 +417,18 @@ describe('heavy room ceiling', () => {
     expect(warn).toHaveBeenCalledWith(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
     refuses.mockReturnValue(true);
     (await connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).close();
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('a socket refused for the share of the user is denied with the reason of that share, not the one of the budget', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
+    vi.spyOn(server.services.heavyRooms, 'admits').mockReturnValue(false);
+    vi.spyOn(server.services.heavyRooms, 'refusalOf').mockReturnValue(HeavyRoomsRefusal.UserCap);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toMatchObject({
+      reason: HEAVY_ROOMS_USER_CAP_REASON,
+    });
     warn.mockRestore();
     await server.stop();
   });

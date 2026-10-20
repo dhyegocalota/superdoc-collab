@@ -30,6 +30,7 @@ export const BOOTSTRAP_PROGRESS_ENTRIES = 1024;
 export const BOOTSTRAP_COMMIT_GRACE_MS = 5 * SECOND_MS;
 export const BOOTSTRAP_INTERRUPTED_RETRIES = 1;
 export const BOOTSTRAP_RETRY_COOLDOWN_MS = 30 * SECOND_MS;
+export const BOOTSTRAP_MAX_RETRIES = 3;
 export const OPEN_UNCOMMITTED_PER_MINUTE = 30;
 export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 // NB ADR 0040: update frames peak near 264 per second at fifty keys per second, so 1000 leaves room and still closes a flood.

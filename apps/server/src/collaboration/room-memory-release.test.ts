@@ -10,6 +10,7 @@ import {
   createRoomMemoryRelease,
   ROOM_MEMORY_RELEASE_DELAY_MS,
   ROOM_MEMORY_RELEASED_MESSAGE,
+  ROOM_REMEASURE_COOLDOWN_MS,
   ROOM_RESERVATION_TTL_MS,
   ROOM_UPLOAD_RESERVATION_TTL_MS,
 } from './room-memory-release';
@@ -258,7 +259,7 @@ test('an admitted room holds its estimate against the next opener until it loads
 test('a reservation made for an upload outlives a socket reservation, up to its own time limit', () => {
   const clock = { currentMs: 0 };
   const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: budgetForHeavyRooms(1), clock: () => clock.currentMs });
-  expect(release.admit({ ...admission(HEAVY_ROOM), ttlMs: ROOM_UPLOAD_RESERVATION_TTL_MS })).toBe(true);
+  expect(release.reserveForUpload(admission(HEAVY_ROOM))).toBe(true);
   clock.currentMs += ROOM_RESERVATION_TTL_MS;
   expect(release.admit(admission(OTHER_HEAVY_ROOM, BRUNO))).toBe(false);
   clock.currentMs += ROOM_UPLOAD_RESERVATION_TTL_MS;
@@ -361,4 +362,55 @@ test('fitting measures a room that received updates when short, and not otherwis
   release.grew({ documentName: HEAVY_ROOM, bytes: 1 });
   expect(release.fits(admission(OTHER_HEAVY_ROOM, BRUNO))).toBe(true);
   expect(measureRoom).toHaveBeenCalledTimes(1);
+});
+
+test('one owner holds at most one reservation made for an upload, until its room loads or it is released', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: BIG_BUDGET_BYTES });
+  expect(release.reserveForUpload(admission(HEAVY_ROOM))).toBe(true);
+  expect(release.reserveForUpload(admission(OTHER_HEAVY_ROOM))).toBe(false);
+  expect(release.reserveForUpload(admission(OTHER_HEAVY_ROOM, BRUNO))).toBe(true);
+  release.loaded({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  expect(release.reserveForUpload(admission(THIRD_HEAVY_ROOM))).toBe(true);
+  expect(release.reserveForUpload(admission('fourth-room'))).toBe(false);
+  release.unreserved(THIRD_HEAVY_ROOM);
+  expect(release.reserveForUpload(admission('fourth-room'))).toBe(true);
+});
+
+test('releasing a reservation frees its heap, and leaves a loaded room alone', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: BIG_BUDGET_BYTES });
+  release.reserveForUpload(admission(HEAVY_ROOM));
+  release.reserveForUpload(admission(OTHER_HEAVY_ROOM, BRUNO));
+  release.loaded({ documentName: OTHER_HEAVY_ROOM, bytes: HEAVY_BYTES });
+  expect(release.roomsHeapBytes()).toBe(2 * HEAVY_HEAP_BYTES);
+  release.unreserved(HEAVY_ROOM);
+  release.unreserved(OTHER_HEAVY_ROOM);
+  expect(release.roomsHeapBytes()).toBe(HEAVY_HEAP_BYTES);
+});
+
+test('rooms are measured again at most once per cooldown, however many admissions are short', () => {
+  const clock = { currentMs: 0 };
+  const measureRoom = vi.fn(() => HEAVY_BYTES);
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: budgetForHeavyRooms(1), measureRoom, clock: () => clock.currentMs });
+  release.loaded({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  const probe = () => {
+    release.grew({ documentName: HEAVY_ROOM, bytes: 1 });
+    return release.fits(admission(OTHER_HEAVY_ROOM, BRUNO));
+  };
+  Array.from({ length: 5 }).forEach(probe);
+  expect(measureRoom).toHaveBeenCalledTimes(1);
+  clock.currentMs += ROOM_REMEASURE_COOLDOWN_MS;
+  probe();
+  expect(measureRoom).toHaveBeenCalledTimes(2);
+});
+
+test('a user holds the maximum of heavy rooms only while that many of their rooms are loaded or reserved', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: BIG_BUDGET_BYTES });
+  const rooms = Array.from({ length: MAX_HEAVY_ROOMS_PER_USER }, (_, index) => `held-${index}`);
+  rooms.slice(0, -1).forEach((documentName) => release.admit(admission(documentName)));
+  expect(release.holdsMaximum(ANA)).toBe(false);
+  release.admit(admission(rooms.at(-1)!));
+  expect(release.holdsMaximum(ANA)).toBe(true);
+  expect(release.holdsMaximum(BRUNO)).toBe(false);
+  release.unloaded({ documentName: rooms[0]!, isReloaded: () => false });
+  expect(release.holdsMaximum(ANA)).toBe(false);
 });

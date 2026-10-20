@@ -1,7 +1,10 @@
 import {
   BOOTSTRAP_MS_PER_MEGABYTE,
   BYTES_PER_MEGABYTE,
+  BOOTSTRAP_QUEUE_FULL_MESSAGE,
   HEAVY_ROOMS_FULL_MESSAGE,
+  HEAVY_ROOMS_USER_CAP_MESSAGE,
+  HeavyRoomsRefusal,
   HEAVY_ROOMS_RETRY_AFTER_MS,
   HOUR_MS,
   HttpStatus,
@@ -115,5 +118,45 @@ test('a stored upload reserves the place its room will need for its owner', asyn
   const [created] = await heavyUploadsOf({ server, user, count: 1 });
   const { id } = (await created!.json()) as DocumentSummary;
   expect(reserve).toHaveBeenCalledExactlyOnceWith({ documentId: id, userId: user.id });
+  await server.stop();
+});
+
+test('opening a document past the share of the user is 503 with its own sentence and no Retry-After, while the budget refusal keeps both', async () => {
+  const { server, owner } = await signedInOwner();
+  vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const heavy: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Heavy' })).json();
+  vi.spyOn(server.services.heavyRooms, 'fits').mockReturnValue(false);
+  const refusal = vi.spyOn(server.services.heavyRooms, 'refusalOf').mockReturnValue(HeavyRoomsRefusal.UserCap);
+  const capped = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: heavy.id }) });
+  expect([capped.status, await capped.json(), capped.headers.get(RETRY_AFTER_HEADER)]).toEqual([
+    HttpStatus.ServiceUnavailable,
+    { error: HEAVY_ROOMS_USER_CAP_MESSAGE },
+    null,
+  ]);
+  expect(refusal).toHaveBeenCalledWith({ documentId: heavy.id, userId: owner.id });
+  refusal.mockReturnValue(HeavyRoomsRefusal.Full);
+  const full = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: heavy.id }) });
+  expect([full.status, await full.json(), full.headers.get(RETRY_AFTER_HEADER)]).toEqual([
+    HttpStatus.ServiceUnavailable,
+    { error: HEAVY_ROOMS_FULL_MESSAGE },
+    String(HEAVY_ROOMS_RETRY_AFTER_MS / SECOND_MS),
+  ]);
+  await server.stop();
+});
+
+test('a second document waiting to be prepared is 429 with a sentence that says the first one is still in line', async () => {
+  const server = await startTestServer();
+  const user = await signedInUser({ server, name: 'Ana' });
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const [first, second, third] = [
+    await upload({ server, cookie: user.cookie, bytes }),
+    await upload({ server, cookie: user.cookie, bytes }),
+    await upload({ server, cookie: user.cookie, bytes }),
+  ];
+  expect([first.status, second.status, third.status]).toEqual([HttpStatus.Created, HttpStatus.Created, HttpStatus.TooManyRequests]);
+  expect(await third.json()).toEqual({ error: BOOTSTRAP_QUEUE_FULL_MESSAGE });
+  expect(BOOTSTRAP_QUEUE_FULL_MESSAGE).toContain('being prepared');
+  expect(BOOTSTRAP_QUEUE_FULL_MESSAGE).toContain('waiting');
   await server.stop();
 });

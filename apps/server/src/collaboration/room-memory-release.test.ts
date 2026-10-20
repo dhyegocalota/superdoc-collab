@@ -51,7 +51,7 @@ test('a heavy room that unloads gets one regular, synchronous collection once th
     readings: [RESIDENT_BEFORE_BYTES, RESIDENT_AFTER_BYTES],
     clock: () => times.shift() as number,
   });
-  release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
   await vi.advanceTimersByTimeAsync(ROOM_MEMORY_RELEASE_DELAY_MS - 1);
   expect(collectGarbage).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ test('a heavy room that unloads gets one regular, synchronous collection once th
 
 test('a small room that unloads while a heavy one is open collects nothing', async () => {
   const { collectGarbage, release } = releaseWith({ readings: [] });
-  release.observe({ documentName: SMALL_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES });
+  release.grew({ documentName: SMALL_ROOM, bytes: LARGE_ROOM_STATE_BYTES });
   release.unloaded({ documentName: SMALL_ROOM, isReloaded: () => false });
   await afterReleaseDelay();
   expect(collectGarbage).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ test('a second heavy unload inside the cooldown collects nothing', async () => {
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
   const { collectGarbage, release } = releaseWith({ readings: [1, 2] });
   [HEAVY_ROOM, OTHER_HEAVY_ROOM].forEach((documentName) => {
-    release.observe({ documentName, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
+    release.grew({ documentName, bytes: LARGE_ROOM_STATE_BYTES + 1 });
     release.unloaded({ documentName, isReloaded: () => false });
   });
   await afterReleaseDelay();
@@ -83,7 +83,7 @@ test('a second heavy unload inside the cooldown collects nothing', async () => {
 test('a room unloaded twice is collected for once', async () => {
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
   const { collectGarbage, release } = releaseWith({ readings: [1, 2] });
-  release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
   await afterReleaseDelay();
@@ -98,7 +98,7 @@ test('without an exposed collector nothing runs and nothing is logged', async ()
     cooldownMs: COOLDOWN_MS,
     now: () => 0,
   });
-  release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
   await afterReleaseDelay();
   expect(consoleInfo).not.toHaveBeenCalled();
@@ -108,11 +108,20 @@ test('without an exposed collector nothing runs and nothing is logged', async ()
 test('a room that is loaded again when the delay ends collects nothing and leaves the cooldown unspent', async () => {
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
   const { collectGarbage, release } = releaseWith({ readings: [1, 2] });
-  release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => true });
   await afterReleaseDelay();
   expect(collectGarbage).not.toHaveBeenCalled();
-  release.observe({ documentName: HEAVY_ROOM, stateBytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
+  await afterReleaseDelay();
+  expect(collectGarbage).toHaveBeenCalledOnce();
+});
+
+test('a room grown by several updates is heavy once their bytes pass the size', async () => {
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  const { collectGarbage, release } = releaseWith({ readings: [1, 2] });
+  [LARGE_ROOM_STATE_BYTES / 2, LARGE_ROOM_STATE_BYTES / 2, 1].forEach((bytes) => release.grew({ documentName: HEAVY_ROOM, bytes }));
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
   await afterReleaseDelay();
   expect(collectGarbage).toHaveBeenCalledOnce();

@@ -9,7 +9,7 @@ const RELEASE_COOLDOWN_KEY = 'process';
 export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavor: 'regular' }) => void;
 
 export type RoomMemoryRelease = {
-  observe: (room: { documentName: string; stateBytes: number }) => void;
+  grew: (room: { documentName: string; bytes: number }) => void;
   unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
 };
 
@@ -24,7 +24,7 @@ export function createRoomMemoryRelease({
   cooldownMs: number;
   now: () => number;
 }): RoomMemoryRelease {
-  const heavyRooms = new Set<string>();
+  const roomBytes = new Map<string, number>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
 
   function collect({ release, isReloaded }: { release: NonNullable<typeof collectGarbage>; isReloaded: () => boolean }): void {
@@ -39,12 +39,14 @@ export function createRoomMemoryRelease({
   }
 
   return {
-    observe({ documentName, stateBytes }) {
-      if (stateBytes > LARGE_ROOM_STATE_BYTES) heavyRooms.add(documentName);
+    grew() {
+      void roomBytes;
     },
     unloaded({ documentName, isReloaded }) {
-      const wasHeavy = heavyRooms.delete(documentName);
-      if (!wasHeavy || collectGarbage === null) return;
+      const bytes = roomBytes.get(documentName);
+      roomBytes.delete(documentName);
+      const isHeavy = bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
+      if (!isHeavy || collectGarbage === null) return;
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
   };

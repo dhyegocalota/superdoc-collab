@@ -187,15 +187,6 @@ export function createCollaborationServer({
   }
   return new Hocuspocus({
     quiet: true,
-    extensions: [
-      {
-        async beforeUnloadDocument({ instance, documentName }) {
-          const document = instance.documents.get(documentName);
-          if (!document) return;
-          roomMemory.observe({ documentName, stateBytes: Y.encodeStateAsUpdate(document).byteLength });
-        },
-      },
-    ],
     timeout: COLLABORATION_SOCKET_TIMEOUT_MS,
     debounce: STORE_DEBOUNCE_MS,
     maxDebounce: MAX_STORE_DEBOUNCE_MS,
@@ -243,7 +234,9 @@ export function createCollaborationServer({
       const documentId = requireDocumentId(documentName);
       if (!bootstrap.isCommitted(documentId)) return;
       const restored = materialize({ log: updateLog, documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER });
-      Y.applyUpdate(document, Y.encodeStateAsUpdate(restored), LOADING_ORIGIN);
+      const restoredState = Y.encodeStateAsUpdate(restored);
+      roomMemory.grew({ documentName, bytes: restoredState.byteLength });
+      Y.applyUpdate(document, restoredState, LOADING_ORIGIN);
     },
     async afterLoadDocument({ document, documentName }) {
       awarenessOwners.seed({ documentName, bindings: updateLog.clientIdentities(requireDocumentId(documentName)) });
@@ -269,6 +262,7 @@ export function createCollaborationServer({
       const { userId, documentId, actor, bootstrapAttempt } = connectionContext;
       if (!isWriteAllowed({ roomBootstrap, bootstrap, context: connectionContext, document }))
         return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
+      roomMemory.grew({ documentName: document.name, bytes: update.byteLength });
       const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });

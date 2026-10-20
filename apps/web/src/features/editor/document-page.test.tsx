@@ -120,6 +120,7 @@ vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
 
 const DOCUMENT_PATH = documentApiPath({ documentId: DOCUMENT_ID });
+const OPEN_PATH = `${DOCUMENT_PATH}?${TAB_QUERY_KEY}=${tabId()}`;
 const DOWNLOAD_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Download });
 const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members });
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
@@ -201,7 +202,8 @@ function mockDocumentApi({
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
     }
-    if (input === DOCUMENT_PATH) {
+    if (input === DOCUMENT_PATH && init?.method === HttpMethod.Delete) return new Response(null, { status: HttpStatus.NoContent });
+    if (input === OPEN_PATH) {
       const status = currentOpenStatus();
       openRequests += 1;
       const isReload = openRequests > 1;
@@ -286,7 +288,7 @@ test('a title rename never opens the document again, so the creator ticket stays
   await userEvent.click(await screen.findByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
   await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
   await screen.findByRole('button', { name: renameTitleLabel(RENAMED_TITLE) });
-  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
+  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === OPEN_PATH);
   expect(openRequests).toHaveLength(1);
 });
 

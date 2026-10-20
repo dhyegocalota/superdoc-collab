@@ -54,7 +54,8 @@ export function documentFileQueryKey({
 }
 
 export async function openDocument(documentId: string): Promise<OpenedDocument> {
-  const response = await apiGet(documentApiPath({ documentId }));
+  const query = new URLSearchParams({ [TAB_QUERY_KEY]: tabId() });
+  const response = await apiGet(`${documentApiPath({ documentId })}?${query}`);
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
   if (response.status === HttpStatus.ServiceUnavailable) {

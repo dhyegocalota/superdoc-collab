@@ -69,7 +69,8 @@ beforeEach(() => {
   vi.mocked(useRunHighlights).mockClear();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
-    if (input === documentApiPath({ documentId: DOCUMENT_ID })) return jsonResponse({ body: openedBody(), status: openedStatus });
+    if (String(input).startsWith(documentApiPath({ documentId: DOCUMENT_ID })))
+      return jsonResponse({ body: openedBody(), status: openedStatus });
     if (input === BLANK_DOCX_PATH) return new Response(new Uint8Array([1, 2, 3]));
     throw new Error(`unexpected request ${String(input)}`);
   });

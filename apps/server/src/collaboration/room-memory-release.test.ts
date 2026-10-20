@@ -72,7 +72,7 @@ afterEach(() => {
 
 test('a heavy room that unloads gets one regular, synchronous collection once the delay has passed, logged with the pause', async () => {
   const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-  const times = [0, 0, PAUSE_MS];
+  const times = [0, 0, 0, PAUSE_MS];
   const { collectGarbage, release } = releaseWith({
     readings: [RESIDENT_BEFORE_BYTES, RESIDENT_AFTER_BYTES],
     clock: () => times.shift() as number,
@@ -238,7 +238,7 @@ test('without a budget nothing is bounded, admitted rooms are not tracked and ev
   expect(release.hasHeadroomFor(HUGE_BYTES)).toBe(true);
 });
 
-const BYTES_BELOW_LARGE = LARGE_ROOM_STATE_BYTES - 5 * 1024 * 1024;
+const BYTES_BELOW_LARGE = LARGE_ROOM_STATE_BYTES - 7 * 1024 * 1024;
 const BIG_BUDGET_BYTES = 100 * HEAVY_HEAP_BYTES;
 
 test('one user may hold only so many heavy rooms, a room already held or loaded costs no place, and another user is unaffected', () => {
@@ -267,7 +267,12 @@ test('a reservation that expired no longer counts against the user', () => {
 test('at the budget the heavy rooms nobody edited for a minute are closed, then the opener is still refused until they unload', () => {
   const clock = { currentMs: 0 };
   const closeRoom = vi.fn();
-  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: 2 * HEAVY_HEAP_BYTES, clock: () => clock.currentMs, closeRoom });
+  const { release } = releaseWith({
+    readings: [],
+    roomHeapBudgetBytes: 2 * HEAVY_HEAP_BYTES + HEAP_PER_BYTE,
+    clock: () => clock.currentMs,
+    closeRoom,
+  });
   release.loaded({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
   release.loaded({ documentName: OTHER_HEAVY_ROOM, bytes: HEAVY_BYTES });
   clock.currentMs += HEAVY_ROOM_IDLE_MS - 1;

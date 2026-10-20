@@ -243,7 +243,7 @@ export function createCollaborationServer({
       if (!bootstrap.isCommitted(documentId)) return;
       const restored = materialize({ log: updateLog, documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER });
       const restoredState = Y.encodeStateAsUpdate(restored);
-      roomMemory.grew({ documentName, bytes: restoredState.byteLength });
+      roomMemory.loaded({ documentName, bytes: restoredState.byteLength });
       Y.applyUpdate(document, restoredState, LOADING_ORIGIN);
     },
     async afterLoadDocument({ document, documentName }) {
@@ -271,6 +271,9 @@ export function createCollaborationServer({
       if (!isWriteAllowed({ roomBootstrap, bootstrap, context: connectionContext, document }))
         return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
       roomMemory.grew({ documentName: document.name, bytes: update.byteLength });
+      if (roomMemory.isDueForMeasure(document.name)) {
+        roomMemory.measured({ documentName: document.name, bytes: Y.encodeStateAsUpdate(document).byteLength });
+      }
       const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isKnownCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });

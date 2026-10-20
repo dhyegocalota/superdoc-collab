@@ -704,38 +704,40 @@ function conversionsByOwner() {
     ownerOf: (documentId) => OWNERS_BY_PREFIX[documentId.split('-')[0]!]!,
     documentXmlBytesOf: () => OWNER_RATES_MEGABYTES * BYTES_PER_MEGABYTE,
   });
-  async function convert({ documentId, msPerMegabyte }: { documentId: string; msPerMegabyte: number }): Promise<void> {
+  async function convert({ documentId, msPerMegabyte }: { documentId: string; msPerMegabyte: number }): Promise<number> {
     const index = parts.pending.length;
-    parts.bootstrap.request(documentId);
+    const estimatedMs = parts.bootstrap.request(documentId).estimatedMs!;
     await vi.waitFor(() => expect(parts.pending).toHaveLength(index + 1));
     clock.currentMs += msPerMegabyte * OWNER_RATES_MEGABYTES;
     parts.bootstrap.ready({ documentId, stateBytes: STATE_BYTES });
     parts.pending[index]!.resolve();
     await vi.waitFor(() => expect(parts.bootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Ready));
+    return estimatedMs;
   }
   return { ...parts, convert };
 }
 
 const OWNERS_BY_PREFIX: Record<string, string> = { ana: ANA, bruno: BRUNO };
+const MEGABYTES_ESTIMATED = (msPerMegabyte: number) => msPerMegabyte * OWNER_RATES_MEGABYTES;
 
 test('one owner feeds the measured rate with one sample, their latest, so repeating conversions cannot drag the mean', async () => {
-  const { bootstrap, convert } = conversionsByOwner();
+  const { convert } = conversionsByOwner();
   await convert({ documentId: 'ana-1', msPerMegabyte: 2000 });
-  await convert({ documentId: 'ana-2', msPerMegabyte: 4000 });
-  expect(bootstrap.request('ana-3').estimatedMs).toBeCloseTo(4000 * OWNER_RATES_MEGABYTES);
-  await convert({ documentId: 'bruno-1', msPerMegabyte: 2000 });
-  expect(bootstrap.request('bruno-2').estimatedMs).toBeCloseTo(3000 * OWNER_RATES_MEGABYTES);
+  expect(await convert({ documentId: 'ana-2', msPerMegabyte: 4000 })).toBeCloseTo(MEGABYTES_ESTIMATED(2000));
+  expect(await convert({ documentId: 'ana-3', msPerMegabyte: 4000 })).toBeCloseTo(MEGABYTES_ESTIMATED(4000));
+  expect(await convert({ documentId: 'bruno-1', msPerMegabyte: 2000 })).toBeCloseTo(MEGABYTES_ESTIMATED(4000));
+  expect(await convert({ documentId: 'bruno-2', msPerMegabyte: 2000 })).toBeCloseTo(MEGABYTES_ESTIMATED(3000));
 });
 
 test('the measured rate stays within a small multiple of the seeded rate, however slow or fast a conversion was', async () => {
   const slow = conversionsByOwner();
   await slow.convert({ documentId: 'ana-1', msPerMegabyte: 100 * BOOTSTRAP_MS_PER_MEGABYTE });
-  expect(slow.bootstrap.request('bruno-1').estimatedMs).toBeCloseTo(
-    BOOTSTRAP_RATE_CLAMP_MULTIPLE * BOOTSTRAP_MS_PER_MEGABYTE * OWNER_RATES_MEGABYTES,
+  expect(await slow.convert({ documentId: 'bruno-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
+    MEGABYTES_ESTIMATED(BOOTSTRAP_RATE_CLAMP_MULTIPLE * BOOTSTRAP_MS_PER_MEGABYTE),
   );
   const fast = conversionsByOwner();
   await fast.convert({ documentId: 'ana-1', msPerMegabyte: 0 });
-  expect(fast.bootstrap.request('bruno-1').estimatedMs).toBeCloseTo(
-    (BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE) * OWNER_RATES_MEGABYTES,
+  expect(await fast.convert({ documentId: 'bruno-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
+    MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE),
   );
 });

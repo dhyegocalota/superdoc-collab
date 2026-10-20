@@ -1,7 +1,14 @@
-import { LARGE_ROOM_STATE_BYTES, MINUTE_MS, SECOND_MS } from '@superdoc-collab/types';
+import {
+  BYTES_PER_MEGABYTE,
+  HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE,
+  LARGE_ROOM_STATE_BYTES,
+  MINUTE_MS,
+  SECOND_MS,
+} from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 
 export const ROOM_MEMORY_RELEASE_DELAY_MS = SECOND_MS;
+export const ROOM_RESERVATION_TTL_MS = 30 * SECOND_MS;
 export const ROOM_MEMORY_RELEASED_MESSAGE = 'Released the memory of a heavy room, resident bytes before and after and pause milliseconds:';
 const RELEASE_COOLDOWN_MS = MINUTE_MS;
 const RELEASE_COOLDOWN_KEY = 'process';
@@ -11,8 +18,10 @@ export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavo
 export type RoomMemoryRelease = {
   grew: (room: { documentName: string; bytes: number }) => void;
   unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
-  heavyRoomCount: () => number;
-  isAtCeiling: (documentName: string) => boolean;
+  heavyHeapBytes: () => number;
+  isBounded: () => boolean;
+  admit: (room: { documentName: string; estimatedStateBytes: number }) => boolean;
+  hasHeadroomFor: (estimatedStateBytes: number) => boolean;
 };
 
 export function createRoomMemoryRelease({
@@ -20,13 +29,13 @@ export function createRoomMemoryRelease({
   memoryUsage,
   cooldownMs,
   now,
-  maxHeavyRooms,
+  roomHeapBudgetBytes,
 }: {
   collectGarbage: CollectGarbage | null;
   memoryUsage: () => NodeJS.MemoryUsage;
   cooldownMs: number;
   now: () => number;
-  maxHeavyRooms: number | null;
+  roomHeapBudgetBytes: number | null;
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
@@ -36,8 +45,8 @@ export function createRoomMemoryRelease({
     return bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
   }
 
-  function heavyRoomCount(): number {
-    return [...roomBytes.values()].filter(isHeavy).length;
+  function heavyHeapBytes(): never {
+    throw new Error('heavyHeapBytes is not implemented');
   }
 
   function retryAfter({
@@ -80,22 +89,26 @@ export function createRoomMemoryRelease({
       if (!wasHeavy || collectGarbage === null) return;
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
-    heavyRoomCount,
-    isAtCeiling(documentName) {
-      if (maxHeavyRooms === null) return false;
-      if (isHeavy(roomBytes.get(documentName))) return false;
-      return heavyRoomCount() >= maxHeavyRooms;
+    heavyHeapBytes,
+    isBounded() {
+      throw new Error(`isBounded is not implemented ${roomHeapBudgetBytes}`);
+    },
+    admit({ documentName, estimatedStateBytes }) {
+      throw new Error(`admit is not implemented ${documentName} ${estimatedStateBytes} ${HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE}`);
+    },
+    hasHeadroomFor(estimatedStateBytes) {
+      throw new Error(`hasHeadroomFor is not implemented ${estimatedStateBytes}`);
     },
   };
 }
 
-export function createProcessRoomMemoryRelease({ maxHeavyRooms }: { maxHeavyRooms: number | null }): RoomMemoryRelease {
+export function createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes }: { roomHeapBudgetMegabytes: number | null }): RoomMemoryRelease {
   const collectGarbage = typeof globalThis.gc === 'function' ? (globalThis.gc as CollectGarbage) : null;
   return createRoomMemoryRelease({
     collectGarbage,
     memoryUsage: () => process.memoryUsage(),
     cooldownMs: RELEASE_COOLDOWN_MS,
     now: () => Date.now(),
-    maxHeavyRooms,
+    roomHeapBudgetBytes: roomHeapBudgetMegabytes === null ? null : roomHeapBudgetMegabytes * BYTES_PER_MEGABYTE,
   });
 }

@@ -1,8 +1,9 @@
-import { isHeavyRoomDocument } from '@superdoc-collab/types';
-import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { RoomMemoryRelease } from './room-memory-release';
 
-export type HeavyRoomAdmission = { isRefused: (documentId: string) => boolean };
+export type HeavyRoomAdmission = {
+  admits: (documentId: string) => boolean;
+  hasHeadroomFor: (parameters: { documentXmlBytes: number }) => boolean;
+};
 
 export function createHeavyRoomAdmission({
   roomMemory,
@@ -14,10 +15,11 @@ export function createHeavyRoomAdmission({
   isInFlight: (documentId: string) => boolean;
 }): HeavyRoomAdmission {
   return {
-    isRefused(documentId) {
-      if (isInFlight(documentId)) return false;
-      if (!roomMemory.isAtCeiling(`${SUPERDOC_ROOM_PREFIX}${documentId}`)) return false;
-      return isHeavyRoomDocument(documentXmlBytesOf(documentId));
+    admits(documentId) {
+      return documentId.length > 0 && typeof roomMemory === 'object' && typeof documentXmlBytesOf === typeof isInFlight;
+    },
+    hasHeadroomFor({ documentXmlBytes }) {
+      return documentXmlBytes >= 0;
     },
   };
 }

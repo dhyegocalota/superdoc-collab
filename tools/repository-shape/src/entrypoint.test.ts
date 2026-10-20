@@ -118,6 +118,14 @@ describe('docker entrypoint', () => {
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('limit=undefined');
   });
 
+  test('hands the server heap in megabytes to the server, and nothing when the limit is unknown', () => {
+    const limitFile = join(workingDirectory, 'memory.max');
+    writeFileSync(limitFile, '8589934592\n');
+    writeStub({ name: 'main.js', source: 'process.stdout.write("heap=" + process.env.SERVER_HEAP_MEGABYTES);' });
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain('heap=3276');
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('heap=undefined');
+  });
+
   test('exposes the collector with no memory limit too', () => {
     writeStub({ name: 'main.js', source: 'process.stdout.write(process.execArgv.join(" "));' });
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('--expose-gc');

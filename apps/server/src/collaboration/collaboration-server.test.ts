@@ -395,7 +395,7 @@ describe('heavy room ceiling', () => {
   test('a member and an agent are refused a room while the ceiling is reached for it, and admitted once it is not', async () => {
     const { server, documentId, owner } = await documentWithOwner();
     commitBootstrap({ services: server.services, documentId, userId: owner.id });
-    const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockReturnValue(true);
+    const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockReturnValue(false);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toBeInstanceOf(
       CollaborationRefusedError,
@@ -404,14 +404,14 @@ describe('heavy room ceiling', () => {
     await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
     expect(refuses).toHaveBeenCalledWith(documentId);
     expect(warn).toHaveBeenCalledWith(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
-    refuses.mockReturnValue(false);
+    refuses.mockReturnValue(true);
     (await connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).close();
     warn.mockRestore();
     await server.stop();
   });
   test('the bootstrap socket is never refused by the ceiling', async () => {
     const { server, documentId, owner } = await documentWithOwner();
-    const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockReturnValue(true);
+    const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockReturnValue(false);
     (await connectToDocument({ server, cookie: owner.cookie, documentId })).close();
     expect(refuses).not.toHaveBeenCalled();
     await server.stop();

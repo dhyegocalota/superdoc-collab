@@ -15,7 +15,11 @@ import {
   largestPreparableMegabytes,
   LARGE_ROOM_STATE_BYTES,
   MAX_DOCUMENT_XML_BYTES,
-  maxLoadedHeavyRooms,
+  roomHeapBudgetMegabytes,
+  roomHeapMegabytesOf,
+  SERVER_HEAP_BASELINE_MEGABYTES,
+  BOOTSTRAP_HANDOFF_HEAP_MEGABYTES,
+  BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_UPLOAD_BYTES,
   MAX_UPLOAD_MEGABYTES,
@@ -72,10 +76,20 @@ describe('documents contracts', () => {
     expect(MAX_DOCUMENT_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO).toBeLessThanOrEqual(MAX_SOCKET_MESSAGE_BYTES);
   });
 
-  test('pin: a 4 GB server holds one heavy room beside a conversion, an 8 GB server seven and a small one none', () => {
-    expect(maxLoadedHeavyRooms(4096)).toBe(1);
-    expect(maxLoadedHeavyRooms(8192)).toBe(7);
-    expect(maxLoadedHeavyRooms(2048)).toBe(0);
+  test('pin: the room heap budget is the smaller of what the container and the server heap leave after the reserve, a conversion and a hand-off', () => {
+    const serverHeapMegabytes = 3276;
+    const heapLeft = serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - BOOTSTRAP_HANDOFF_HEAP_MEGABYTES;
+    const containerLeft = 8192 - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
+    expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 8192, serverHeapMegabytes })).toBe(Math.min(heapLeft, containerLeft));
+    expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 8192, serverHeapMegabytes })).toBe(heapLeft);
+    expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 8192, serverHeapMegabytes: null })).toBe(containerLeft);
+    expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: null, serverHeapMegabytes })).toBe(heapLeft);
+    expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: null, serverHeapMegabytes: null })).toBeNull();
+    expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 1024, serverHeapMegabytes: 400 })).toBe(0);
+  });
+
+  test('pin: a room costs 19 bytes of heap for every byte of its state', () => {
+    expect(roomHeapMegabytesOf(BYTES_PER_MEGABYTE)).toBe(19);
   });
 
   test('pin: a document is heavy when its state would exceed the large room limit', () => {

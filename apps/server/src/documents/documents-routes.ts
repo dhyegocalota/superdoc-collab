@@ -195,7 +195,7 @@ function mountOpening({ routes, services }: RouteMount): void {
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
-    if (heavyRooms.isRefused(documentId)) {
+    if (!heavyRooms.admits(documentId)) {
       return retryLater({
         context,
         body: { error: HEAVY_ROOMS_FULL_MESSAGE },

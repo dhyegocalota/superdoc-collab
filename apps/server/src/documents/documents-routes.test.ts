@@ -853,12 +853,28 @@ test('opening a document the server cannot hold as a large room is 503 with Retr
   vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
   const heavy: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Heavy' })).json();
   const light: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Light' })).json();
-  const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockImplementation((documentId) => documentId === heavy.id);
+  const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockImplementation((documentId) => documentId !== heavy.id);
   const refused = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: heavy.id }) });
   expect([refused.status, await refused.json()]).toEqual([HttpStatus.ServiceUnavailable, { error: HEAVY_ROOMS_FULL_MESSAGE }]);
   expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(HEAVY_ROOMS_RETRY_AFTER_MS / SECOND_MS);
   expect((await request({ server, cookie: owner.cookie, path: pathOf({ documentId: light.id }) })).status).toBe(HttpStatus.Ok);
-  refuses.mockReturnValue(false);
+  refuses.mockReturnValue(true);
   expect((await request({ server, cookie: owner.cookie, path: pathOf({ documentId: heavy.id }) })).status).toBe(HttpStatus.Ok);
+  await server.stop();
+});
+
+test('a heavy upload is 503 with the large documents message while no room of its size fits, and a light file or a blank is still served', async () => {
+  const server = await startTestServer();
+  const user = await signedInUser({ server, name: 'Ana' });
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  vi.spyOn(server.services.heavyRooms, 'hasHeadroomFor').mockImplementation(({ documentXmlBytes }) => documentXmlBytes <= LIGHT_XML_BYTES);
+  const refused = await upload({ server, cookie: user.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES) });
+  expect([refused.status, await refused.json()]).toEqual([HttpStatus.ServiceUnavailable, { error: HEAVY_ROOMS_FULL_MESSAGE }]);
+  expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(HEAVY_ROOMS_RETRY_AFTER_MS / SECOND_MS);
+  expect((await listOf({ server, cookie: user.cookie })).mine).toEqual([]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
+  const light = await upload({ server, cookie: user.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
+  const blank = await createBlank({ server, cookie: user.cookie, title: 'Blank' });
+  expect([light.status, blank.status]).toEqual([HttpStatus.Created, HttpStatus.Created]);
   await server.stop();
 });

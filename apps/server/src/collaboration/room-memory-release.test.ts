@@ -1,6 +1,11 @@
-import { LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
+import { HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE, LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { createRoomMemoryRelease, ROOM_MEMORY_RELEASE_DELAY_MS, ROOM_MEMORY_RELEASED_MESSAGE } from './room-memory-release';
+import {
+  createRoomMemoryRelease,
+  ROOM_MEMORY_RELEASE_DELAY_MS,
+  ROOM_MEMORY_RELEASED_MESSAGE,
+  ROOM_RESERVATION_TTL_MS,
+} from './room-memory-release';
 
 const RESIDENT_BEFORE_BYTES = 3_000_000_000;
 const RESIDENT_AFTER_BYTES = 900_000_000;
@@ -29,11 +34,11 @@ async function afterReleaseDelay(): Promise<void> {
 function releaseWith({
   readings,
   clock = () => 0,
-  maxHeavyRooms = null,
+  roomHeapBudgetBytes = null,
 }: {
   readings: number[];
   clock?: () => number;
-  maxHeavyRooms?: number | null;
+  roomHeapBudgetBytes?: number | null;
 }) {
   const collectGarbage = vi.fn();
   const release = createRoomMemoryRelease({
@@ -41,7 +46,7 @@ function releaseWith({
     memoryUsage: residentReadings(readings),
     cooldownMs: COOLDOWN_MS,
     now: clock,
-    maxHeavyRooms,
+    roomHeapBudgetBytes,
   });
   return { collectGarbage, release };
 }
@@ -113,7 +118,7 @@ test('without an exposed collector nothing runs and nothing is logged', async ()
     memoryUsage: residentReadings([]),
     cooldownMs: COOLDOWN_MS,
     now: () => 0,
-    maxHeavyRooms: null,
+    roomHeapBudgetBytes: null,
   });
   release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
@@ -156,32 +161,67 @@ test('the bytes of an unloaded room are forgotten, so a small room of the same n
 });
 
 const HEAVY_BYTES = LARGE_ROOM_STATE_BYTES + 1;
+const HEAP_PER_BYTE = HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE;
+const HEAVY_HEAP_BYTES = HEAVY_BYTES * HEAP_PER_BYTE;
+const HUGE_BYTES = 5 * LARGE_ROOM_STATE_BYTES;
 
-test('the heavy rooms loaded are the rooms above the large room limit, counted from the bytes they grew by, and an unloaded one leaves the count', () => {
+test('the heavy heap is the state of every room above the large room limit times the heap per state byte, and an unloaded room leaves it', () => {
   const { release } = releaseWith({ readings: [] });
   release.grew({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
   release.grew({ documentName: SMALL_ROOM, bytes: LARGE_ROOM_STATE_BYTES });
-  expect(release.heavyRoomCount()).toBe(1);
+  expect(release.heavyHeapBytes()).toBe(HEAVY_HEAP_BYTES);
   release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES });
-  release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: 1 });
-  expect(release.heavyRoomCount()).toBe(2);
+  release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: HUGE_BYTES - LARGE_ROOM_STATE_BYTES });
+  expect(release.heavyHeapBytes()).toBe(HEAVY_HEAP_BYTES + HUGE_BYTES * HEAP_PER_BYTE);
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
-  expect(release.heavyRoomCount()).toBe(1);
+  expect(release.heavyHeapBytes()).toBe(HUGE_BYTES * HEAP_PER_BYTE);
 });
 
-test('the ceiling is reached when as many heavy rooms are loaded as the limit, and a room that is already loaded is never at it', () => {
-  const { release } = releaseWith({ readings: [], maxHeavyRooms: 2 });
+test('a room is admitted while its estimate fits the budget beside the loaded rooms, and a loaded room is always admitted', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: 2 * HEAVY_HEAP_BYTES });
+  expect(release.isBounded()).toBe(true);
   release.grew({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
-  expect(release.isAtCeiling(OTHER_HEAVY_ROOM)).toBe(false);
   release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: HEAVY_BYTES });
-  expect(release.isAtCeiling(THIRD_HEAVY_ROOM)).toBe(true);
-  expect(release.isAtCeiling(OTHER_HEAVY_ROOM)).toBe(false);
+  expect(release.admit({ documentName: THIRD_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(false);
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(true);
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
-  expect(release.isAtCeiling(THIRD_HEAVY_ROOM)).toBe(false);
+  expect(release.admit({ documentName: THIRD_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(true);
 });
 
-test('without a limit the ceiling is never reached', () => {
-  const { release } = releaseWith({ readings: [], maxHeavyRooms: null });
-  [HEAVY_ROOM, OTHER_HEAVY_ROOM, THIRD_HEAVY_ROOM].forEach((documentName) => release.grew({ documentName, bytes: HEAVY_BYTES }));
-  expect(release.isAtCeiling('fourth-room')).toBe(false);
+test('the budget is spent by the size of the state, so one huge room leaves less than a count of rooms would', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: 2 * HUGE_BYTES * HEAP_PER_BYTE });
+  release.grew({ documentName: HEAVY_ROOM, bytes: HUGE_BYTES + HUGE_BYTES / 2 });
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HUGE_BYTES })).toBe(false);
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HUGE_BYTES / 2 })).toBe(true);
+});
+
+test('an admitted room holds its estimate against the next opener until it loads, and a reservation that never loaded expires', () => {
+  const clock = { currentMs: 0 };
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: HEAVY_HEAP_BYTES, clock: () => clock.currentMs });
+  expect(release.admit({ documentName: HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(true);
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(false);
+  expect(release.admit({ documentName: HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(true);
+  release.grew({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  expect(release.heavyHeapBytes()).toBe(HEAVY_HEAP_BYTES);
+  release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
+  expect(release.admit({ documentName: THIRD_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(true);
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(false);
+  clock.currentMs += ROOM_RESERVATION_TTL_MS;
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES })).toBe(true);
+});
+
+test('headroom for a new room is checked against loaded rooms and reservations without taking a place', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: HEAVY_HEAP_BYTES });
+  expect(release.hasHeadroomFor(HEAVY_BYTES)).toBe(true);
+  expect(release.hasHeadroomFor(HEAVY_BYTES)).toBe(true);
+  release.admit({ documentName: HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES });
+  expect(release.hasHeadroomFor(HEAVY_BYTES)).toBe(false);
+});
+
+test('without a budget nothing is bounded, admitted rooms are not tracked and every room has headroom', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: null });
+  [HEAVY_ROOM, OTHER_HEAVY_ROOM, THIRD_HEAVY_ROOM].forEach((documentName) => release.grew({ documentName, bytes: HUGE_BYTES }));
+  expect(release.isBounded()).toBe(false);
+  expect(release.admit({ documentName: 'fourth-room', estimatedStateBytes: HUGE_BYTES })).toBe(true);
+  expect(release.hasHeadroomFor(HUGE_BYTES)).toBe(true);
 });

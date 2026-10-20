@@ -42,8 +42,14 @@ export default defineConfig({
   use: { baseURL: ORIGIN, trace: 'retain-on-failure', timezoneId: E2E_TIME_ZONE },
   projects: [
     { name: 'chromium', testIgnore: [...IGNORED_SPECS, ...HEAVY_SPECS], use: { ...devices['Desktop Chrome'] } },
-    // NB ADR 0048: the server converts one heavy document at a time per lane, so the specs that upload one run one at a time.
-    { name: 'heavy', testMatch: HEAVY_SPECS, workers: HEAVY_PROJECT_WORKERS, use: { ...devices['Desktop Chrome'] } },
+    // NB ADR 0048: the server converts one heavy document at a time per lane, so the specs that upload one run one at a time, after the rest.
+    {
+      name: 'heavy',
+      testMatch: HEAVY_SPECS,
+      workers: HEAVY_PROJECT_WORKERS,
+      dependencies: ['chromium'],
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   webServer: [
     {

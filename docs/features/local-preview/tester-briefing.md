@@ -84,3 +84,17 @@ Pin: `a wide screen opened on a device job as its creator mounts the editor to c
 The restartable stack now sets the server heap at 40 percent of the memory limit, as the image entrypoint does. The two small-memory device cases declare a roomy heap budget, because their point is the memory guard, and the 4 GB case asserts the honest refusal. The 6 GB case runs the heavy fixture end to end through the device. The live editor opens at the top; the scroll position of the preview is not carried (the spec says so).
 
 Hypotheses to attack: the 413 for a document beyond the heap never offers the device, even when the form says `preparation=device`; a phone that opens a pending device job as its creator sees the reason and Back and no editor; a device upload is not refused by a full queue.
+
+## Tester defects follow-up
+
+Red f4c01b7b (web) and c49b4b03 (server). Green b01f7bf0 and 1169295e.
+
+| Test | Red before because |
+|------|--------------------|
+| `room-bootstrap.test.ts` reopen and stopped-device cases | `expected [ 'failed', false ] to deeply equal [ 'failed', true ]`, `Error: reopenDevice is not implemented` |
+| `documents-routes.test.ts::after the claiming tab closed, a joiner sees the stopped device job…` | `expected [ 'failed', null, 'join', 'failed' ] to deeply equal [ 'failed', 'Ana', 'create', … ]` |
+| `waiting-for-document.test.tsx::a device job that stopped says whose device stopped…` | the card read the damaged-file hint |
+| `open-progress-view.test.ts::the creator of a device job reads that it prepares on this device…` | `Error: preparingHereView is not implemented for 12` |
+| `use-local-preview.test.tsx` and `document-page.test.tsx` swap, scroll and creator-panel cases | `expected File{} to be null`-style: the preview was dropped at Ready, the scroll stayed 0, the panel showed Receiving |
+
+The live editor now mounts beneath the preview and the preview is an overlay until the live editor paints. The slim progress bar over the preview was not built: the status line of the overlay says the shared copy is opening, and the live panel stays beneath it. The E2E records a text sample every 100 ms and asserts no gap over one second for the seed and the heavy fixture. The closed-tab reopen has unit and route tests but no E2E case.

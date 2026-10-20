@@ -34,11 +34,13 @@ function bootstrapWithPendingRuns({
   now = () => Date.now(),
   documentXmlBytesOf = () => FILE_BYTES,
   commitBlank = () => undefined,
+  isPreparableByServer = () => true,
 }: {
   ownerOf?: (documentId: string) => string | null;
   now?: () => number;
   documentXmlBytesOf?: (documentId: string) => number;
   commitBlank?: (committed: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+  isPreparableByServer?: (documentId: string) => boolean;
 } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
@@ -50,6 +52,7 @@ function bootstrapWithPendingRuns({
     documentXmlBytesOf,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
     commitBlank,
+    isPreparableByServer,
     now,
   });
   return { bootstrap, pending, issueToken };
@@ -610,4 +613,113 @@ test('a blank that waited and whose commit from the state throws is prepared in 
   pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
   expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
+});
+
+const OTHER_USER_ID = 'user-bruno';
+
+function deviceBootstrap(options: Parameters<typeof bootstrapWithPendingRuns>[0] = {}) {
+  return bootstrapWithPendingRuns({ isPreparableByServer: () => false, now: () => 1_000_000, ...options });
+}
+
+test('a document the server cannot hold is prepared on the device of its owner and never queued', async () => {
+  const { bootstrap, pending } = deviceBootstrap();
+  expect(bootstrap.request(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Preparing,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: ESTIMATED_MS,
+    documentXmlBytes: FILE_BYTES,
+    preparingElapsedMs: 0,
+  });
+  await Promise.resolve();
+  expect(pending).toHaveLength(0);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
+});
+
+test('a document the server can hold is not a device job', () => {
+  const { bootstrap } = bootstrapWithPendingRuns();
+  bootstrap.request(DOCUMENT_ID);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBeNull();
+});
+
+test('the owner claims a device job and the claim is the current attempt', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  expect(attempt).not.toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: attempt! })).toBe(true);
+});
+
+test('a person who is not the owner cannot claim a device job', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID })).toBeNull();
+});
+
+test('a second claim supersedes the first and the first is no longer current', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  const second = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  expect(second).not.toBe(first);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(false);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second })).toBe(true);
+});
+
+test('the bytes the claimed device sends raise the progress', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.done).toBe(FRAME_BYTES);
+});
+
+test('the commit makes a device job Ready, ends its attempt and refuses a later claim', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(false);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBeNull();
+});
+
+test('the claimed device closing before the commit fails the job once, and the owner claims it again', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(error.mock.calls[0]![0]).toContain(BOOTSTRAP_FAILED_MESSAGE);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
+  const again = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  expect(again).not.toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  error.mockRestore();
+});
+
+test('a superseded device closing changes nothing', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  const second = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID })!;
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt: first });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second })).toBe(true);
+});
+
+test('only the owner of a pending device job is its creator', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  expect([
+    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID }),
+    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID }),
+  ]).toEqual([true, false]);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(false);
 });

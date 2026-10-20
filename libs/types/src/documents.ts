@@ -65,9 +65,12 @@ export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
+export const PREPARATION_FIELD = 'preparation';
+export const DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES = 4;
 export const UPLOAD_TOO_LARGE_MESSAGE = `Files up to ${MAX_UPLOAD_MEGABYTES} MB can be uploaded.`;
 export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUMENT_XML_MEGABYTES} MB of text and layout cannot be opened.`;
+export const INVALID_PREPARATION_MESSAGE = 'The preparation source is not valid.';
 export const UPLOAD_RATE_LIMITED_MESSAGE = 'Too many uploads in a minute';
 export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'Another document of yours is still waiting to be prepared';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
@@ -90,6 +93,11 @@ export enum DocumentRole {
 export enum ShareLinkRole {
   Edit = 'edit',
   Read = 'read',
+}
+
+export enum PreparationSource {
+  Server = 'server',
+  Device = 'device',
 }
 
 export enum RoomMode {
@@ -126,8 +134,10 @@ export type OpenedDocument = {
   role: DocumentRole;
   roomMode: RoomMode;
   bootstrap: BootstrapProgress;
+  preparedOnDeviceOf: string | null;
   colorSlot: AuthorColorSlot;
 };
+export type UploadRefusal = { error: string; canPrepareOnDevice: boolean };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
 export type DocumentMembers = {
   members: DocumentMember[];

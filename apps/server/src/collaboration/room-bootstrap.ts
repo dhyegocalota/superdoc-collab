@@ -68,6 +68,7 @@ export class RoomBootstrap {
   private readonly documentXmlBytesOf: (documentId: string) => number;
   private readonly filePathOf: (documentId: string) => string;
   private readonly commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+  private readonly isPreparableByServer: (documentId: string) => boolean;
   private readonly now: () => number;
 
   constructor({
@@ -78,6 +79,7 @@ export class RoomBootstrap {
     documentXmlBytesOf,
     filePathOf,
     commitBlank,
+    isPreparableByServer,
     now = () => Date.now(),
   }: {
     run: BootstrapRun;
@@ -87,6 +89,7 @@ export class RoomBootstrap {
     documentXmlBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
     commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+    isPreparableByServer: (documentId: string) => boolean;
     now?: () => number;
   }) {
     this.run = run;
@@ -96,7 +99,24 @@ export class RoomBootstrap {
     this.documentXmlBytesOf = documentXmlBytesOf;
     this.filePathOf = filePathOf;
     this.commitBlank = commitBlank;
+    this.isPreparableByServer = isPreparableByServer;
     this.now = now;
+  }
+
+  isDevicePending(documentId: string): boolean {
+    throw new Error('isDevicePending is not implemented');
+  }
+
+  isDeviceCreator({ documentId, userId }: { documentId: string; userId: string }): boolean {
+    return false;
+  }
+
+  claimDevice({ documentId, userId }: { documentId: string; userId: string }): string | null {
+    throw new Error('claimDevice is not implemented');
+  }
+
+  deviceClosed({ documentId, attempt }: { documentId: string; attempt: string }): void {
+    throw new Error('deviceClosed is not implemented');
   }
 
   progressOf(documentId: string): BootstrapProgress | null {

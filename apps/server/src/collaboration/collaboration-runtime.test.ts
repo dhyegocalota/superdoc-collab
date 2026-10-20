@@ -26,8 +26,20 @@ const QUEUED: BootstrapProgress = {
   preparingElapsedMs: null,
 };
 
-function fakeRoomBootstrap({ progress = null, isInFlight = false }: { progress?: BootstrapProgress | null; isInFlight?: boolean } = {}) {
-  return { progressOf: vi.fn(() => progress), request: vi.fn(() => QUEUED), forget: vi.fn(), isInFlight: vi.fn(() => isInFlight) };
+function fakeRoomBootstrap({
+  progress = null,
+  isInFlight = false,
+  isDevicePending = false,
+  deviceCreatorId = null,
+}: { progress?: BootstrapProgress | null; isInFlight?: boolean; isDevicePending?: boolean; deviceCreatorId?: string | null } = {}) {
+  return {
+    progressOf: vi.fn(() => progress),
+    request: vi.fn(() => QUEUED),
+    forget: vi.fn(),
+    isInFlight: vi.fn(() => isInFlight),
+    isDevicePending: vi.fn(() => isDevicePending),
+    isDeviceCreator: vi.fn(({ userId }: { userId: string }) => userId === deviceCreatorId),
+  };
 }
 
 function runtimeWith({
@@ -179,4 +191,13 @@ test('forgetting a document forgets its bootstrap', async () => {
   } as unknown as Parameters<typeof createCollaborationRuntime>[0]);
   await runtime.forget(DOCUMENT_ID);
   expect(roomBootstrap.forget).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
+});
+
+test('the runtime reports a device preparation and its creator from the registry', () => {
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap: fakeRoomBootstrap({ isDevicePending: true, deviceCreatorId: FIRST_EDITOR }) });
+  expect(runtime.isPreparedOnDevice(DOCUMENT_ID)).toBe(true);
+  expect([
+    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR }),
+    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR }),
+  ]).toEqual([true, false]);
 });

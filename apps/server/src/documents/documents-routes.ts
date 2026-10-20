@@ -191,6 +191,7 @@ function mountOpening({ routes, services }: RouteMount): void {
       role,
       roomMode: RoomMode.Join,
       bootstrap: runtime.bootstrapRoom(documentId),
+      preparedOnDeviceOf: null,
       colorSlot: documents.colorSlotOf({ documentId, userId }),
     });
   });

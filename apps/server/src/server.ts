@@ -8,7 +8,7 @@ import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import * as Y from 'yjs';
-import { ApiPath, ClientActor, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import { ApiPath, ClientActor, HttpStatus, isPreparable, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
@@ -246,13 +246,21 @@ function createServices({
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
+  function documentXmlBytesOf(documentId: string): number {
+    return declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId)));
+  }
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
       signBootstrapToken({ secret: environment.authSecret, userId, documentId, attempt, now: Date.now() }),
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
     ownerOf: (documentId) => documents.ownerOf(documentId),
-    documentXmlBytesOf: (documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))),
+    documentXmlBytesOf,
+    isPreparableByServer: (documentId) => {
+      const { memoryLimitMegabytes } = environment;
+      if (memoryLimitMegabytes === null) return true;
+      return isPreparable({ documentXmlBytes: documentXmlBytesOf(documentId), memoryLimitMegabytes });
+    },
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {
       const rebasedState = rebaseRoomDocumentId({ state, documentId });

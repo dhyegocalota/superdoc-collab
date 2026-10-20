@@ -20,6 +20,9 @@
 - [x] **Step 4:** red tests, then the heavy room counter, the admission, the open route and the socket refusal.
 - [x] **Step 5:** red tests, then the panel's queue line, the dialog message and the waiting page refusal.
 - [x] **Step 6:** the E2E on a stack with the limits scripted low.
+- [x] **Step 7:** reviewer round 1: red tests, then the heap budget with reservations in place of the count, the upload headroom, the cached XML size and `SERVER_HEAP_MEGABYTES` in the entrypoint; the constants measured on the capped repro.
+
+- [x] **Step 8:** reviewer round 2 and security re-check: red tests, then the idle eviction removed, every room budgeted with a small rooms share, lazy re-measure, the close code of its own, upload reservations, holder pruning, the cheaper state estimate, the open route that only checks, the seeded rate until two owners and the hourly heavy budget.
 
 ## Failure modes
 
@@ -27,7 +30,7 @@
 |------|-------------|--------------|----------------|
 | 2 | The standing is wrong after a retry or a forget | a Queued answer with a stale position | revert the answer; the panel falls back to "Waiting for its turn" |
 | 3 | Honest uploads are refused | 503 on a short lane | raise `MAX_BOOTSTRAP_WAIT_MS` |
-| 4 | A user's own room is refused | 503 on a document the user holds open | the loaded-room check; raise `MAX_LOADED_HEAVY_ROOMS` |
+| 4 | A user's own room is refused | 503 on a document the user holds open | the loaded-room check; raise `ROOM_HEAP_BUDGET_MEGABYTES` |
 | 5 | A proxy 503 shows an upload sentence | the dialog reads the 10 MB limit | none needed, the fallback is the existing one |
 
 **Steps with no backout:** none

@@ -8,11 +8,21 @@ import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import * as Y from 'yjs';
-import { ApiPath, ClientActor, HttpStatus, isPreparable, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  ClientActor,
+  HOUR_MS,
+  HttpStatus,
+  isPreparable,
+  MINUTE_MS,
+  SECOND_MS,
+  TOPICS_INTERRUPTED_MESSAGE,
+} from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
+import { cachedDocumentXmlBytes } from './documents/cached-document-xml-bytes';
 import { createHeavyRoomAdmission } from './collaboration/heavy-room-admission';
 import { createProcessRoomMemoryRelease } from './collaboration/room-memory-release';
 import { createAgentToolkit } from '@superdoc/sdk';
@@ -248,7 +258,7 @@ function createServices({
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
-  const documentXmlBytesOf = (documentId: string): number => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId)));
+  const documentXmlBytesOf = cachedDocumentXmlBytes((documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))));
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
@@ -280,7 +290,13 @@ function createServices({
   });
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
-  const roomMemory = createProcessRoomMemoryRelease({ maxHeavyRooms: environment.maxLoadedHeavyRooms });
+  const roomMemory = createProcessRoomMemoryRelease({
+    roomHeapBudgetMegabytes: environment.roomHeapBudgetMegabytes,
+    measureRoom: (documentName) => {
+      const room = hocuspocus.documents.get(documentName);
+      return room === undefined ? null : Y.encodeStateAsUpdate(room).byteLength;
+    },
+  });
   const heavyRooms = createHeavyRoomAdmission({
     roomMemory,
     documentXmlBytesOf,
@@ -337,6 +353,7 @@ function createServices({
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
+    heavyUploadBudget: new KeyedSlidingWindow({ windowMs: HOUR_MS, maxEvents: environment.heavyConversionsPerHour, now }),
     timelinePipelines,
     insights,
     versions,

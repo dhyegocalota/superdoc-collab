@@ -3,6 +3,8 @@ import {
   BOOTSTRAP_INTERRUPTED_RETRIES,
   BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_PROGRESS_ENTRIES,
+  BOOTSTRAP_RATE_CLAMP_MULTIPLE,
+  BOOTSTRAP_RATE_MIN_OWNERS,
   BOOTSTRAP_RATE_SAMPLES,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
@@ -36,6 +38,7 @@ type BootstrapJob = {
 type QueueStanding = { queuePosition: number | null; queueWaitMs: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
+const PREDICTED_JOB_KEY = 'predicted-job';
 const NOT_QUEUED: QueueStanding = { queuePosition: null, queueWaitMs: null };
 const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
 
@@ -76,7 +79,7 @@ export class RoomBootstrap {
     [BootstrapLane.Heavy]: new OwnerRoundRobinQueue(),
   };
   private readonly running: Record<BootstrapLane, string | null> = { [BootstrapLane.Light]: null, [BootstrapLane.Heavy]: null };
-  private readonly conversionRates: number[] = [];
+  private readonly conversionRates = new Map<string | null, number>();
   private readonly commitWaiters = new Map<string, () => void>();
   private blankState: Uint8Array | null = null;
   private blankConverting: string | null = null;
@@ -178,9 +181,11 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
-  predictedWaitMs({ documentXmlBytes }: { documentXmlBytes: number }): number {
+  predictedWaitMs({ documentXmlBytes, ownerId }: { documentXmlBytes: number; ownerId: string }): number {
     const lane = bootstrapLaneOf(documentXmlBytes);
-    return this.runningRemainingMs(lane) + this.estimatedMsOfJobs(this.queues[lane].turnOrder());
+    const turnOrder = this.queues[lane].turnOrder({ also: { owner: ownerId, item: PREDICTED_JOB_KEY } });
+    const jobsAhead = turnOrder.slice(0, turnOrder.indexOf(PREDICTED_JOB_KEY));
+    return this.runningRemainingMs(lane) + this.estimatedMsOfJobs(jobsAhead);
   }
 
   request(documentId: string): BootstrapProgress {
@@ -418,8 +423,13 @@ export class RoomBootstrap {
   }
 
   private rateMsPerMegabyte(): number {
-    if (this.conversionRates.length === 0) return BOOTSTRAP_MS_PER_MEGABYTE;
-    return this.conversionRates.reduce((sum, rate) => sum + rate, 0) / this.conversionRates.length;
+    if (this.conversionRates.size < BOOTSTRAP_RATE_MIN_OWNERS) return BOOTSTRAP_MS_PER_MEGABYTE;
+    const rates = [...this.conversionRates.values()];
+    const measured = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+    return Math.min(
+      BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_RATE_CLAMP_MULTIPLE,
+      Math.max(BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE, measured),
+    );
   }
 
   private recordConversion(documentId: string): void {
@@ -427,8 +437,11 @@ export class RoomBootstrap {
     if (job === null || job.startedAt === null) return;
     if (bootstrapLaneOf(job.progress.documentXmlBytes) !== BootstrapLane.Heavy) return;
     const megabytes = job.progress.documentXmlBytes / BYTES_PER_MEGABYTE;
-    this.conversionRates.push((this.now() - job.startedAt) / megabytes);
-    if (this.conversionRates.length > BOOTSTRAP_RATE_SAMPLES) this.conversionRates.shift();
+    const ownerId = this.ownerOf(documentId);
+    this.conversionRates.delete(ownerId);
+    this.conversionRates.set(ownerId, (this.now() - job.startedAt) / megabytes);
+    const [oldestOwner] = this.conversionRates.keys();
+    if (this.conversionRates.size > BOOTSTRAP_RATE_SAMPLES) this.conversionRates.delete(oldestOwner!);
   }
 
   private totalOf(documentId: string): number {

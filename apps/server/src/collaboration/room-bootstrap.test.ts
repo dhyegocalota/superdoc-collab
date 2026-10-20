@@ -4,6 +4,7 @@ import {
   BOOTSTRAP_MS_PER_MEGABYTE,
   BYTES_PER_MEGABYTE,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
+  BOOTSTRAP_RATE_CLAMP_MULTIPLE,
   BootstrapLane,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
@@ -463,6 +464,7 @@ test('completed conversions of heavy files move the estimate of the next jobs to
   const advance = (milliseconds: number) => void (currentMs += milliseconds);
   const { bootstrap, pending } = bootstrapWithPendingRuns({
     now: () => currentMs,
+    ownerOf: (documentId) => `owner-of-${documentId}`,
     documentXmlBytesOf: () => HEAVY_MEGABYTES * BYTES_PER_MEGABYTE,
   });
   expect(bootstrap.request('document-first').estimatedMs).toBe(HEAVY_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE);
@@ -480,9 +482,9 @@ test('completed conversions of heavy files move the estimate of the next jobs to
   expect(bootstrap.request('document-third').estimatedMs).toBe(((FIRST_RATE_MS + SECOND_RATE_MS) / 2) * HEAVY_MEGABYTES);
 });
 
-test('a 9.5 MB file is estimated at the seeded rate and then at the rate its last conversion measured', async () => {
+test('a 9.5 MB file is estimated at the seeded rate until two owners have had a conversion, then at their mean', async () => {
   let currentMs = 0;
-  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs });
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, ownerOf: (documentId) => `owner-of-${documentId}` });
   const megabytes = FILE_BYTES / BYTES_PER_MEGABYTE;
   expect(bootstrap.request('document-first').estimatedMs).toBeCloseTo(megabytes * BOOTSTRAP_MS_PER_MEGABYTE);
   await vi.waitFor(() => expect(pending).toHaveLength(1));
@@ -490,7 +492,13 @@ test('a 9.5 MB file is estimated at the seeded rate and then at the rate its las
   bootstrap.ready({ documentId: 'document-first', stateBytes: STATE_BYTES });
   pending[0]!.resolve();
   await vi.waitFor(() => expect(bootstrap.progressOf('document-first')?.stage).toBe(BootstrapStage.Ready));
-  expect(bootstrap.request('document-second').estimatedMs).toBeCloseTo(50_000);
+  expect(bootstrap.request('document-second').estimatedMs).toBeCloseTo(megabytes * BOOTSTRAP_MS_PER_MEGABYTE);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  currentMs += 30_000;
+  bootstrap.ready({ documentId: 'document-second', stateBytes: STATE_BYTES });
+  pending[1]!.resolve();
+  await vi.waitFor(() => expect(bootstrap.progressOf('document-second')?.stage).toBe(BootstrapStage.Ready));
+  expect(bootstrap.request('document-third').estimatedMs).toBeCloseTo(40_000);
 });
 
 test('the conversion of a small file never moves the rate, whatever its fixed cost', async () => {
@@ -833,16 +841,73 @@ test('the running document counts only what is left of its estimate, and a docum
 
 test('the predicted wait of a new heavy job is what is left of the running one plus every queued one, at the measured rate', async () => {
   const { bootstrap, pending, clock } = clockedBootstrapWithOwners();
-  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBe(0);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBe(0);
   bootstrap.request('ana-heavy');
   await vi.waitFor(() => expect(pending).toHaveLength(1));
-  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBeCloseTo(LARGE_ESTIMATED_MS);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeCloseTo(LARGE_ESTIMATED_MS);
   bootstrap.request('bruno-heavy');
   clock.currentMs += 4000;
-  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBeCloseTo(2 * LARGE_ESTIMATED_MS - 4000);
-  expect(bootstrap.predictedWaitMs({ documentXmlBytes: SMALL_FILE_BYTES })).toBe(0);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeCloseTo(2 * LARGE_ESTIMATED_MS - 4000);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: SMALL_FILE_BYTES, ownerId: CARLA })).toBe(0);
   bootstrap.ready({ documentId: 'ana-heavy', stateBytes: STATE_BYTES });
   pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
-  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBeGreaterThan(0);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeGreaterThan(0);
+});
+
+test("a requester waits only for the turns ahead of them, so another owner's backlog is not all added to their prediction", async () => {
+  const { bootstrap, pending } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'ana-heavy-2', 'ana-heavy-3', 'bruno-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeCloseTo(3 * LARGE_ESTIMATED_MS);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: ANA })).toBeCloseTo(4 * LARGE_ESTIMATED_MS);
+});
+
+const OWNER_RATES_MEGABYTES = 4;
+
+function conversionsByOwner() {
+  const clock = { currentMs: 0 };
+  const parts = bootstrapWithPendingRuns({
+    now: () => clock.currentMs,
+    ownerOf: (documentId) => OWNERS_BY_PREFIX[documentId.split('-')[0]!]!,
+    documentXmlBytesOf: () => OWNER_RATES_MEGABYTES * BYTES_PER_MEGABYTE,
+  });
+  async function convert({ documentId, msPerMegabyte }: { documentId: string; msPerMegabyte: number }): Promise<number> {
+    const index = parts.pending.length;
+    const estimatedMs = parts.bootstrap.request(documentId).estimatedMs!;
+    await vi.waitFor(() => expect(parts.pending).toHaveLength(index + 1));
+    clock.currentMs += msPerMegabyte * OWNER_RATES_MEGABYTES;
+    parts.bootstrap.ready({ documentId, stateBytes: STATE_BYTES });
+    parts.pending[index]!.resolve();
+    await vi.waitFor(() => expect(parts.bootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Ready));
+    return estimatedMs;
+  }
+  return { ...parts, convert };
+}
+
+const OWNERS_BY_PREFIX: Record<string, string> = { ana: ANA, bruno: BRUNO, carla: CARLA };
+const MEGABYTES_ESTIMATED = (msPerMegabyte: number) => msPerMegabyte * OWNER_RATES_MEGABYTES;
+
+test('one owner alone never moves the rate, and from two owners it is the mean of their latest samples', async () => {
+  const { convert } = conversionsByOwner();
+  await convert({ documentId: 'ana-1', msPerMegabyte: 2000 });
+  expect(await convert({ documentId: 'ana-2', msPerMegabyte: 4000 })).toBeCloseTo(MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE));
+  expect(await convert({ documentId: 'ana-3', msPerMegabyte: 4000 })).toBeCloseTo(MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE));
+  expect(await convert({ documentId: 'bruno-1', msPerMegabyte: 2000 })).toBeCloseTo(MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE));
+  expect(await convert({ documentId: 'bruno-2', msPerMegabyte: 2000 })).toBeCloseTo(MEGABYTES_ESTIMATED(3000));
+});
+
+test('the measured rate stays within a small multiple of the seeded rate, however slow or fast the conversions were', async () => {
+  const slow = conversionsByOwner();
+  await slow.convert({ documentId: 'ana-1', msPerMegabyte: 100 * BOOTSTRAP_MS_PER_MEGABYTE });
+  await slow.convert({ documentId: 'bruno-1', msPerMegabyte: 100 * BOOTSTRAP_MS_PER_MEGABYTE });
+  expect(await slow.convert({ documentId: 'carla-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
+    MEGABYTES_ESTIMATED(BOOTSTRAP_RATE_CLAMP_MULTIPLE * BOOTSTRAP_MS_PER_MEGABYTE),
+  );
+  const fast = conversionsByOwner();
+  await fast.convert({ documentId: 'ana-1', msPerMegabyte: 0 });
+  await fast.convert({ documentId: 'bruno-1', msPerMegabyte: 0 });
+  expect(await fast.convert({ documentId: 'carla-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
+    MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE),
+  );
 });

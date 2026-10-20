@@ -25,7 +25,7 @@ export type DocumentRuntime = {
   isPreparedOnDevice: (documentId: string) => boolean;
   isDeviceCreator: (parameters: { documentId: string; userId: string }) => boolean;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
-  bootstrapWaitMs: (parameters: { documentXmlBytes: number }) => number;
+  bootstrapWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
   onlineUserIds: (documentId: string) => Set<string>;
@@ -83,7 +83,7 @@ export function createCollaborationRuntime({
     isPreparedOnDevice: (documentId) => roomBootstrap.isDevicePending(documentId),
     isDeviceCreator: (parameters) => roomBootstrap.isDeviceCreator(parameters),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
-    bootstrapWaitMs: (parameters) => roomBootstrap.predictedWaitMs(parameters),
+    bootstrapWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.predictedWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(
         (connection) => (connection.context as CollaborationContext).userId === userId,

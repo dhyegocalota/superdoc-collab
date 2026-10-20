@@ -1,6 +1,7 @@
 import {
   MAX_BOOTSTRAP_WAIT_MS,
-  maxLoadedHeavyRooms,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
+  roomHeapBudgetMegabytes,
   OPEN_UNCOMMITTED_PER_MINUTE,
   presentOrNull,
   UPLOADS_PER_MINUTE,
@@ -77,7 +78,8 @@ export type Environment = {
   bootstrapHostHeapMegabytes: number | null;
   memoryLimitMegabytes: number | null;
   maxBootstrapWaitMs: number;
-  maxLoadedHeavyRooms: number | null;
+  roomHeapBudgetMegabytes: number | null;
+  heavyConversionsPerHour: number;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -93,16 +95,17 @@ function limitFrom({ name, value, fallback }: { name: string; value: string | un
   return limit;
 }
 
-function heavyRoomCeilingFrom({
+function roomHeapBudgetFrom({
   explicit,
   memoryLimitMegabytes,
+  serverHeapMegabytes,
 }: {
   explicit: number | null;
   memoryLimitMegabytes: number | null;
+  serverHeapMegabytes: number | null;
 }): number | null {
   if (explicit !== null) return explicit;
-  if (memoryLimitMegabytes === null) return null;
-  return maxLoadedHeavyRooms(memoryLimitMegabytes);
+  return roomHeapBudgetMegabytes({ memoryLimitMegabytes, serverHeapMegabytes });
 }
 
 export function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
@@ -151,14 +154,20 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
     memoryLimitMegabytes,
+    heavyConversionsPerHour: limitFrom({
+      name: 'MAX_HEAVY_CONVERSIONS_PER_HOUR',
+      value: source.MAX_HEAVY_CONVERSIONS_PER_HOUR,
+      fallback: MAX_HEAVY_CONVERSIONS_PER_HOUR,
+    }),
     maxBootstrapWaitMs: limitFrom({
       name: 'MAX_BOOTSTRAP_WAIT_MS',
       value: source.MAX_BOOTSTRAP_WAIT_MS,
       fallback: MAX_BOOTSTRAP_WAIT_MS,
     }),
-    maxLoadedHeavyRooms: heavyRoomCeilingFrom({
-      explicit: optionalLimitFrom({ name: 'MAX_LOADED_HEAVY_ROOMS', value: source.MAX_LOADED_HEAVY_ROOMS }),
+    roomHeapBudgetMegabytes: roomHeapBudgetFrom({
+      explicit: optionalLimitFrom({ name: 'ROOM_HEAP_BUDGET_MEGABYTES', value: source.ROOM_HEAP_BUDGET_MEGABYTES }),
       memoryLimitMegabytes,
+      serverHeapMegabytes: optionalLimitFrom({ name: 'SERVER_HEAP_MEGABYTES', value: source.SERVER_HEAP_MEGABYTES }),
     }),
   };
 }

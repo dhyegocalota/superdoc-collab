@@ -87,7 +87,7 @@ type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
 type CreationMount = RouteMount & { memoryLimitMegabytes: number | null; maxBootstrapWaitMs: number };
 
 function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs }: CreationMount): void {
-  const { documents, storage, runtime, uploadBudget } = services;
+  const { documents, storage, runtime, uploadBudget, heavyUploadBudget, heavyRooms } = services;
 
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
     const userId = context.var.user.id;
@@ -114,13 +114,41 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
 
   function refusalWhenBusy({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
     if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
-    const waitMs = runtime.bootstrapWaitMs({ documentXmlBytes });
+    const waitMs = runtime.bootstrapWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
     if (waitMs <= maxBootstrapWaitMs) return null;
     return retryLater({
       context,
       body: { error: bootstrapBusyMessage(waitMs) },
       status: HttpStatus.ServiceUnavailable,
       retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenHeavyBudgetSpent({
+    context,
+    documentXmlBytes,
+  }: {
+    context: Context<SignedIn>;
+    documentXmlBytes: number;
+  }): Response | null {
+    if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
+    const waitMs = heavyUploadBudget.waitMs(context.var.user.id);
+    if (waitMs === null) return null;
+    return retryLater({
+      context,
+      body: { error: bootstrapBusyMessage(waitMs) },
+      status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenRoomsFull({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    if (heavyRooms.hasHeadroomFor({ documentXmlBytes })) return null;
+    return retryLater({
+      context,
+      body: { error: HEAVY_ROOMS_FULL_MESSAGE },
+      status: HttpStatus.ServiceUnavailable,
+      retryAfterSeconds: secondsRoundedUp(HEAVY_ROOMS_RETRY_AFTER_MS),
     });
   }
 
@@ -157,9 +185,15 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
     if (queueRefusal) return queueRefusal;
     const busyRefusal = refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
     if (busyRefusal) return busyRefusal;
+    const heavyBudgetRefusal = refusalWhenHeavyBudgetSpent({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (heavyBudgetRefusal) return heavyBudgetRefusal;
+    const roomsRefusal = refusalWhenRoomsFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (roomsRefusal) return roomsRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
+    if (bootstrapLaneOf(declaredDocumentXmlBytes(bytes)) === BootstrapLane.Heavy) heavyUploadBudget.record(userId);
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
+    heavyRooms.reserveForUpload({ documentId, userId });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
 
@@ -215,7 +249,7 @@ function mountOpening({ routes, services }: RouteMount): void {
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
-    if (heavyRooms.isRefused(documentId)) {
+    if (!heavyRooms.fits({ documentId, userId })) {
       return retryLater({
         context,
         body: { error: HEAVY_ROOMS_FULL_MESSAGE },

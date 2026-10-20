@@ -26,6 +26,7 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInOwner, signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
+import { HEAVY_ROOMS_FULL_REASON } from '@superdoc-collab/types';
 import {
   createCollaborationServer,
   HEAVY_ROOMS_REFUSAL_LOG,
@@ -397,23 +398,23 @@ describe('heavy room ceiling', () => {
   test('a member and an agent are refused a room while the ceiling is reached for it, and admitted once it is not', async () => {
     const { server, documentId, owner } = await documentWithOwner();
     commitBootstrap({ services: server.services, documentId, userId: owner.id });
-    const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockReturnValue(true);
+    const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockReturnValue(false);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toBeInstanceOf(
-      CollaborationRefusedError,
-    );
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toMatchObject({
+      reason: HEAVY_ROOMS_FULL_REASON,
+    });
     const token = signRoomToken({ secret: TEST_AUTH_SECRET, userId: owner.id, documentId, now: Date.now() });
     await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
-    expect(refuses).toHaveBeenCalledWith(documentId);
+    expect(refuses).toHaveBeenCalledWith({ documentId, userId: owner.id });
     expect(warn).toHaveBeenCalledWith(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
-    refuses.mockReturnValue(false);
+    refuses.mockReturnValue(true);
     (await connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).close();
     warn.mockRestore();
     await server.stop();
   });
   test('the bootstrap socket is never refused by the ceiling', async () => {
     const { server, documentId, owner } = await documentWithOwner();
-    const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockReturnValue(true);
+    const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockReturnValue(false);
     (await connectToDocument({ server, cookie: owner.cookie, documentId })).close();
     expect(refuses).not.toHaveBeenCalled();
     await server.stop();
@@ -763,4 +764,48 @@ describe('collaboration device creator', () => {
     await expect.poll(() => server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Failed);
     await server.stop();
   });
+});
+
+test('loading a room reports the size of its restored state as the size of the room', async () => {
+  const roomMemory = { grew: vi.fn(), loaded: vi.fn(), unloaded: vi.fn() };
+  const documentId = randomUUID();
+  const stored = new Y.Doc();
+  stored.getText('t').insert(0, 'restored state');
+  const state = Y.encodeStateAsUpdate(stored);
+  const hocuspocus = createCollaborationServer({
+    roomMemory,
+    bootstrap: { isCommitted: () => true },
+    updateLog: { latestSnapshot: () => ({ sequence: 1, state }), readRange: () => [] },
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
+  await hocuspocus.hooks('onLoadDocument', {
+    document: new Document(documentName),
+    documentName,
+  } as unknown as Parameters<typeof hocuspocus.hooks<'onLoadDocument'>>[1]);
+  expect(roomMemory.loaded).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: state.byteLength });
+  expect(roomMemory.grew).not.toHaveBeenCalled();
+});
+
+test('a socket that disconnects gives back the place its user was admitted with, and a bootstrap socket gives back nothing', async () => {
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), released: vi.fn() };
+  const roomBootstrap = { deviceClosed: vi.fn() };
+  const hocuspocus = createCollaborationServer({
+    roomMemory,
+    roomBootstrap,
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${randomUUID()}`;
+  const disconnect = (bootstrapAttempt: string | null) =>
+    hocuspocus.hooks('onDisconnect', {
+      socketId: 'socket-1',
+      documentName,
+      context: { documentId: 'doc-1', userId: 'u1', bootstrapAttempt },
+    } as unknown as Parameters<typeof hocuspocus.hooks<'onDisconnect'>>[1]);
+  await disconnect('attempt-1');
+  expect(roomMemory.released).not.toHaveBeenCalled();
+  await disconnect(null);
+  expect(roomMemory.released).toHaveBeenCalledExactlyOnceWith({ documentName, userId: 'u1' });
 });

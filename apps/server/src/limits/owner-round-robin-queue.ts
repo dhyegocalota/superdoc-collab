@@ -22,14 +22,21 @@ export class OwnerRoundRobinQueue<Item> {
     });
   }
 
-  turnOrder(): Item[] {
-    const queues = [...this.itemsByOwner.values()];
+  turnOrder({ also }: { also?: { owner: string | null; item: Item } } = {}): Item[] {
+    const queues = [...this.queuesWith(also)];
     const longest = Math.max(0, ...queues.map((items) => items.length));
     return Array.from({ length: longest }, (_, turn) => queues.flatMap((items) => items.slice(turn, turn + 1))).flat();
   }
 
   hasOwner(owner: string | null): boolean {
     return this.itemsByOwner.has(owner);
+  }
+
+  private queuesWith(also: { owner: string | null; item: Item } | undefined): Item[][] {
+    if (also === undefined) return [...this.itemsByOwner.values()];
+    const entries = new Map(this.itemsByOwner);
+    entries.set(also.owner, [...this.itemsOf(also.owner), also.item]);
+    return [...entries.values()];
   }
 
   private itemsOf(owner: string | null): Item[] {

@@ -1,4 +1,5 @@
-import { type BootstrapProgress, BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
+import { BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
+import type { BootstrapReading } from './bootstrap-reading';
 import {
   bytesProgressDetail,
   convertingDetail,
@@ -37,17 +38,20 @@ function estimatedSecondsOf(estimatedMs: number): number {
 }
 
 function preparingElapsedSeconds({
-  preparingSince,
+  preparingElapsedMs,
+  answeredAt,
   startedAt,
   elapsedSeconds,
 }: {
-  preparingSince: number | null;
+  preparingElapsedMs: number | null;
+  answeredAt: number;
   startedAt: number;
   elapsedSeconds: number;
 }): number {
-  if (preparingSince === null) return elapsedSeconds;
+  if (preparingElapsedMs === null) return elapsedSeconds;
   const nowMs = startedAt + elapsedSeconds * SECOND_MS;
-  return Math.max(0, Math.floor((nowMs - preparingSince) / SECOND_MS));
+  const sinceAnswerMs = Math.max(0, nowMs - answeredAt);
+  return Math.floor((preparingElapsedMs + sinceAnswerMs) / SECOND_MS);
 }
 
 function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number | null; elapsedSeconds: number }): number | null {
@@ -59,18 +63,20 @@ export function preparingView({
   bootstrap,
   elapsedSeconds,
   startedAt,
+  answeredAt,
 }: {
-  bootstrap: BootstrapProgress | null;
+  bootstrap: BootstrapReading | null;
   elapsedSeconds: number;
   startedAt: number;
+  answeredAt: number;
 }): OpenProgressView {
   const stage = OpenStage.Preparing;
   const elapsed = elapsedLabel(elapsedSeconds);
   if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
   if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
-  const { done, total, estimatedMs, preparingSince, fileBytes } = bootstrap;
+  const { done, total, estimatedMs, preparingElapsedMs, fileBytes } = bootstrap;
   const sizeBytes = fileBytes;
-  const preparingSeconds = preparingElapsedSeconds({ preparingSince, startedAt, elapsedSeconds });
+  const preparingSeconds = preparingElapsedSeconds({ preparingElapsedMs, answeredAt, startedAt, elapsedSeconds });
   const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
   const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds: preparingSeconds });
   const isBytesAhead = bytesFraction !== null && (timeFraction === null || bytesFraction >= timeFraction);

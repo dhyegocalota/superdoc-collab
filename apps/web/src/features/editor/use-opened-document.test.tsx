@@ -22,6 +22,7 @@ const FAKE_TIMERS: Parameters<typeof vi.useFakeTimers>[0] = {
   toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
 };
 const SETTLE_MS = 100;
+const ANSWER_ARRIVED_AT = new Date('2026-10-19T12:00:00Z');
 const OPENED = openedAs(DocumentRole.Reader);
 
 type Answer = () => Response;
@@ -163,4 +164,24 @@ test('a Failed bootstrap is a failure that stops the poll', async () => {
   expect(result.current.data).toBeUndefined();
   await advance(DOCUMENT_READY_POLL_MS * 5);
   expect(fetchSpy).toHaveBeenCalledTimes(1);
+});
+
+test('the answer carries when it arrived, by the browser clock, so Preparing never compares two clocks', async () => {
+  vi.setSystemTime(ANSWER_ARRIVED_AT);
+  answerInOrder(answeredAt(BootstrapStage.Preparing));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.bootstrapAnsweredAt).toBeGreaterThanOrEqual(ANSWER_ARRIVED_AT.getTime());
+  expect(result.current.bootstrapAnsweredAt).toBeLessThan(ANSWER_ARRIVED_AT.getTime() + SETTLE_MS * 2);
+});
+
+test.each([
+  ['an answer with no preparingElapsedMs reads null', undefined, null],
+  ['an answer with preparingElapsedMs keeps it', 12_000, 12_000],
+])('%s', async (_, preparingElapsedMs, expected) => {
+  const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), ...(preparingElapsedMs === undefined ? {} : { preparingElapsedMs }) };
+  answerInOrder(() => jsonResponse({ body: { ...OPENED, bootstrap } }));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.bootstrap!.preparingElapsedMs).toBe(expected);
 });

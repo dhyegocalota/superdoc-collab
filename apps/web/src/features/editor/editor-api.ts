@@ -8,6 +8,7 @@ import {
   RoomMode,
   TAB_QUERY_KEY,
   thumbnailApiPath,
+  type BootstrapProgress,
   type DocumentMembers,
   type OpenedDocument,
   type ShareLinkRole,
@@ -16,7 +17,7 @@ import {
 import { ApiRequestError, apiGet, DocumentUnavailableError, apiSend, assertDocumentAvailable, assertOk, readJson } from '@/lib/api';
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { tabId } from '@/lib/tab-id';
-import type { OpenedAnswer } from './bootstrap-reading';
+import type { BootstrapReading, OpenedAnswer } from './bootstrap-reading';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 
 export const BLANK_DOCX_PATH = '/blank.docx';
@@ -43,6 +44,12 @@ export function documentFileQueryKey({
   return [...DOCUMENT_FILE_QUERY_KEY, documentId, roomMode];
 }
 
+function bootstrapReadingOf(bootstrap: BootstrapProgress): BootstrapReading {
+  const preparingSince = 'preparingSince' in bootstrap ? (bootstrap.preparingSince as number | null) : null;
+  const fileBytes = 'fileBytes' in bootstrap ? (bootstrap.fileBytes as number | null) : null;
+  return { ...bootstrap, preparingSince, fileBytes };
+}
+
 export async function openDocument(documentId: string): Promise<OpenedAnswer> {
   const response = await apiGet(documentApiPath({ documentId }));
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
@@ -52,7 +59,7 @@ export async function openDocument(documentId: string): Promise<OpenedAnswer> {
   const { bootstrap } = opened;
   return {
     ...opened,
-    bootstrap: { ...bootstrap, preparingSince: null, fileBytes: null },
+    bootstrap: bootstrapReadingOf(bootstrap),
   };
 }
 

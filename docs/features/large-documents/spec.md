@@ -4,6 +4,7 @@
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-19 ("quero poder abrir qualquer tamanho de doc")
 **ADRs:** [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0001](../../adr/0001-event-sourcing-over-yjs.md), [0004](../../adr/0004-stack.md)
+**2026-10-19:** the heap percentages and the creator recovery below describe what shipped; [server-bootstrap](../server-bootstrap/spec.md) now owns the memory percentages and removed the creator.
 **Not changing:** the update log format, the room mode rules, the projection's output, the upload size cap, the waiting page.
 
 ## Problem
@@ -26,7 +27,7 @@ The owner's `heavy-document.docx` (9.5 MB, 56,800 paragraphs, `e2e/fixtures/larg
 | Goal | Rule |
 |------|------|
 | Import gate | A DOCX above `MAX_REVISIONS_IMPORT_BYTES` (2 MB) skips the Word-revisions import. One log line names the document and its size. The upload still succeeds, with no imported revisions. |
-| Heap sizing | The container entrypoint reads the cgroup memory limit, prints it with the heap it picked, and starts the server with `--max-old-space-size` at 40% of the limit. The projection worker thread gets `resourceLimits.maxOldGenerationSizeMb` from `PROJECTION_WORKER_HEAP_MEGABYTES`, which the entrypoint sets to 20% of the limit, and each of the two SDK hosts gets `BOOTSTRAP_HOST_HEAP_MEGABYTES` at 20% (server 40 + worker 20 + two hosts 40 = 100%, set in one place, `docker/entrypoint.sh`). No limit, or no variable, keeps Node's default. |
+| Heap sizing | The container entrypoint reads the cgroup memory limit, prints it with the heap it picked, and starts the server with `--max-old-space-size` at 70% of the limit. The projection worker thread gets `resourceLimits.maxOldGenerationSizeMb` from `PROJECTION_WORKER_HEAP_MEGABYTES`, which the entrypoint sets to 50% of the limit. No limit, or no variable, keeps Node's default. |
 | Creator recovery | A creator refused because its ticket predates the server process, on a room that is not committed, re-opens the document: a fresh open for a new ticket, then a reconnect. The banner "opened elsewhere" stays for a real takeover. The server tells the two apart by the ticket's epoch and gives the restart its own close reason. |
 | Record | A Scale row in `docs/next.md` for the day a room no longer fits the heap, and a consequence line in ADR 0033. |
 

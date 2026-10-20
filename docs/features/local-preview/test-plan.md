@@ -61,6 +61,11 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [x] The 6 GB device path: the heavy upload is 413 "This server can prepare documents with up to 8 MB of text and layout.", the device button, the document prepared on ana's device, text at +52 s, and the joiner reads "Being prepared on Ana's device" at +7 s and has text at +55 s (i1.out).
 - [x] The honest 4 GB refusal (MEMORY_LIMIT_MEGABYTES 4096, heap 1638): the 413 reads "This server cannot hold a document this large at its current memory, even prepared on a device. The largest it can hold has up to 6 MB of text and layout." with no device button at 1280 and 375 (guard-4gb-1280.png, guard-4gb-375.png, q1.out).
 
+## Re-walk on 398fde35 (feat/instant-open-2 at 53031039 merged)
+
+- [x] Heavy swap on the 8 GB local server: first text 11.5 s, text on screen in all 836 samples through the swap (0 blank), scroll 1500 before and after, same page marker, live at 125.6 s on a machine loaded by the full gate; the renderer's memory figure was not read (skipped) — evidence: .pr-media/instant-open-2/walk-final/s2.out
+- [x] Owner reopen after closing the tab 20 s into a device preparation (6 GB limit): the joiner read "The preparation on Ana's device stopped." within 1 s; the owner reopened 70 s later and read "Preparing on this device · 5 s" counting up. The reopen inside the first seconds after the close, while the server still holds the old room, was not exercised — evidence: .pr-media/instant-open-2/walk-final/m1.out
+
 ## Adversarial review
 
 - [x] Claim 1: the preview never edits the shared copy — attack: type into it, paste, drop a file; result: held, nothing reached the preview text, the live copy or the log of edits (g1.out)

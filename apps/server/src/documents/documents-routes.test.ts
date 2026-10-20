@@ -3,7 +3,9 @@ import { commitBootstrap, writeStory } from '@superdoc-collab/history/testing';
 import {
   ApiPath,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
+  BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_STATE_BYTES_RATIO,
+  BYTES_PER_MEGABYTE,
   DOCUMENT_TOO_LARGE_MESSAGE,
   MAX_DOCUMENT_XML_BYTES,
   UPLOADS_PER_MINUTE,
@@ -44,7 +46,6 @@ import { DOCUMENT_FILES_DIRECTORY } from '../database/connection';
 import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtime';
 
 const IMPORT_TIMEOUT_MS = 30_000;
-const BYTES_PER_MEGABYTE = 1024 * 1024;
 const TWELVE_MEGABYTES = 12 * BYTES_PER_MEGABYTE;
 const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
@@ -378,7 +379,12 @@ test('opening an uncommitted document nobody bootstrapped starts one bootstrap a
   await openedBy({ server, user: owner, documentId });
   expect(bootstrap).toHaveBeenCalledTimes(1);
   const [request] = bootstrap.mock.calls[0]!;
-  expect(first.bootstrap).toMatchObject({ stage: BootstrapStage.Queued, done: 0, total: bytes.byteLength * BOOTSTRAP_STATE_BYTES_RATIO });
+  expect(first.bootstrap).toMatchObject({
+    stage: BootstrapStage.Queued,
+    done: 0,
+    total: bytes.byteLength * BOOTSTRAP_STATE_BYTES_RATIO,
+    estimatedMs: (bytes.byteLength / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE,
+  });
   expect(request).toMatchObject({ documentId, filePath: server.services.storage.pathOf(documentId) });
   expect(request.url).toMatch(new RegExp(`${ApiPath.BootstrapCollaboration}$`));
   expect(verifyBootstrapToken({ secret: TEST_AUTH_SECRET, token: request.token, documentId, now: Date.now() })?.userId).toBe(owner.id);

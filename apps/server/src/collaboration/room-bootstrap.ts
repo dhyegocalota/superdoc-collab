@@ -1,13 +1,16 @@
 import {
   BOOTSTRAP_COMMIT_GRACE_MS,
   BOOTSTRAP_INTERRUPTED_RETRIES,
+  BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_PROGRESS_ENTRIES,
+  BOOTSTRAP_RATE_SAMPLES,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapLane,
   bootstrapLaneOf,
   BootstrapStage,
+  BYTES_PER_MEGABYTE,
   type BootstrapProgress,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
@@ -19,7 +22,7 @@ import { describeError } from '../logging/describe-error';
 
 export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 
-type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null };
+type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null; startedAt: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
 
@@ -50,6 +53,7 @@ export class RoomBootstrap {
     [BootstrapLane.Heavy]: new OwnerRoundRobinQueue(),
   };
   private readonly running: Record<BootstrapLane, boolean> = { [BootstrapLane.Light]: false, [BootstrapLane.Heavy]: false };
+  private readonly conversionRates: number[] = [];
   private readonly commitWaiters = new Map<string, () => void>();
   private readonly run: BootstrapRun;
   private readonly issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
@@ -107,8 +111,9 @@ export class RoomBootstrap {
     if (existing !== null && !this.isRetryable(existing)) return existing.progress;
     const fileBytes = this.fileBytesOf(documentId);
     const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
-    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs: null };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null } });
+    const estimatedMs = (fileBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs };
+    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
     const lane = bootstrapLaneOf(fileBytes);
     this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
     this.pump(lane);
@@ -123,9 +128,10 @@ export class RoomBootstrap {
     this.jobs.set({
       key: documentId,
       value: {
-        progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null, estimatedMs: null },
+        progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null, estimatedMs: this.estimatedMsOf(documentId) },
         attempt,
         failedAt: null,
+        startedAt: this.now(),
       },
     });
     return this.issueToken({ userId: owner, documentId, attempt });
@@ -149,9 +155,15 @@ export class RoomBootstrap {
     const job = this.jobs.peek(documentId);
     const total = this.totalOf(documentId);
     const attempt = job === null ? null : job.attempt;
+    this.recordConversion(documentId);
     this.jobs.set({
       key: documentId,
-      value: { progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes, estimatedMs: null }, attempt, failedAt: null },
+      value: {
+        progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes, estimatedMs: this.estimatedMsOf(documentId) },
+        attempt,
+        failedAt: null,
+        startedAt: null,
+      },
     });
     const commitWaiter = this.commitWaiters.get(documentId);
     if (commitWaiter !== undefined) commitWaiter();
@@ -170,6 +182,26 @@ export class RoomBootstrap {
   private isReady(documentId: string): boolean {
     const progress = this.progressOf(documentId);
     return progress !== null && progress.stage === BootstrapStage.Ready;
+  }
+
+  private estimatedMsOf(documentId: string): number | null {
+    const progress = this.progressOf(documentId);
+    if (progress === null) return null;
+    return progress.estimatedMs;
+  }
+
+  private rateMsPerMegabyte(): number {
+    if (this.conversionRates.length === 0) return BOOTSTRAP_MS_PER_MEGABYTE;
+    return this.conversionRates.reduce((sum, rate) => sum + rate, 0) / this.conversionRates.length;
+  }
+
+  private recordConversion(documentId: string): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null || job.startedAt === null) return;
+    const megabytes = job.progress.total / BOOTSTRAP_STATE_BYTES_RATIO / BYTES_PER_MEGABYTE;
+    if (megabytes <= 0) return;
+    this.conversionRates.push((this.now() - job.startedAt) / megabytes);
+    if (this.conversionRates.length > BOOTSTRAP_RATE_SAMPLES) this.conversionRates.shift();
   }
 
   private totalOf(documentId: string): number {
@@ -225,7 +257,7 @@ export class RoomBootstrap {
     if (job === null) return;
     this.jobs.set({
       key: documentId,
-      value: { progress: { ...job.progress, stage: BootstrapStage.Failed, done: 0 }, attempt: null, failedAt: this.now() },
+      value: { progress: { ...job.progress, stage: BootstrapStage.Failed, done: 0 }, attempt: null, failedAt: this.now(), startedAt: null },
     });
     console.error(`${BOOTSTRAP_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
   }

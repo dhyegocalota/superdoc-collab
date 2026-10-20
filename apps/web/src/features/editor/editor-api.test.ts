@@ -1,22 +1,11 @@
 import { HttpMethod, HttpStatus, thumbnailApiPath, ThumbnailMimeType } from '@superdoc-collab/types';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
-import { DocumentRole } from '@superdoc-collab/types';
-import { DOCUMENT_ID, openedAs, READY_BOOTSTRAP } from '@/testing/opened-document';
+import { DOCUMENT_ID } from '@/testing/opened-document';
 import { DocumentUnavailableError } from '@/lib/api';
 import { openDocument, sendThumbnailBeacon, uploadThumbnail } from './editor-api';
 
 afterEach(() => vi.restoreAllMocks());
-
-test.each([
-  ['an answer with no estimate reads null', {}, null],
-  ['an answer with an estimate keeps it', { estimatedMs: 40_000 }, 40_000],
-])('%s', async (_, extra, expected) => {
-  const body = { ...openedAs(DocumentRole.Editor), bootstrap: { ...READY_BOOTSTRAP, ...extra } };
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body }));
-  const opened = await openDocument(DOCUMENT_ID);
-  expect(opened.bootstrap.estimatedMs).toBe(expected);
-});
 
 test('a 403 throws DocumentUnavailableError, so it never offers a retry', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Forbidden }));

@@ -79,7 +79,7 @@ Upload uses `XMLHttpRequest` because `fetch` reports no upload progress over HTT
 |----------|---------|----------------|------|
 | What should loading look like for long documents? | spinner only / stage list with real numbers | "um loading mais friendly com progressão real de ui/ux pra não feel stuck especialmente pra docs longos" | 2026-10-19 |
 | How long before the panel shows? | 400 ms / 2 s | Lead decision: 2 s, because a small document opens in 1.5 to 1.8 s and 400 ms flashed the panel on every open | 2026-10-19 |
-| What does Preparing show when the bytes do not move? | indeterminate / elapsed over the server estimate | Lead decision: a time bar from `estimatedMs`, capped at 95%; `estimatedMs` missing from an answer reads as null until the server sends it | 2026-10-19 |
+| What does Preparing show when the bytes do not move? | indeterminate / elapsed over the server estimate | Lead decision: a time bar from `estimatedMs`, capped at 95%; the server now sends `estimatedMs` on every answer, null when unknown | 2026-10-19 |
 | What does Preparing show once the server reports progress? | bytes converted of the total / bytes received | Lead decision: "Received 12.3 MB", determinate whenever `done` is above 0 | 2026-10-19 |
 
 ## Test strategy summary

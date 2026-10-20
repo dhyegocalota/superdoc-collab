@@ -14,7 +14,8 @@ import * as Y from 'yjs';
 import { PRE_AUTHENTICATION_MAX_INFLATED_BYTES } from './socket-message-limit';
 import { documentWithOwner } from '../testing/collaboration-client';
 import { commitBootstrap, waitForCommit } from '../testing/committed-room';
-import type { TestServer } from '../testing/test-server';
+import { authFrame } from '../testing/socket-frames';
+import { signedInUser, type TestServer } from '../testing/test-server';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
 const LOOPBACK_HOST = '127.0.0.1';
@@ -27,6 +28,7 @@ const PAYLOAD_TOO_BIG_CLOSE_CODE = 1009;
 const TEXT_NAME = 't';
 const TEST_TIMEOUT_MS = 60_000;
 const SOCKET_WINDOW_BITS = 12;
+const TOKEN_FIELD = Buffer.from([1, 0x78]);
 const INFLATING_FRAMES = 2;
 const INFLATING_FRAME_BYTES = (MAX_SOCKET_MESSAGE_BYTES * 3) / 4;
 const SETTLE_AFTER_FRAMES_MS = 3_000;
@@ -233,4 +235,17 @@ describe('collaboration socket compression', () => {
       await server.stop();
     },
   );
+
+  test('a signed-in user who is denied a document is closed by the server with 1008', { timeout: TEST_TIMEOUT_MS }, async () => {
+    const { server, documentId } = await documentWithOwner();
+    const stranger = await signedInUser({ server, name: 'Stranger' });
+    const { closeCode } = await sendFrames({
+      server,
+      path: ApiPath.Collaboration,
+      headers: { cookie: stranger.cookie },
+      frames: [Buffer.concat([authFrame(`${SUPERDOC_ROOM_PREFIX}${documentId}`), TOKEN_FIELD])],
+    });
+    expect(closeCode).toBe(POLICY_VIOLATION_CLOSE_CODE);
+    await server.stop();
+  });
 });

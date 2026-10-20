@@ -52,6 +52,7 @@ export function DocumentPage() {
   const { user } = useSession();
   const {
     data: opened,
+    error: openFailure,
     bootstrap,
     preparedOnDeviceOf,
     bootstrapAnsweredAt,
@@ -148,6 +149,7 @@ export function DocumentPage() {
         documentId={documentId}
         readiness={documentReadiness}
         progress={{ bootstrap, preparedOnDeviceOf, answeredAt: bootstrapAnsweredAt, startedAt, isShown: isProgressShown }}
+        failure={openFailure}
         onRetry={retry}
       />,
     );

@@ -13,6 +13,8 @@ import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
+import { createHeavyRoomAdmission } from './collaboration/heavy-room-admission';
+import { createProcessRoomMemoryRelease } from './collaboration/room-memory-release';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
 import { PasswordResetLinkCapture, PasswordResets } from './admin/password-reset-links';
@@ -246,9 +248,7 @@ function createServices({
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
-  function documentXmlBytesOf(documentId: string): number {
-    return declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId)));
-  }
+  const documentXmlBytesOf = (documentId: string): number => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId)));
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
@@ -280,6 +280,12 @@ function createServices({
   });
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
+  const roomMemory = createProcessRoomMemoryRelease({ maxHeavyRooms: environment.maxLoadedHeavyRooms });
+  const heavyRooms = createHeavyRoomAdmission({
+    roomMemory,
+    documentXmlBytesOf,
+    isInFlight: (documentId) => roomBootstrap.isInFlight(documentId),
+  });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
@@ -287,6 +293,8 @@ function createServices({
     roomBootstrap,
     bootstrap,
     roomModes,
+    roomMemory,
+    heavyRooms,
     onLogged: (documentId) => throttle.request(documentId),
     onStored: (documentId) => {
       documents.touch(documentId);
@@ -322,6 +330,7 @@ function createServices({
     readModel,
     scheduler,
     runtime,
+    heavyRooms,
     shareLinks,
     insightsRepository,
     throttle,

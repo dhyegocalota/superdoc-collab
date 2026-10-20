@@ -49,6 +49,8 @@ function bootstrapAt({ stage, done }: { stage: BootstrapStage; done: number }): 
     estimatedMs: null,
     documentXmlBytes: SCRIPTED_TOTAL_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   };
 }
 

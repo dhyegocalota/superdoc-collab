@@ -14,7 +14,17 @@ import {
   type ShareLinkRole,
   type ShareLinks,
 } from '@superdoc-collab/types';
-import { ApiRequestError, apiGet, DocumentUnavailableError, apiSend, assertDocumentAvailable, assertOk, readJson } from '@/lib/api';
+import {
+  ApiRequestError,
+  apiGet,
+  DocumentUnavailableError,
+  apiSend,
+  assertDocumentAvailable,
+  assertOk,
+  readJson,
+  refusalMessageOf,
+  ServerBusyError,
+} from '@/lib/api';
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
@@ -47,6 +57,9 @@ export async function openDocument(documentId: string): Promise<OpenedDocument> 
   const response = await apiGet(documentApiPath({ documentId }));
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
+  if (response.status === HttpStatus.ServiceUnavailable) {
+    throw new ServerBusyError(await refusalMessageOf({ response, fallback: DOCUMENT_LOAD_ERROR_MESSAGE }));
+  }
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);
   const opened: OpenedDocument = await response.json();
   const { bootstrap } = opened;

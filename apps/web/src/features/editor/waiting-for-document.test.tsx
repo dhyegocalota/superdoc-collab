@@ -3,6 +3,7 @@ import {
   BootstrapStage,
   documentPagePath,
   DOCUMENT_UNAVAILABLE_MESSAGE,
+  HEAVY_ROOMS_FULL_MESSAGE,
   DocumentRole,
   type DocumentsList,
 } from '@superdoc-collab/types';
@@ -10,6 +11,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
+import { ServerBusyError } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { OpenStage } from '@/features/open-progress/open-stage';
 import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, summaryAs } from '@/testing/opened-document';
@@ -36,16 +38,18 @@ function renderWaiting({
   readiness,
   cached = false,
   progress = HIDDEN_PROGRESS,
+  failure = null,
 }: {
   readiness: WaitingReadiness;
   cached?: boolean;
   progress?: WaitingProgress;
+  failure?: Error | null;
 }) {
   const queryClient = new QueryClient();
   if (cached) queryClient.setQueryData(DOCUMENTS_QUERY_KEY, CACHED_LIST);
   const onRetry = vi.fn();
   const { router } = renderWithProviders(
-    <WaitingForDocument documentId={DOCUMENT_ID} readiness={readiness} progress={progress} onRetry={onRetry} />,
+    <WaitingForDocument documentId={DOCUMENT_ID} readiness={readiness} progress={progress} failure={failure} onRetry={onRetry} />,
     { queryClient, route: documentPagePath(DOCUMENT_ID) },
   );
   return { onRetry, router };
@@ -75,6 +79,16 @@ test('the error state shows the retry hint and Try again first', async () => {
   await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN_LABEL }));
   expect(onRetry).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toBeInTheDocument();
+});
+
+test('a refusal because the server is holding as many large documents as it can shows its message with Try again and no connection hint', async () => {
+  const { onRetry } = renderWaiting({ readiness: DocumentReadiness.Failed, failure: new ServerBusyError(HEAVY_ROOMS_FULL_MESSAGE) });
+  const alert = screen.getByRole('alert');
+  expect(within(alert).getByText(HEAVY_ROOMS_FULL_MESSAGE)).toBeInTheDocument();
+  expect(within(alert).queryByText(DOCUMENT_LOAD_ERROR_MESSAGE)).not.toBeInTheDocument();
+  expect(within(alert).queryByText(LOAD_RETRY_HINT)).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN_LABEL }));
+  expect(onRetry).toHaveBeenCalledTimes(1);
 });
 
 test('a connection failure keeps the connection copy', () => {

@@ -9,7 +9,8 @@ import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, stackEnvironment, wait
 export enum RestartablePort {
   ConnectionState = 3150,
   ExitConfirmation = 3160,
-  LocalPreview = 3170,
+  Backpressure = 3170,
+  LocalPreview = 3171,
 }
 
 const SEED_COMMAND = 'apps/server/dist/seed.js';

@@ -7,7 +7,7 @@ import { ReadModel } from './read-model';
 import { commitBootstrap, openTestDatabase, writeStory } from './testing';
 import { readMainStoryText } from './document-content';
 import { compact, UpdateLog, replay } from './update-log';
-import { GcFreeReplays, REPLAY_CACHE_SIZE } from './version-state';
+import { versionAt } from './version-state';
 
 const DOCUMENT = 'version-room';
 const EDITS = 30;
@@ -37,9 +37,8 @@ function bootstrappedLog(texts: string[]): { log: UpdateLog; readModel: ReadMode
 }
 
 function expectEveryMarkRestored({ log, readModel }: { log: UpdateLog; readModel: ReadModel }): void {
-  const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
   readModel.marks(DOCUMENT).forEach(({ sequence }) => {
-    const restored = replays.versionAt({ log, documentName: DOCUMENT, sequence });
+    const restored = versionAt({ log, documentName: DOCUMENT, sequence });
     const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
     expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
     expect(restored.getText('draft').toString()).toBe(expected.getText('draft').toString());
@@ -99,9 +98,8 @@ test('a seeded random history restores exactly at every mark', () => {
 });
 
 function expectEveryLoggedSequenceRestored(log: UpdateLog): void {
-  const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
   log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).forEach(({ sequence }) => {
-    const restored = replays.versionAt({ log, documentName: DOCUMENT, sequence });
+    const restored = versionAt({ log, documentName: DOCUMENT, sequence });
     const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
     expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
   });
@@ -117,7 +115,7 @@ test('the version at the sequence of an edit shows the edit after a later delete
   writeStory({ document: ana, texts: ['Plan'] });
   const sequences = log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).map(({ sequence }) => sequence);
   const editSequence = sequences.at(-2)!;
-  const version = new GcFreeReplays(REPLAY_CACHE_SIZE).versionAt({ log, documentName: DOCUMENT, sequence: editSequence });
+  const version = versionAt({ log, documentName: DOCUMENT, sequence: editSequence });
   expect(readMainStoryText(version)).toBe('PlanAdded and edited');
 });
 
@@ -149,10 +147,19 @@ test('a version after a compaction snapshot reads only the tail and still equals
   const sequence = log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).at(-2)!.sequence;
   const snapshotSequence = log.latestSnapshot({ documentName: DOCUMENT, atOrBefore: sequence })!.sequence;
   const readRange = vi.spyOn(log, 'readRange');
-  const restored = new GcFreeReplays(REPLAY_CACHE_SIZE).versionAt({ log, documentName: DOCUMENT, sequence });
+  const restored = versionAt({ log, documentName: DOCUMENT, sequence });
   const versionRead = readRange.mock.calls.find(([range]) => range.untilSequence === sequence)!;
   expect(versionRead[0].afterSequence).toBe(snapshotSequence);
   const expected = replay(log.read({ documentName: DOCUMENT, untilSequence: sequence }));
   expect(restored.getMap('content').toJSON()).toEqual(expected.getMap('content').toJSON());
   expectEveryLoggedSequenceRestored(log);
+});
+
+test('a version never reads the log past its sequence', () => {
+  const { log, ana } = bootstrappedLog(['Plan']);
+  Array.from({ length: EDITS }).forEach((_, index) => writeStory({ document: ana, texts: [`Plan ${index}`] }));
+  const sequence = log.read({ documentName: DOCUMENT, untilSequence: Number.MAX_SAFE_INTEGER }).at(-EDITS)!.sequence;
+  const readRange = vi.spyOn(log, 'readRange');
+  versionAt({ log, documentName: DOCUMENT, sequence });
+  expect(readRange.mock.calls.map(([range]) => range.untilSequence)).toEqual([sequence]);
 });

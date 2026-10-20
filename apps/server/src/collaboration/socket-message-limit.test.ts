@@ -156,10 +156,10 @@ test('the pre-authentication total does not reset with time', () => {
   expect(limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(1) })).toBe(true);
 });
 
-test('a socket the server has answered is no longer held to the pre-authentication total', () => {
+test('a socket the server has authenticated is no longer held to the pre-authentication total', () => {
   const limit = new SocketMessageLimit({ now: () => 0 });
   const socket = {};
-  limit.markAnswered(socket);
+  limit.markAuthenticated(socket);
   expect(limit.exceedsPreAuthenticationBudget({ socket, frame: Buffer.alloc(2 * PRE_AUTHENTICATION_MAX_INFLATED_BYTES) })).toBe(false);
 });
 

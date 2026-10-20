@@ -1,11 +1,16 @@
 import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  bootstrapBusyMessage,
+  bootstrapLaneOf,
+  BootstrapLane,
   bootstrapMemoryShortMessage,
   DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
+  HEAVY_ROOMS_FULL_MESSAGE,
+  HEAVY_ROOMS_RETRY_AFTER_MS,
   HttpStatus,
   INVALID_PREPARATION_MESSAGE,
   isPreparable,
@@ -79,9 +84,9 @@ function contentDisposition(fileName: string): string {
 }
 
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
-type CreationMount = RouteMount & { memoryLimitMegabytes: number | null };
+type CreationMount = RouteMount & { memoryLimitMegabytes: number | null; maxBootstrapWaitMs: number };
 
-function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount): void {
+function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs }: CreationMount): void {
   const { documents, storage, runtime, uploadBudget } = services;
 
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
@@ -103,6 +108,18 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       context,
       body: { error: BOOTSTRAP_QUEUE_FULL_MESSAGE },
       status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenBusy({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
+    const waitMs = runtime.bootstrapWaitMs({ documentXmlBytes });
+    if (waitMs <= maxBootstrapWaitMs) return null;
+    return retryLater({
+      context,
+      body: { error: bootstrapBusyMessage(waitMs) },
+      status: HttpStatus.ServiceUnavailable,
       retryAfterSeconds: secondsRoundedUp(waitMs),
     });
   }
@@ -138,6 +155,8 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
   }): Promise<Response> {
     const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
     if (queueRefusal) return queueRefusal;
+    const busyRefusal = refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (busyRefusal) return busyRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
@@ -189,13 +208,21 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
 }
 
 function mountOpening({ routes, services }: RouteMount): void {
-  const { documents, runtime } = services;
+  const { documents, runtime, heavyRooms } = services;
 
   routes.get('/:documentId', (context) => {
     const documentId = context.req.param('documentId');
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
+    if (heavyRooms.isRefused(documentId)) {
+      return retryLater({
+        context,
+        body: { error: HEAVY_ROOMS_FULL_MESSAGE },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: secondsRoundedUp(HEAVY_ROOMS_RETRY_AFTER_MS),
+      });
+    }
     const answer = runtime.roomModeFor({ documentId, userId });
     if (answer.isSpent) {
       console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);
@@ -288,12 +315,14 @@ function mountReading({ routes, services }: RouteMount): void {
 export function createDocumentsRoutes({
   services,
   memoryLimitMegabytes,
+  maxBootstrapWaitMs,
 }: {
   services: AppServices;
   memoryLimitMegabytes: number | null;
+  maxBootstrapWaitMs: number;
 }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  mountCreation({ routes, services, memoryLimitMegabytes });
+  mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs });
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });

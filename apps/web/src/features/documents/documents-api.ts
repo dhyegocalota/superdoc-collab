@@ -13,7 +13,7 @@ import {
   type DocumentsList,
   type UploadRefusal,
 } from '@superdoc-collab/types';
-import { ApiRequestError, apiGet, apiSend, apiSendWithProgress, readJson, type UploadProgress } from '@/lib/api';
+import { ApiRequestError, apiGet, apiSend, apiSendWithProgress, readJson, refusalMessageOf, type UploadProgress } from '@/lib/api';
 import { CREATE_SUBJECT, LIST_SUBJECT, UPLOAD_SUBJECT } from './documents-copy';
 
 export const DOCUMENTS_QUERY_KEY = ['documents'];
@@ -58,6 +58,8 @@ export async function uploadDocument({
   if (preparation === PreparationSource.Device) form.set(PREPARATION_FIELD, preparation);
   const response = await apiSendWithProgress({ path: ApiPath.Documents, method: HttpMethod.Post, body: form, onProgress });
   if (response.status === HttpStatus.PayloadTooLarge) throw new UploadRefusedError(await refusalOf(response));
+  if (response.status === HttpStatus.ServiceUnavailable)
+    throw new ApiRequestError(await refusalMessageOf({ response, fallback: UPLOAD_TOO_LARGE_MESSAGE }));
   if (response.status === HttpStatus.UnsupportedMediaType) throw new ApiRequestError(NOT_A_DOCX_MESSAGE);
   return readJson<DocumentSummary>({ response, subject: UPLOAD_SUBJECT });
 }

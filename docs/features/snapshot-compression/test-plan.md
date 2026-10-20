@@ -14,6 +14,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [x] `socket-message-limit.test.ts` and `socket-compression.test.ts` — input: frames up to 64 KiB then one byte more before the server answers; a 64 KiB + 1 frame on a real socket that never authenticates; expected: the next is over, the socket closes with 1008, an answered socket is free, time does not reset the total. — evidence: red at 1a323e7c printed `exceedsPreAuthenticationBudget is not implemented` and `expected null to be 1008`; green at dd27c716
 
+- [x] `auth-reply.test.ts`, `attach-collaboration.test.ts` and `socket-compression.test.ts` — input: an Authenticated, a permission-denied and unrelated frames read by `authReplyOf`; a stub socket whose first reply is not the answer then a 64 KiB + 1 frame; a denied stub socket; a real signed-in stranger denied a document — expected: the pre-authentication total stays until the Authenticated reply, a denied socket is closed with 1008 and no later frame reaches the room handler. — evidence: red at ee9b38e0 printed `authReplyOf is not implemented`, `expected null to be 1008` and two timeouts; green at fe142f00
+
 ## Unit
 
 - [x] The existing payload cap, frame cap and rate cap tests of `attach-collaboration.test.ts` — expected: still green with compression on. — evidence: 57 passed across the two files at 033e21d6

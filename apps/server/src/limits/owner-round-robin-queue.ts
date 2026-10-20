@@ -22,6 +22,12 @@ export class OwnerRoundRobinQueue<Item> {
     });
   }
 
+  turnOrder(): Item[] {
+    const queues = [...this.itemsByOwner.values()];
+    const longest = Math.max(0, ...queues.map((items) => items.length));
+    return Array.from({ length: longest }, (_, turn) => queues.flatMap((items) => items.slice(turn, turn + 1))).flat();
+  }
+
   hasOwner(owner: string | null): boolean {
     return this.itemsByOwner.has(owner);
   }

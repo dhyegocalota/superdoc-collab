@@ -1,4 +1,4 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import { MAX_BOOTSTRAP_WAIT_MS, maxLoadedHeavyRooms, OPEN_UNCOMMITTED_PER_MINUTE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
@@ -35,6 +35,8 @@ describe('loadEnvironment', () => {
       projectionWorkerHeapMegabytes: null,
       bootstrapHostHeapMegabytes: null,
       memoryLimitMegabytes: null,
+      maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
+      maxLoadedHeavyRooms: null,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -140,6 +142,26 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when MEMORY_LIMIT_MEGABYTES is %s', (value) => {
     const name = 'MEMORY_LIMIT_MEGABYTES';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('reads the wait ceiling when it is set and keeps the shared constant otherwise', () => {
+    expect(loadEnvironment({ ...complete, MAX_BOOTSTRAP_WAIT_MS: '1000' }).maxBootstrapWaitMs).toBe(1000);
+    expect(loadEnvironment({ ...complete, MAX_BOOTSTRAP_WAIT_MS: '' }).maxBootstrapWaitMs).toBe(MAX_BOOTSTRAP_WAIT_MS);
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_BOOTSTRAP_WAIT_MS is %s', (value) => {
+    const name = 'MAX_BOOTSTRAP_WAIT_MS';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('derives the heavy room ceiling from the memory limit and lets MAX_LOADED_HEAVY_ROOMS override it', () => {
+    expect(loadEnvironment({ ...complete, MEMORY_LIMIT_MEGABYTES: '8192' }).maxLoadedHeavyRooms).toBe(maxLoadedHeavyRooms(8192));
+    expect(loadEnvironment({ ...complete, MEMORY_LIMIT_MEGABYTES: '8192', MAX_LOADED_HEAVY_ROOMS: '1' }).maxLoadedHeavyRooms).toBe(1);
+    expect(loadEnvironment({ ...complete, MAX_LOADED_HEAVY_ROOMS: '2' }).maxLoadedHeavyRooms).toBe(2);
+  });
+  test('sets no heavy room ceiling when neither the memory limit nor MAX_LOADED_HEAVY_ROOMS is known', () => {
+    expect(loadEnvironment(complete).maxLoadedHeavyRooms).toBeNull();
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_LOADED_HEAVY_ROOMS is %s', (value) => {
+    const name = 'MAX_LOADED_HEAVY_ROOMS';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test.each([undefined, ''])('leaves the bootstrap host heap to Node when it is %j', (value) => {

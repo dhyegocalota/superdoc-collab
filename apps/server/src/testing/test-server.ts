@@ -7,6 +7,7 @@ import {
   UTC_TIME_ZONE,
   type SessionUser,
   inviteTokenOf,
+  MAX_BOOTSTRAP_WAIT_MS,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { createServer, type AddressInfo } from 'node:net';
@@ -70,6 +71,8 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     projectionWorkerHeapMegabytes: null,
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes: null,
+    maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
+    maxLoadedHeavyRooms: null,
   };
 }
 
@@ -97,6 +100,8 @@ export async function startTestServer({
   showcaseOnClaim = false,
   now = Date.now,
   memoryLimitMegabytes = null,
+  maxBootstrapWaitMs = MAX_BOOTSTRAP_WAIT_MS,
+  maxLoadedHeavyRooms = null,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -108,6 +113,8 @@ export async function startTestServer({
   showcaseOnClaim?: boolean;
   now?: () => number;
   memoryLimitMegabytes?: number | null;
+  maxBootstrapWaitMs?: number;
+  maxLoadedHeavyRooms?: number | null;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -124,6 +131,8 @@ export async function startTestServer({
     projectionWorkerHeapMegabytes: null,
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes,
+    maxBootstrapWaitMs,
+    maxLoadedHeavyRooms,
   };
   try {
     const running = await startServer({
@@ -189,6 +198,7 @@ function inviteHeaders(server: TestServer): Record<string, string> {
   return { [INVITE_TOKEN_HEADER]: inviteTokenOf(server.services.invites.create({ createdBy: server.admin.id }).url) };
 }
 
+const OCTET_VALUES = 256;
 let nextClientAddress = 0;
 
 async function postCredentials({
@@ -202,7 +212,8 @@ async function postCredentials({
   body: Record<string, string>;
   headers?: Record<string, string>;
 }): Promise<Response> {
-  const clientAddress = `10.200.0.${nextClientAddress++}`;
+  const addressIndex = nextClientAddress++;
+  const clientAddress = `10.200.${Math.floor(addressIndex / OCTET_VALUES)}.${addressIndex % OCTET_VALUES}`;
   return fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: server.baseUrl, ...headers },

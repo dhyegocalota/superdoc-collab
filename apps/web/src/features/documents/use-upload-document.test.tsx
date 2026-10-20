@@ -6,7 +6,9 @@ import {
   HttpMethod,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  bootstrapBusyMessage,
   bootstrapMemoryShortMessage,
+  MINUTE_MS,
   NOT_A_DOCX_MESSAGE,
   PREPARATION_FIELD,
   PreparationSource,
@@ -106,6 +108,15 @@ test('a refusal of the server for its memory shows the largest file it can prepa
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
   const request = await sentUploadRequest();
   act(() => request.respond({ status: HttpStatus.PayloadTooLarge, body: { error: message } }));
+  await waitFor(() => expect(result.current.message).toBe(message));
+});
+
+test('a refusal because the server is busy preparing other documents shows how long to wait', async () => {
+  const { result } = renderHookWithRouter(useUploadDocument);
+  const message = bootstrapBusyMessage(4 * MINUTE_MS);
+  act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const request = await sentUploadRequest();
+  act(() => request.respond({ status: HttpStatus.ServiceUnavailable, body: { error: message } }));
   await waitFor(() => expect(result.current.message).toBe(message));
 });
 

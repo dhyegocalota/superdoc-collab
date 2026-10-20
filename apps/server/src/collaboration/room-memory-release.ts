@@ -11,6 +11,8 @@ export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavo
 export type RoomMemoryRelease = {
   grew: (room: { documentName: string; bytes: number }) => void;
   unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
+  heavyRoomCount: () => number;
+  isAtCeiling: (documentName: string) => boolean;
 };
 
 export function createRoomMemoryRelease({
@@ -18,15 +20,25 @@ export function createRoomMemoryRelease({
   memoryUsage,
   cooldownMs,
   now,
+  maxHeavyRooms,
 }: {
   collectGarbage: CollectGarbage | null;
   memoryUsage: () => NodeJS.MemoryUsage;
   cooldownMs: number;
   now: () => number;
+  maxHeavyRooms: number | null;
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
   let isRetryPending = false;
+
+  function isHeavy(bytes: number | undefined): boolean {
+    return bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
+  }
+
+  function heavyRoomCount(): number {
+    return [...roomBytes.values()].filter(isHeavy).length;
+  }
 
   function retryAfter({
     remainingMs,
@@ -63,21 +75,27 @@ export function createRoomMemoryRelease({
       roomBytes.set(documentName, known === undefined ? bytes : known + bytes);
     },
     unloaded({ documentName, isReloaded }) {
-      const bytes = roomBytes.get(documentName);
+      const wasHeavy = isHeavy(roomBytes.get(documentName));
       roomBytes.delete(documentName);
-      const isHeavy = bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
-      if (!isHeavy || collectGarbage === null) return;
+      if (!wasHeavy || collectGarbage === null) return;
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
+    },
+    heavyRoomCount,
+    isAtCeiling(documentName) {
+      if (maxHeavyRooms === null) return false;
+      if (isHeavy(roomBytes.get(documentName))) return false;
+      return heavyRoomCount() >= maxHeavyRooms;
     },
   };
 }
 
-export function createProcessRoomMemoryRelease(): RoomMemoryRelease {
+export function createProcessRoomMemoryRelease({ maxHeavyRooms }: { maxHeavyRooms: number | null }): RoomMemoryRelease {
   const collectGarbage = typeof globalThis.gc === 'function' ? (globalThis.gc as CollectGarbage) : null;
   return createRoomMemoryRelease({
     collectGarbage,
     memoryUsage: () => process.memoryUsage(),
     cooldownMs: RELEASE_COOLDOWN_MS,
     now: () => Date.now(),
+    maxHeavyRooms,
   });
 }

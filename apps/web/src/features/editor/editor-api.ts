@@ -1,7 +1,4 @@
 import {
-  CREATOR_ATTEMPT_QUERY_KEY,
-  CREATOR_EPOCH_QUERY_KEY,
-  DOCUMENT_NOT_READY_ERROR,
   DOCUMENT_UNAVAILABLE_MESSAGE,
   documentApiPath,
   DocumentResource,
@@ -11,7 +8,7 @@ import {
   RoomMode,
   TAB_QUERY_KEY,
   thumbnailApiPath,
-  type CreatorTicket,
+  type BootstrapProgress,
   type DocumentMembers,
   type OpenedDocument,
   type ShareLinkRole,
@@ -21,8 +18,6 @@ import { ApiRequestError, apiGet, DocumentUnavailableError, apiSend, assertDocum
 import { DOCUMENT_FILE_QUERY_KEY, documentQueryKey } from '@/features/documents/documents-api';
 import { tabId } from '@/lib/tab-id';
 import { DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
-
-export class DocumentNotReadyError extends ApiRequestError {}
 
 export const BLANK_DOCX_PATH = '/blank.docx';
 
@@ -52,10 +47,13 @@ export async function openDocument(documentId: string): Promise<OpenedDocument> 
   const response = await apiGet(documentApiPath({ documentId }));
   const isUnavailable = response.status === HttpStatus.NotFound || response.status === HttpStatus.Forbidden;
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
-  if (response.status === HttpStatus.Conflict && (await response.json()).error === DOCUMENT_NOT_READY_ERROR)
-    throw new DocumentNotReadyError(DOCUMENT_NOT_READY_ERROR);
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);
-  return response.json();
+  const opened: OpenedDocument = await response.json();
+  const { bootstrap } = opened;
+  return {
+    ...opened,
+    bootstrap,
+  };
 }
 
 export async function fetchDocumentFile({ documentId, roomMode }: { documentId: string; roomMode: RoomMode }): Promise<Blob> {
@@ -65,18 +63,8 @@ export async function fetchDocumentFile({ documentId, roomMode }: { documentId: 
   return response.blob();
 }
 
-export async function fetchMembers({
-  documentId,
-  creatorTicket,
-}: {
-  documentId: string;
-  creatorTicket: CreatorTicket | null;
-}): Promise<DocumentMembers> {
+export async function fetchMembers(documentId: string): Promise<DocumentMembers> {
   const query = new URLSearchParams({ [TAB_QUERY_KEY]: tabId() });
-  if (creatorTicket) {
-    query.set(CREATOR_ATTEMPT_QUERY_KEY, String(creatorTicket.attempt));
-    query.set(CREATOR_EPOCH_QUERY_KEY, creatorTicket.epoch);
-  }
   const response = await apiGet(`${documentApiPath({ documentId, resource: DocumentResource.Members })}?${query}`);
   assertDocumentAvailable(response);
   return readJson<DocumentMembers>({ response, subject: 'Members request' });

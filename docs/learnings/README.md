@@ -43,6 +43,7 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-18 | One request per E2E run fails with `read ECONNRESET` on a plain GET | [2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md](2026-10-18-the-node-default-keep-alive-closes-a-socket-playwright-is-reusing.md) | 2026-10-18 |
 | 2026-10-18 | Ordinary typing closes the collaboration socket with 1008 "Too many messages per second" | [2026-10-18-superdoc-v2-sends-six-update-frames-per-keystroke-so-a-120-per-second-socket-cap-trips-at-twenty-keys-per-second.md](2026-10-18-superdoc-v2-sends-six-update-frames-per-keystroke-so-a-120-per-second-socket-cap-trips-at-twenty-keys-per-second.md) | 2026-10-18 |
 | 2026-10-18 | The collaboration socket closes with 1008 right after a long typing run, when the typing stops | [2026-10-18-the-hocuspocus-provider-defers-awareness-and-flushes-it-in-one-burst-at-the-next-pause.md](2026-10-18-the-hocuspocus-provider-defers-awareness-and-flushes-it-in-one-burst-at-the-next-pause.md) | 2026-10-18 |
+| 2026-10-19 | Every upload is refused as not a docx in the built server while the unit tests pass | [2026-10-19-a-bundled-server-cannot-use-jszip-nodestream.md](2026-10-19-a-bundled-server-cannot-use-jszip-nodestream.md) | 2026-10-19 |
 
 ### history
 
@@ -116,3 +117,5 @@ Every learning touched by a change gets a `Revisited` line appended.
 | 2026-10-19 | A version resolved to a mark shows edits that came later in the same minute | [2026-10-19-a-version-mark-per-minute-lets-a-later-delete-blank-an-earlier-bin.md](2026-10-19-a-version-mark-per-minute-lets-a-later-delete-blank-an-earlier-bin.md) | 2026-10-19 |
 | 2026-10-19 | A self-test that greps the whole output matches a commit hash | [2026-10-19-a-self-test-that-greps-the-whole-output-matches-a-commit-hash.md](2026-10-19-a-self-test-that-greps-the-whole-output-matches-a-commit-hash.md) | 2026-10-19 |
 | 2026-10-19 | A bodyless POST to a better-auth endpoint answers 415 and the button looks dead | [2026-10-19-a-bodyless-post-to-a-better-auth-endpoint-answers-415.md](2026-10-19-a-bodyless-post-to-a-better-auth-endpoint-answers-415.md) | 2026-10-19 |
+| 2026-10-19 | A forced collection after a heavy room unloads frees nothing | [2026-10-19-a-collection-after-a-heavy-room-unloads-frees-nothing.md](2026-10-19-a-collection-after-a-heavy-room-unloads-frees-nothing.md) | 2026-10-19 |
+| 2026-10-19 | A Node heap flag does nothing to the SDK host because it is a Bun binary | [2026-10-19-a-node-heap-flag-does-nothing-to-the-sdk-host-because-it-is-a-bun-binary.md](2026-10-19-a-node-heap-flag-does-nothing-to-the-sdk-host-because-it-is-a-bun-binary.md) | 2026-10-19 |

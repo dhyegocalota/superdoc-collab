@@ -4,6 +4,7 @@
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-19 ("quero poder abrir qualquer tamanho de doc")
 **ADRs:** [0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md), [0001](../../adr/0001-event-sourcing-over-yjs.md), [0004](../../adr/0004-stack.md)
+**2026-10-19:** the heap percentages and the creator recovery below describe what shipped; [server-bootstrap](../server-bootstrap/spec.md) now owns the memory percentages and removed the creator.
 **Not changing:** the update log format, the room mode rules, the projection's output, the upload size cap, the waiting page.
 
 ## Problem

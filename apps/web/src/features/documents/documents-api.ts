@@ -10,7 +10,7 @@ import {
   type DocumentSummary,
   type DocumentsList,
 } from '@superdoc-collab/types';
-import { ApiRequestError, apiGet, apiSend, readJson } from '@/lib/api';
+import { ApiRequestError, apiGet, apiSend, apiSendWithProgress, readJson, type UploadProgress } from '@/lib/api';
 import { CREATE_SUBJECT, LIST_SUBJECT, UPLOAD_SUBJECT } from './documents-copy';
 
 export const DOCUMENTS_QUERY_KEY = ['documents'];
@@ -26,11 +26,23 @@ export function validateUpload(file: File): string | null {
   return null;
 }
 
-export async function uploadDocument(file: File): Promise<DocumentSummary> {
+async function refusalMessageOf(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+  if (typeof body?.error !== 'string') return UPLOAD_TOO_LARGE_MESSAGE;
+  return body.error;
+}
+
+export async function uploadDocument({
+  file,
+  onProgress,
+}: {
+  file: File;
+  onProgress: (progress: UploadProgress) => void;
+}): Promise<DocumentSummary> {
   const form = new FormData();
   form.set(UPLOAD_FIELD, file);
-  const response = await apiSend({ path: ApiPath.Documents, method: HttpMethod.Post, body: form });
-  if (response.status === HttpStatus.PayloadTooLarge) throw new ApiRequestError(UPLOAD_TOO_LARGE_MESSAGE);
+  const response = await apiSendWithProgress({ path: ApiPath.Documents, method: HttpMethod.Post, body: form, onProgress });
+  if (response.status === HttpStatus.PayloadTooLarge) throw new ApiRequestError(await refusalMessageOf(response));
   if (response.status === HttpStatus.UnsupportedMediaType) throw new ApiRequestError(NOT_A_DOCX_MESSAGE);
   return readJson<DocumentSummary>({ response, subject: UPLOAD_SUBJECT });
 }

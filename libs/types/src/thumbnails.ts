@@ -1,7 +1,5 @@
-import { SECOND_MS } from './constants';
+import { BYTES_PER_KILOBYTE, SECOND_MS } from './constants';
 import { documentApiPath, DocumentResource } from './routes';
-
-const BYTES_PER_KILOBYTE = 1024;
 
 export const THUMBNAIL_WIDTH_PX = 320;
 export const THUMBNAIL_CAPTURE_DELAY_MS = 8 * SECOND_MS;

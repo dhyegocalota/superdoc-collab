@@ -4,7 +4,8 @@ import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CHOOSE_FILE_LABEL, DROP_ZONE_LABEL, DROP_ZONE_LIMIT, FILE_INPUT_LABEL, UPLOADING_MESSAGE } from './documents-copy';
+import { CHOOSE_FILE_LABEL, DROP_ZONE_LABEL, DROP_ZONE_LIMIT, FILE_INPUT_LABEL } from './documents-copy';
+import { UploadProgressStatus } from './upload-progress-status';
 import type { DocumentUpload } from './use-upload-document';
 
 const FILE_INPUT_ID = 'drop-zone-file';
@@ -46,14 +47,7 @@ export function UploadDropZone({ upload }: { upload: DocumentUpload }) {
         <Button variant="outline" disabled={upload.isPending} onClick={() => inputRef.current?.click()}>
           {CHOOSE_FILE_LABEL}
         </Button>
-        {upload.isPending && (
-          <div role="status" className="w-full space-y-2">
-            <p className="text-sm text-muted-foreground">{UPLOADING_MESSAGE}</p>
-            <div role="progressbar" aria-label={UPLOADING_MESSAGE} className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-1/3 animate-pulse rounded-full bg-primary motion-reduce:animate-none" />
-            </div>
-          </div>
-        )}
+        {upload.isPending && <UploadProgressStatus progress={upload.progress} />}
       </div>
       {upload.message !== null && <ErrorMessage>{upload.message}</ErrorMessage>}
     </div>

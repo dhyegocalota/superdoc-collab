@@ -88,7 +88,7 @@ describe('docker entrypoint', () => {
   });
 
   test.each([
-    ['1073741824', 'memory limit 1024 MB, heap 716 MB'],
+    ['1073741824', 'memory limit 1024 MB, heap 409 MB'],
     ['max', 'memory limit none, heap node default'],
     ['9223372036854771712', 'memory limit none, heap node default'],
   ])('reads the limit %s and prints %s', (limit, line) => {
@@ -97,21 +97,37 @@ describe('docker entrypoint', () => {
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toBe(`${line}\n${MAIN_OUTPUT}`);
   });
 
-  test('starts the server with a heap of 70 percent and gives the projection worker 50 percent of the limit', () => {
+  test('starts the server at 40 percent and gives the worker and each of the two lane hosts 20 percent, so every cap sums to the limit', () => {
     const limitFile = join(workingDirectory, 'memory.max');
     writeFileSync(limitFile, '1073741824\n');
     writeStub({
       name: 'main.js',
-      source: 'process.stdout.write(process.execArgv.join(" ") + " " + process.env.PROJECTION_WORKER_HEAP_MEGABYTES);',
+      source:
+        'process.stdout.write(process.execArgv.join(" ") + " " + process.env.PROJECTION_WORKER_HEAP_MEGABYTES + " " + process.env.BOOTSTRAP_HOST_HEAP_MEGABYTES);',
     });
-    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain('--max-old-space-size=716 512');
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain(
+      '--max-old-space-size=409 --expose-gc 204 204',
+    );
+  });
+
+  test('hands the limit in megabytes to the server, and nothing when the limit is unknown', () => {
+    const limitFile = join(workingDirectory, 'memory.max');
+    writeFileSync(limitFile, '4294967296\n');
+    writeStub({ name: 'main.js', source: 'process.stdout.write("limit=" + process.env.MEMORY_LIMIT_MEGABYTES);' });
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain('limit=4096');
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('limit=undefined');
+  });
+
+  test('exposes the collector with no memory limit too', () => {
+    writeStub({ name: 'main.js', source: 'process.stdout.write(process.execArgv.join(" "));' });
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('--expose-gc');
   });
 
   test('falls back to the version 1 limit file when the version 2 one is missing', () => {
     const limitFile = join(workingDirectory, 'memory.limit_in_bytes');
     writeFileSync(limitFile, '536870912\n');
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V1_LIMIT_FILE: limitFile }).stdout).toContain(
-      'memory limit 512 MB, heap 358 MB',
+      'memory limit 512 MB, heap 204 MB',
     );
   });
 });

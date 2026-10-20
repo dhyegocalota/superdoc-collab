@@ -1,16 +1,24 @@
 import {
+  ApiPath,
   DocumentRole,
   DOCX_MIME_TYPE,
   documentPagePath,
   HttpMethod,
   HttpStatus,
   MAX_UPLOAD_BYTES,
+  bootstrapMemoryShortMessage,
   NOT_A_DOCX_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
 } from '@superdoc-collab/types';
 import { act, waitFor } from '@testing-library/react';
-import { afterEach, expect, test, vi } from 'vitest';
-import { jsonResponse } from '@/testing/json-response';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import {
+  FakeUploadRequest,
+  latestUploadRequest,
+  sentUploadRequest,
+  stubUploadRequests,
+  restoreUploadRequests,
+} from '@/testing/fake-upload-request';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { DOCUMENTS_QUERY_KEY } from './documents-api';
 import { ONE_FILE_AT_A_TIME_MESSAGE } from './documents-copy';
@@ -22,32 +30,34 @@ function docxFile({ name, size }: { name: string; size: number }): File {
   return new File([new Uint8Array(size)], name, { type: DOCX_MIME_TYPE });
 }
 
-afterEach(() => vi.restoreAllMocks());
+beforeEach(stubUploadRequests);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  restoreUploadRequests();
+});
 
 test('two files show the one-at-a-time message and send nothing', () => {
-  const fetchSpy = vi.spyOn(globalThis, 'fetch');
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([docxFile({ name: 'a.docx', size: 1 }), docxFile({ name: 'b.docx', size: 1 })]));
   expect(result.current.message).toBe(ONE_FILE_AT_A_TIME_MESSAGE);
-  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(FakeUploadRequest.requests).toHaveLength(0);
 });
 
 test('no files do nothing', () => {
-  const fetchSpy = vi.spyOn(globalThis, 'fetch');
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([]));
   expect(result.current.message).toBeNull();
-  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(FakeUploadRequest.requests).toHaveLength(0);
 });
 
 test('a pdf shows the docx-only message and a file over the limit shows the limit', () => {
-  const fetchSpy = vi.spyOn(globalThis, 'fetch');
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([docxFile({ name: 'report.pdf', size: 1 })]));
   expect(result.current.message).toBe(NOT_A_DOCX_MESSAGE);
   act(() => result.current.uploadFiles([docxFile({ name: 'big.docx', size: MAX_UPLOAD_BYTES + 1 })]));
   expect(result.current.message).toBe(UPLOAD_TOO_LARGE_MESSAGE);
-  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(FakeUploadRequest.requests).toHaveLength(0);
 });
 
 test('clear removes the message', () => {
@@ -58,27 +68,45 @@ test('clear removes the message', () => {
 });
 
 test('one docx posts, refreshes the list and opens the document', async () => {
-  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: UPLOADED_DOCUMENT, status: HttpStatus.Created }));
   const { result, queryClient, router } = renderHookWithRouter(useUploadDocument);
   const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const request = await sentUploadRequest();
+  expect(request.method).toBe(HttpMethod.Post);
+  expect(request.path).toBe(ApiPath.Documents);
+  act(() => request.respond({ status: HttpStatus.Created, body: UPLOADED_DOCUMENT }));
   await waitFor(() => expect(router.state.location.pathname).toBe(documentPagePath(UPLOADED_DOCUMENT.id)));
-  expect(fetchSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ method: HttpMethod.Post }));
   expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });
 });
 
 test('a server failure becomes the message and a later rejection replaces it', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: HttpStatus.InternalServerError }));
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const requestSent = await sentUploadRequest();
+  act(() => requestSent.respond({ status: HttpStatus.InternalServerError, body: null }));
   await waitFor(() => expect(result.current.message).not.toBeNull());
   act(() => result.current.uploadFiles([docxFile({ name: 'report.pdf', size: 1 })]));
   expect(result.current.message).toBe(NOT_A_DOCX_MESSAGE);
 });
 
-test('while the upload runs the hook reports it as pending', async () => {
-  vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>(() => undefined));
+test('a refusal of the server for its memory shows the largest file it can prepare', async () => {
   const { result } = renderHookWithRouter(useUploadDocument);
+  const message = bootstrapMemoryShortMessage(8);
+  act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const request = await sentUploadRequest();
+  act(() => request.respond({ status: HttpStatus.PayloadTooLarge, body: { error: message } }));
+  await waitFor(() => expect(result.current.message).toBe(message));
+});
+
+test('while the upload runs the hook reports it as pending with the bytes sent so far, and clears both when it ends', async () => {
+  const { result } = renderHookWithRouter(useUploadDocument);
+  expect(result.current.progress).toBeNull();
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
   await waitFor(() => expect(result.current.isPending).toBe(true));
+  expect(result.current.progress).toBeNull();
+  act(() => latestUploadRequest().reportProgress({ lengthComputable: true, loaded: 40, total: 100 }));
+  expect(result.current.progress).toEqual({ sentBytes: 40, totalBytes: 100 });
+  act(() => latestUploadRequest().respond({ status: HttpStatus.InternalServerError, body: null }));
+  await waitFor(() => expect(result.current.isPending).toBe(false));
+  expect(result.current.progress).toBeNull();
 });

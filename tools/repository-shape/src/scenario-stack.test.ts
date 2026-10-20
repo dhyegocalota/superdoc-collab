@@ -27,6 +27,7 @@ const EXPECTED_KEYS = [
   'LLM_MAX_CONCURRENT_JOBS',
   'LLM_MAX_CALLS_PER_HOUR',
   'OPEN_UNCOMMITTED_PER_MINUTE',
+  'UPLOADS_PER_MINUTE',
 ];
 const PRINT_ENVIRONMENT_SCRIPT = `import('./e2e/stack.ts').then((stack) => console.log(JSON.stringify(stack.stackEnvironment(${JSON.stringify({ port: SCENARIO_PORT, databaseDir: DATABASE_DIRECTORY, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN })}))))`;
 

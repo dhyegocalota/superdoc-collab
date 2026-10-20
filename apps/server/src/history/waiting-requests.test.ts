@@ -24,7 +24,12 @@ test('a second waiter joins the first request instead of posting again', () => {
     true,
     false,
   ]);
-  const reply: BlocksReply = { kind: ProjectionRequestKind.Blocks, documentId: 'd1', sequence: 9, blocks: [] };
+  const reply: BlocksReply = {
+    kind: ProjectionRequestKind.Blocks,
+    documentId: 'd1',
+    sequence: 9,
+    blocks: [],
+  };
   requests.resolve(reply);
   expect([first.resolve, second.resolve].map((resolve) => resolve.mock.calls)).toEqual([[[reply]], [[reply]]]);
 });
@@ -34,8 +39,8 @@ test('a repost past the limit rejects as crashed and posts nothing', () => {
   const pending = waiter();
   requests.add({ request: VERSION_REQUEST, waiter: pending });
   const post = vi.fn();
-  requests.repost({ post, maxPosts: 2 });
-  requests.repost({ post, maxPosts: 2 });
+  requests.repost({ post, maxPosts: 2, countsPosts: true });
+  requests.repost({ post, maxPosts: 2, countsPosts: true });
   expect(post.mock.calls).toEqual([[VERSION_REQUEST]]);
   expect(pending.reject.mock.calls[0]![0]).toBeInstanceOf(ProjectionRequestCrashedError);
 });
@@ -47,4 +52,14 @@ test('rejecting all gives each key its own error', () => {
   requests.add({ request: BLOCKS_REQUEST, waiter: blocks });
   requests.rejectAll(() => new Error('stopping'));
   expect(version.reject.mock.calls[0]![0]).not.toBe(blocks.reject.mock.calls[0]![0]);
+});
+
+test('a repost that does not count its posts never rejects as crashed', () => {
+  const requests = new WaitingRequests();
+  const first = waiter();
+  requests.add({ request: BLOCKS_REQUEST, waiter: first });
+  const post = vi.fn();
+  Array.from({ length: 3 }).forEach(() => requests.repost({ post, maxPosts: 2, countsPosts: false }));
+  expect(post).toHaveBeenCalledTimes(3);
+  expect(first.reject).not.toHaveBeenCalled();
 });

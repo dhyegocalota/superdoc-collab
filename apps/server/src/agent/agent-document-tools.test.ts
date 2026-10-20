@@ -118,6 +118,7 @@ test('export_docx returns the live document as an embedded DOCX resource, record
 
 test('export_docx with the open budget spent is refused before any log scan', async () => {
   vi.restoreAllMocks();
+  server.services.roomBootstrap.forget(documentId);
   const spender = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
   Array.from({ length: OPEN_UNCOMMITTED_PER_MINUTE }).forEach((_, index) =>
     server.services.openBudget.record({ userId: spender.id, documentId: `spent-${index}` }),
@@ -131,6 +132,7 @@ test('export_docx with the open budget spent is refused before any log scan', as
     expect([result.isError, save.mock.calls.length, readBatch.mock.calls.length, recorded]).toEqual([true, 0, 0, []]);
   } finally {
     server.database.sqlite.prepare('DELETE FROM document_members WHERE user_id = ?').run(spender.id);
+    server.services.roomBootstrap.begin(documentId);
   }
 });
 

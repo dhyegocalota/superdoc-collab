@@ -16,7 +16,6 @@ import {
   THUMBNAIL_CAPTURE_DELAY_MS,
   THUMBNAIL_UPLOADS_ATTRIBUTE,
   THUMBNAIL_WIDTH_PX,
-  documentApiPath,
   documentPagePath,
   type DocumentSummary,
 } from '../libs/types/src';
@@ -49,7 +48,6 @@ import {
   UPLOAD_LABEL,
 } from '../apps/web/src/features/documents/documents-copy';
 import { DELETE_CONFIRM_LABEL, DELETE_LABEL, MORE_ACTIONS_LABEL, TITLE_LABEL } from '../apps/web/src/features/editor/editor-copy';
-import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import {
   acceptInvite,
   expect,
@@ -134,21 +132,13 @@ test('a reader cannot type but sees live edits', async ({ browser }) => {
   await expect(bruno.page.getByText(READ_ONLY_BADGE_LABEL)).toBeVisible();
 });
 
-test('a reader waits until the room exists', async ({ browser }) => {
+test('a reader opens a new document its owner never opened', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const created = await ana.page.request.post(ApiPath.Documents, { data: { title: titleOf(uniqueFileName('blank')) } });
   const { id: documentId } = (await created.json()) as DocumentSummary;
   await acceptShareLink({ page: bruno.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
-  await expect(bruno.page.getByText(PREPARING_DOCUMENT_MESSAGE)).toBeVisible();
-  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
-  await ana.page.goto(documentPagePath(documentId));
-  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
-  await expect
-    .poll(async () => (await bruno.page.request.get(documentApiPath({ documentId }))).ok(), { timeout: LIVE_TIMEOUT_MS })
-    .toBe(true);
-  await bruno.page.reload();
-  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
+  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: LIVE_TIMEOUT_MS });
   await expect(bruno.page.getByText(READ_ONLY_BADGE_LABEL)).toBeVisible();
 });
 

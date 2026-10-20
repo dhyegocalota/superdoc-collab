@@ -9,7 +9,6 @@ import {
   DEMO_USERS,
   DOCX_MIME_TYPE,
   documentApiPath,
-  documentPagePath,
   DocumentResource,
   HttpMethod,
   HttpStatus,
@@ -44,7 +43,6 @@ import {
   TITLE_LABEL,
 } from '../apps/web/src/features/editor/editor-copy';
 import { FILE_INPUT_LABEL, NEW_DOCUMENT_LABEL } from '../apps/web/src/features/documents/documents-copy';
-import { PREPARING_DOCUMENT_MESSAGE } from '../apps/web/src/features/editor/waiting-copy';
 import {
   GROUPING_TOPICS_MESSAGE,
   PANEL_POSITION_LABEL,
@@ -551,18 +549,13 @@ test('two members have two colours, one on every surface and on every browser', 
   expect(await remoteCaretColorOf(bruno.page)).toBe(anaOwnSwatch);
 });
 
-test('a document opened before its owner syncs it shows the waiting page and enters on its own', async ({ browser }) => {
+test('a document opened before its owner ever opened it enters on its own', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: anaUser! });
   const bruno = await signedInContext({ browser, user: brunoUser! });
   const created = await ana.page.request.post(ApiPath.Documents, { data: { title: uniqueTitle() } });
   const { id: documentId } = (await created.json()) as DocumentSummary;
   await acceptShareLink({ page: bruno.page, documentId, role: ShareLinkRole.Read, owner: ana.page });
-  await expect(bruno.page.getByText(PREPARING_DOCUMENT_MESSAGE)).toBeVisible();
-  await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toHaveCount(0);
-  await ana.page.goto(documentPagePath(documentId));
-  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
   await expect(bruno.page.getByTestId(EDITOR_TEST_ID)).toBeVisible({ timeout: WAITING_TIMEOUT_MS });
-  await expect(bruno.page.getByText(PREPARING_DOCUMENT_MESSAGE)).toHaveCount(0);
 });
 
 test('Use with AI opens a dialog with a tab per client, fewer prompts for a reader, and returns focus', async ({ browser }) => {

@@ -1,10 +1,10 @@
 import {
   ProjectionRequestCrashedError,
   ProjectionRequestKind,
-  type BlocksReply,
   type ProjectionReply,
   type ProjectionRequest,
   type VersionReply,
+  type BlocksReply,
 } from './projection-messages';
 
 export type ServedReply = VersionReply | BlocksReply;
@@ -48,6 +48,10 @@ export class WaitingRequests {
     return true;
   }
 
+  isEmpty(): boolean {
+    return this.waiting.size === 0;
+  }
+
   has(request: ServedRequest): boolean {
     return this.waiting.has(keyOfRequest(request));
   }
@@ -70,10 +74,10 @@ export class WaitingRequests {
     [...this.waiting.keys()].forEach((key) => this.reject({ key, error: errorOf() }));
   }
 
-  repost({ post, maxPosts }: { post: (request: ServedRequest) => void; maxPosts: number }): void {
+  repost({ post, maxPosts, countsPosts }: { post: (request: ServedRequest) => void; maxPosts: number; countsPosts: boolean }): void {
     [...this.waiting].forEach(([key, waiting]) => {
       if (waiting.posts >= maxPosts) return this.reject({ key, error: new ProjectionRequestCrashedError() });
-      waiting.posts += 1;
+      if (countsPosts) waiting.posts += 1;
       post(waiting.request);
     });
   }

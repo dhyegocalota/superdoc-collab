@@ -1,4 +1,4 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE } from '@superdoc-collab/types';
+import { OPEN_UNCOMMITTED_PER_MINUTE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
@@ -31,7 +31,10 @@ describe('loadEnvironment', () => {
       trustedProxyHops: 1,
       llm: noLlm,
       openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+      uploadsPerMinute: UPLOADS_PER_MINUTE,
       projectionWorkerHeapMegabytes: null,
+      bootstrapHostHeapMegabytes: null,
+      memoryLimitMegabytes: null,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -113,8 +116,34 @@ describe('loadEnvironment', () => {
     const name = 'OPEN_UNCOMMITTED_PER_MINUTE';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
+  test('reads the upload budget when it is set', () => {
+    expect(loadEnvironment({ ...complete, UPLOADS_PER_MINUTE: '5000' }).uploadsPerMinute).toBe(5000);
+  });
+  test('treats an empty upload budget as unset', () => {
+    expect(loadEnvironment({ ...complete, UPLOADS_PER_MINUTE: '' }).uploadsPerMinute).toBe(UPLOADS_PER_MINUTE);
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when UPLOADS_PER_MINUTE is %s', (value) => {
+    const name = 'UPLOADS_PER_MINUTE';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
   test('reads the projection worker heap when it is set', () => {
     expect(loadEnvironment({ ...complete, PROJECTION_WORKER_HEAP_MEGABYTES: '256' }).projectionWorkerHeapMegabytes).toBe(256);
+  });
+  test('reads the bootstrap host heap when it is set', () => {
+    expect(loadEnvironment({ ...complete, BOOTSTRAP_HOST_HEAP_MEGABYTES: '128' }).bootstrapHostHeapMegabytes).toBe(128);
+  });
+  test('reads the memory limit of the container when it is set', () => {
+    expect(loadEnvironment({ ...complete, MEMORY_LIMIT_MEGABYTES: '4096' }).memoryLimitMegabytes).toBe(4096);
+  });
+  test.each([undefined, ''])('treats the memory limit as unknown when it is %j', (value) => {
+    expect(loadEnvironment({ ...complete, MEMORY_LIMIT_MEGABYTES: value }).memoryLimitMegabytes).toBeNull();
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when MEMORY_LIMIT_MEGABYTES is %s', (value) => {
+    const name = 'MEMORY_LIMIT_MEGABYTES';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test.each([undefined, ''])('leaves the bootstrap host heap to Node when it is %j', (value) => {
+    expect(loadEnvironment({ ...complete, BOOTSTRAP_HOST_HEAP_MEGABYTES: value }).bootstrapHostHeapMegabytes).toBeNull();
   });
   test.each([undefined, ''])('leaves the projection worker heap to Node when it is %j', (value) => {
     expect(loadEnvironment({ ...complete, PROJECTION_WORKER_HEAP_MEGABYTES: value }).projectionWorkerHeapMegabytes).toBeNull();

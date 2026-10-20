@@ -1,6 +1,6 @@
 import { ApiPath } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { isAgentUpgrade, isLoopbackAddress } from './upgrade-path';
+import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress } from './upgrade-path';
 
 test.each([
   ['127.0.0.1', true],
@@ -21,4 +21,13 @@ test.each([
   [ApiPath.Collaboration, false],
 ])('the url %s is an agent upgrade: %s', (url, expected) => {
   expect(isAgentUpgrade(url)).toBe(expected);
+});
+
+test.each([
+  [ApiPath.BootstrapCollaboration, true],
+  [`${ApiPath.BootstrapCollaboration}?token=x`, true],
+  [ApiPath.AgentCollaboration, false],
+  [ApiPath.Collaboration, false],
+])('the url %s is a bootstrap upgrade: %s', (url, expected) => {
+  expect(isBootstrapUpgrade(url)).toBe(expected);
 });

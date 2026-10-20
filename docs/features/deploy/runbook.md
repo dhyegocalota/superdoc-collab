@@ -49,6 +49,7 @@ OPENROUTER_BASE_URL=
 LLM_MAX_CONCURRENT_JOBS=
 LLM_MAX_CALLS_PER_HOUR=
 OPEN_UNCOMMITTED_PER_MINUTE=
+UPLOADS_PER_MINUTE=
 TRUSTED_PROXY_HOPS=
 ```
 
@@ -64,7 +65,12 @@ TRUSTED_PROXY_HOPS=
 | `LLM_MAX_CONCURRENT_JOBS` | no | Empty keeps the default of 2 model jobs at once ([ADR 0011](../../adr/0011-process-wide-llm-cost-caps.md)). |
 | `LLM_MAX_CALLS_PER_HOUR` | no | Empty keeps the default of 60 model calls per rolling hour. |
 | `OPEN_UNCOMMITTED_PER_MINUTE` | no | Empty keeps the default of 30 distinct uncommitted documents per user per minute ([ADR 0033](../../adr/0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md)); only test stacks raise it. |
+| `UPLOADS_PER_MINUTE` | no | Empty keeps the default of 30 uploads and blank creates per user per minute ([ADR 0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md)); only test stacks raise it. |
+| `BOOTSTRAP_HOST_HEAP_MEGABYTES` | no | Do not set. The container entrypoint sets it to 20% of the memory limit; it sizes the collector of each SDK host and is not a hard cap. |
+| `MEMORY_LIMIT_MEGABYTES` | no | Do not set. The container entrypoint sets it from the cgroup limit; the server refuses an upload whose bootstrap would not fit in it. |
 | `TRUSTED_PROXY_HOPS` | no | Empty keeps one trusted hop: the client address is the rightmost entry of `X-Forwarded-For` ([ADR 0042](../../adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)). |
+
+Size the service's memory before you rely on large files. A 4 GB service prepares documents with up to about 4 MB of text and layout (the inflated `word/document.xml`, which for a Word file is several times the size of the file) and answers a larger upload with a 413 that names the largest size it can prepare. An 8 GB service (the Railway Hobby maximum) prepares up to 12 MB of text and layout, which covers the owner's heaviest 10 MB file (9.5 MiB of text) with little headroom ([measurements](../server-bootstrap/spec.md)). Only the 9.5 MiB document was measured, at 8 GB; the 12 MB and the 4 MB are extrapolations of its ratio. The guard budgets one bootstrap beside the light lane on an otherwise idle server: heavy rooms already loaded and the projection worker's retained heap are not counted, so a server that keeps several heavy documents open needs more memory than these sizes.
 
 Do not set `PORT`, `DATABASE_DIR`, `WEB_DIST_DIR` or `TRUST_PROXY`: the compose file pins them.
 

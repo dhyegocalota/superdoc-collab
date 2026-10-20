@@ -13,6 +13,6 @@ export class ShowcaseDocuments {
 
   async create({ ownerUserId }: { ownerUserId: string }): Promise<string> {
     const bytes = await buildSeedDocx(buildShowcaseParagraphs({ now: this.now() }));
-    return storeDocument({ ...this.dependencies, ownerUserId, title: SHOWCASE_TITLE, bytes, importRevisions: true });
+    return storeDocument({ ...this.dependencies, ownerUserId, title: SHOWCASE_TITLE, bytes, importRevisions: true, isBlank: false });
   }
 }

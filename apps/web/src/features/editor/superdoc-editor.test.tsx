@@ -3,6 +3,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { AUTHOR_PALETTE, installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { SESSION_USER } from '@/testing/opened-document';
+import type { EditorLoadProgress } from '@/features/open-progress/open-progress-view';
 import { SuperDocEditor } from './superdoc-editor';
 
 type EditorConfig = {
@@ -12,7 +13,8 @@ type EditorConfig = {
   onReady: (payload: { superdoc: unknown }) => void;
   onCollaborationReady: () => void;
   onEditorUpdate: () => void;
-  onPaginationUpdate: () => void;
+  onPaginationUpdate: (payload: { totalPages: number }) => void;
+  onCollaborationConnectionChange: (payload: { state: string; kind: string }) => void;
 };
 
 const DISPLACED_COLOR_SLOT = 2;
@@ -38,12 +40,14 @@ function renderEditor({
   onSuperdocChange = vi.fn(),
   onEditorUpdate = vi.fn(),
   onDocumentEdit = vi.fn(),
+  onLoadProgress = vi.fn(),
   role = DocumentRole.Editor,
 }: {
   toolbarContainer?: HTMLElement | null;
   onSuperdocChange?: () => void;
   onEditorUpdate?: () => void;
   onDocumentEdit?: () => void;
+  onLoadProgress?: (progress: EditorLoadProgress) => void;
   role?: DocumentRole;
 } = {}) {
   render(
@@ -53,16 +57,15 @@ function renderEditor({
       toolbarContainer={toolbarContainer}
       documentId="doc-1"
       roomMode={RoomMode.Create}
-      creatorTicket={null}
       role={role}
       user={SESSION_USER}
       colorSlot={DISPLACED_COLOR_SLOT}
       file={new Blob()}
       isInert={false}
-      isSuperseded={false}
       onTransportReport={vi.fn()}
       onEditorUpdate={onEditorUpdate}
       onDocumentEdit={onDocumentEdit}
+      onLoadProgress={onLoadProgress}
     />,
   );
   const firstCall = SuperDoc.mock.calls.at(0);
@@ -95,7 +98,7 @@ test('reports every editor update to the page', () => {
 test('reports a layout pass to the page, which is how a peer’s edit arrives', () => {
   const onEditorUpdate = vi.fn();
   const { config } = renderEditor({ onEditorUpdate });
-  config.onPaginationUpdate();
+  config.onPaginationUpdate({ totalPages: 1 });
   expect(onEditorUpdate).toHaveBeenCalledTimes(1);
 });
 
@@ -130,7 +133,7 @@ test('never enables the caret on open for a reader', () => {
 test('reports a document edit only for an editor update, never for a layout pass', () => {
   const onDocumentEdit = vi.fn();
   const { config } = renderEditor({ onDocumentEdit });
-  config.onPaginationUpdate();
+  config.onPaginationUpdate({ totalPages: 1 });
   expect(onDocumentEdit).not.toHaveBeenCalled();
   config.onEditorUpdate();
   expect(onDocumentEdit).toHaveBeenCalledTimes(1);
@@ -139,4 +142,21 @@ test('reports a document edit only for an editor update, never for a layout pass
 test('the editor container keeps a small top padding so the first page clears the toolbar', () => {
   renderEditor();
   expect(screen.getByTestId('document-editor')).toHaveClass('pt-3');
+});
+
+test('reports a fresh load, then the sync, then the pages laid out so far', () => {
+  const onLoadProgress = vi.fn();
+  const { config } = renderEditor({ onLoadProgress });
+  expect(onLoadProgress).toHaveBeenLastCalledWith({ isSynced: false, pageCount: 0, hasFailed: false });
+  act(() => config.onCollaborationReady());
+  expect(onLoadProgress).toHaveBeenLastCalledWith({ isSynced: true, pageCount: 0, hasFailed: false });
+  act(() => config.onPaginationUpdate({ totalPages: 12 }));
+  expect(onLoadProgress).toHaveBeenLastCalledWith({ isSynced: true, pageCount: 12, hasFailed: false });
+});
+
+test('reports a failure before the first sync so the page can drop its panel', () => {
+  const onLoadProgress = vi.fn();
+  const { config } = renderEditor({ onLoadProgress });
+  act(() => config.onCollaborationConnectionChange({ state: 'failed', kind: 'failed' }));
+  expect(onLoadProgress).toHaveBeenLastCalledWith({ isSynced: false, pageCount: 0, hasFailed: true });
 });

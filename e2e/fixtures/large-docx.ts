@@ -1,4 +1,4 @@
-import { crc32 } from 'node:zlib';
+import { crc32, deflateRawSync } from 'node:zlib';
 
 const PARAGRAPH_COUNT = 56_800;
 const FILLER_SENTENCE = 'The quick brown fox jumps over the lazy dog while the committee reviews every clause of the agreement again.';
@@ -12,19 +12,31 @@ const PACKAGE_RELATIONSHIPS_NAMESPACE = 'http://schemas.openxmlformats.org/packa
 const OFFICE_DOCUMENT_RELATIONSHIP = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument';
 const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
+enum ZipMethod {
+  Stored = 0,
+  Deflated = 8,
+}
+
 type ZipEntry = { name: string; data: Buffer };
 
-function storedZip(entries: ZipEntry[]): Buffer {
+function packedOf({ data, method }: { data: Buffer; method: ZipMethod }): Buffer {
+  if (method === ZipMethod.Deflated) return deflateRawSync(data);
+  return data;
+}
+
+function zipOf({ entries, method }: { entries: ZipEntry[]; method: ZipMethod }): Buffer {
   const localParts = entries.map(({ name, data }) => {
+    const packed = packedOf({ data, method });
     const header = Buffer.alloc(30);
     header.writeUInt32LE(ZIP_LOCAL_SIGNATURE, 0);
     header.writeUInt16LE(ZIP_VERSION, 4);
+    header.writeUInt16LE(method, 8);
     header.writeUInt16LE(ZIP_DOS_DATE, 12);
     header.writeUInt32LE(crc32(data), 14);
-    header.writeUInt32LE(data.length, 18);
+    header.writeUInt32LE(packed.length, 18);
     header.writeUInt32LE(data.length, 22);
     header.writeUInt16LE(Buffer.byteLength(name), 26);
-    return Buffer.concat([header, Buffer.from(name), data]);
+    return Buffer.concat([header, Buffer.from(name), packed]);
   });
   const offsets = localParts.map((_, index) => localParts.slice(0, index).reduce((sum, part) => sum + part.length, 0));
   const centralParts = entries.map(({ name, data }, index) => {
@@ -32,9 +44,10 @@ function storedZip(entries: ZipEntry[]): Buffer {
     header.writeUInt32LE(ZIP_CENTRAL_SIGNATURE, 0);
     header.writeUInt16LE(ZIP_VERSION, 4);
     header.writeUInt16LE(ZIP_VERSION, 6);
+    header.writeUInt16LE(method, 10);
     header.writeUInt16LE(ZIP_DOS_DATE, 14);
     header.writeUInt32LE(crc32(data), 16);
-    header.writeUInt32LE(data.length, 20);
+    header.writeUInt32LE(packedOf({ data, method }).length, 20);
     header.writeUInt32LE(data.length, 24);
     header.writeUInt16LE(Buffer.byteLength(name), 28);
     header.writeUInt32LE(offsets[index]!, 42);
@@ -57,30 +70,45 @@ function paragraphXml(text: string): string {
   return `<w:p><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
 }
 
+export function buildBrokenDocx(): Buffer {
+  return zipOf({ entries: [{ name: 'word/document.xml', data: Buffer.from('<w:document><broken') }], method: ZipMethod.Stored });
+}
+
 export function buildLargeDocx(firstParagraph: string): Buffer {
+  return largeDocx({ firstParagraph, method: ZipMethod.Stored });
+}
+
+export function buildDeflatedLargeDocx(firstParagraph: string): Buffer {
+  return largeDocx({ firstParagraph, method: ZipMethod.Deflated });
+}
+
+function largeDocx({ firstParagraph, method }: { firstParagraph: string; method: ZipMethod }): Buffer {
   const paragraphs = Array.from({ length: PARAGRAPH_COUNT }, (_, index) => paragraphXml(`Clause ${index + 1}. ${FILLER_SENTENCE}`));
   const documentXml = `${XML_HEADER}<w:document xmlns:w="${WORD_NAMESPACE}"><w:body>${paragraphXml(firstParagraph)}${paragraphs.join('')}<w:sectPr/></w:body></w:document>`;
-  return storedZip([
-    {
-      name: '[Content_Types].xml',
-      data: Buffer.from(
-        `${XML_HEADER}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
-          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-          '<Default Extension="xml" ContentType="application/xml"/>' +
-          '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
-      ),
-    },
-    {
-      name: '_rels/.rels',
-      data: Buffer.from(
-        `${XML_HEADER}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}">` +
-          `<Relationship Id="rId1" Type="${OFFICE_DOCUMENT_RELATIONSHIP}" Target="word/document.xml"/></Relationships>`,
-      ),
-    },
-    {
-      name: 'word/_rels/document.xml.rels',
-      data: Buffer.from(`${XML_HEADER}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}"/>`),
-    },
-    { name: 'word/document.xml', data: Buffer.from(documentXml) },
-  ]);
+  return zipOf({
+    method,
+    entries: [
+      {
+        name: '[Content_Types].xml',
+        data: Buffer.from(
+          `${XML_HEADER}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+            '<Default Extension="xml" ContentType="application/xml"/>' +
+            '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+        ),
+      },
+      {
+        name: '_rels/.rels',
+        data: Buffer.from(
+          `${XML_HEADER}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}">` +
+            `<Relationship Id="rId1" Type="${OFFICE_DOCUMENT_RELATIONSHIP}" Target="word/document.xml"/></Relationships>`,
+        ),
+      },
+      {
+        name: 'word/_rels/document.xml.rels',
+        data: Buffer.from(`${XML_HEADER}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}"/>`),
+      },
+      { name: 'word/document.xml', data: Buffer.from(documentXml) },
+    ],
+  });
 }

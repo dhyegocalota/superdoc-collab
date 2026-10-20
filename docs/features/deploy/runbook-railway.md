@@ -59,6 +59,8 @@ The invite-only migration turns every existing account into a plain user. The in
   Skip step 5's claim check and step 6; open `/admin` signed in as that account.
 - **Start clean** (recommended for a public demo that was seeded). Back up (step 9), delete the volume in the dashboard, recreate it at `/data`, redeploy, and continue with step 5 and the claim in step 6.
 
+Size the service's memory before you rely on large files: Railway's service **Settings** → **Resource Limits** (on the Hobby plan, up to 8 GB). A 4 GB service prepares documents with up to about 4 MB of text and layout (the inflated `word/document.xml`, which for a Word file is several times the size of the file) and answers a larger upload with a 413 that names the largest size it can prepare. An 8 GB service prepares up to 12 MB of text and layout, which covers the owner's heaviest 10 MB file (9.5 MiB of text) with little headroom ([measurements](../server-bootstrap/spec.md)). Only the 9.5 MiB document was measured, at 8 GB; the 12 MB and the 4 MB are extrapolations of its ratio. The guard budgets one bootstrap beside the light lane on an otherwise idle server: heavy rooms already loaded and the projection worker's retained heap are not counted, so a server that keeps several heavy documents open needs more memory than these sizes. The container reads its limit itself; do not set `MEMORY_LIMIT_MEGABYTES` or `BOOTSTRAP_HOST_HEAP_MEGABYTES`.
+
 ## 4. Domain and origin
 
 ```bash

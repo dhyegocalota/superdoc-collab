@@ -1,6 +1,7 @@
 import type { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
+import { constants } from 'node:zlib';
 import {
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
@@ -14,22 +15,37 @@ import {
   UNAUTHORIZED_CLOSE_REASON,
   VERSION_FAILURE_TTL_MS,
 } from '@superdoc-collab/types';
-import { WebSocket, WebSocketServer, type RawData, type ServerOptions } from 'ws';
+import { WebSocket, WebSocketServer, type PerMessageDeflateOptions, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
 import { SocketMessageLimit } from './socket-message-limit';
-import { isAgentUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
+import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
+const SOCKET_COMPRESSION_THRESHOLD_BYTES = 1024;
+const SOCKET_COMPRESSION_CONCURRENCY = 4;
+const SOCKET_COMPRESSION_WINDOW_BITS = 12;
+const SOCKET_COMPRESSION_MEMORY_LEVEL = 3;
+const SOCKET_COMPRESSION_OPTIONS: PerMessageDeflateOptions = {
+  threshold: SOCKET_COMPRESSION_THRESHOLD_BYTES,
+  concurrencyLimit: SOCKET_COMPRESSION_CONCURRENCY,
+  zlibDeflateOptions: { level: constants.Z_BEST_SPEED, memLevel: SOCKET_COMPRESSION_MEMORY_LEVEL },
+  serverMaxWindowBits: SOCKET_COMPRESSION_WINDOW_BITS,
+  clientMaxWindowBits: SOCKET_COMPRESSION_WINDOW_BITS,
+  serverNoContextTakeover: true,
+  clientNoContextTakeover: true,
+};
 const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
   noServer: true,
   maxPayload: MAX_SOCKET_MESSAGE_BYTES,
+  perMessageDeflate: SOCKET_COMPRESSION_OPTIONS,
   closeTimeout: SOCKET_CLOSE_GRACE_MS,
 };
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
+const SOCKET_INFLATED_BUDGET_LOG = 'Collaboration socket closed for inflating too many bytes';
 const SOCKET_AWARENESS_ENTRIES_LOG = 'Collaboration socket closed for claiming too many awareness entries in one frame';
 const MESSAGE_EVENT = 'message';
 
@@ -75,12 +91,29 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
-  function withholdOverclaims(webSocket: WebSocket): void {
+  function markAnsweredOnFirstSend(webSocket: WebSocket): void {
+    const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
+    webSocket.send = ((...parameters: unknown[]) => {
+      messageLimit.markAnswered(webSocket);
+      return send(...parameters);
+    }) as WebSocket['send'];
+  }
+  function withholdOverclaims({ webSocket, isBootstrapSocket }: { webSocket: WebSocket; isBootstrapSocket: boolean }): void {
     const emit = webSocket.emit.bind(webSocket);
     webSocket.emit = (event: string | symbol, ...parameters: unknown[]): boolean => {
       const isMessage = event === MESSAGE_EVENT;
       const isReceivedAfterClose = isMessage && webSocket.readyState !== WebSocket.OPEN;
       if (isReceivedAfterClose) return false;
+      const isInflationChecked = isMessage && !isBootstrapSocket;
+      const isOverBudget = isInflationChecked && messageLimit.exceedsInflatedBudget({ socket: webSocket, frame: parameters[0] as RawData });
+      const isOverBeforeAnswer =
+        isInflationChecked && messageLimit.exceedsPreAuthenticationBudget({ socket: webSocket, frame: parameters[0] as RawData });
+      if (isOverBudget || isOverBeforeAnswer) {
+        console.warn(SOCKET_INFLATED_BUDGET_LOG);
+        webSocket.removeAllListeners(MESSAGE_EVENT);
+        webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+        return false;
+      }
       const isOverclaim = isMessage && messageLimit.claimsTooManyEntries(parameters[0] as RawData);
       if (!isOverclaim) return emit(event, ...parameters);
       console.warn(SOCKET_AWARENESS_ENTRIES_LOG);
@@ -100,10 +133,12 @@ export function attachCollaboration({
     head: Buffer;
     endpoint: VersionEndpoint | null;
   }): void {
+    const isBootstrapSocket = request.url !== undefined && isBootstrapUpgrade(request.url);
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
-      withholdOverclaims(webSocket);
+      markAnsweredOnFirstSend(webSocket);
+      withholdOverclaims({ webSocket, isBootstrapSocket });
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);
     });
@@ -154,8 +189,9 @@ export function attachCollaboration({
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     const pathname = upgradePathname(request.url);
-    if (isAgentUpgrade(request.url) && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
-    if (isAgentUpgrade(request.url)) return upgrade({ request, socket, head, endpoint: null });
+    const isLoopbackOnly = isAgentUpgrade(request.url) || isBootstrapUpgrade(request.url);
+    if (isLoopbackOnly && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
+    if (isLoopbackOnly) return upgrade({ request, socket, head, endpoint: null });
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });

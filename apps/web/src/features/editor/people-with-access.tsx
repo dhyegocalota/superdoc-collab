@@ -54,7 +54,7 @@ function MemberRow({ documentId, member }: { documentId: string; member: Documen
 export function PeopleWithAccess({ documentId }: { documentId: string }) {
   const { data, isPending, isError } = useQuery({
     queryKey: membersQueryKey(documentId),
-    queryFn: () => fetchMembers({ documentId, creatorTicket: null }),
+    queryFn: () => fetchMembers(documentId),
   });
 
   return (

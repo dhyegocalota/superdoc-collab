@@ -1,12 +1,15 @@
-import { buildSeedDocx, isDocx, type SeedParagraph } from '@superdoc-collab/history';
+import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
-  type AuthorColorSlot,
-  DOCUMENT_NOT_READY_ERROR,
+  BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  bootstrapMemoryShortMessage,
+  DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
   HttpStatus,
+  isPreparable,
   isTabId,
+  largestPreparableMegabytes,
   MAX_UPLOAD_BYTES,
   MEMBER_NOT_FOUND_MESSAGE,
   NOT_A_DOCX_MESSAGE,
@@ -19,13 +22,13 @@ import {
   titleSchema,
   UNTITLED_DOCUMENT_TITLE,
   UPLOAD_FIELD,
+  UPLOAD_RATE_LIMITED_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
 } from '@superdoc-collab/types';
 import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppServices } from '../http/app';
-import { claimedTicketOf } from '../collaboration/claimed-ticket';
 import { retryLater } from '../http/retry-later';
 import type { SignedIn } from '../http/require-user';
 import { authorizedDocumentId, requireDocumentRole } from './require-document-role';
@@ -40,7 +43,6 @@ const BLANK_DOCUMENT: SeedParagraph[] = [{ text: '', trackedChanges: [] }];
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
 const INVALID_TITLE_MESSAGE = 'The title must not be blank';
 const DOCX_EXTENSION_PATTERN = /\.docx$/i;
-const CREATOR_REFUSED_MESSAGE = 'Open refused: no creator ticket for document';
 const MALFORMED_UPLOAD_MESSAGE = 'The upload could not be read';
 const RFC_5987_RESERVED = /['()*]/g;
 const UNSAFE_IN_QUOTED_FILENAME = /[^\x20-\x7e]|["\\]/g;
@@ -63,23 +65,65 @@ function contentDisposition(fileName: string): string {
 }
 
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
+type CreationMount = RouteMount & { memoryLimitMegabytes: number | null };
 
-function mountCreation({ routes, services }: RouteMount): void {
-  const { documents, storage, runtime } = services;
+function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount): void {
+  const { documents, storage, runtime, uploadBudget } = services;
+
+  function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
+    const userId = context.var.user.id;
+    const waitMs = uploadBudget.waitMs(userId);
+    if (waitMs === null) return null;
+    return retryLater({
+      context,
+      body: { error: UPLOAD_RATE_LIMITED_MESSAGE },
+      status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenQueueFull({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    const waitMs = runtime.bootstrapQueueWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
+    if (waitMs === null) return null;
+    return retryLater({
+      context,
+      body: { error: BOOTSTRAP_QUEUE_FULL_MESSAGE },
+      status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenMemoryShort({
+    context,
+    documentXmlBytes,
+  }: {
+    context: Context<SignedIn>;
+    documentXmlBytes: number;
+  }): Response | null {
+    if (memoryLimitMegabytes === null) return null;
+    if (isPreparable({ documentXmlBytes, memoryLimitMegabytes })) return null;
+    const message = bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes));
+    return context.json({ error: message }, HttpStatus.PayloadTooLarge);
+  }
 
   async function respondWithStoredDocument({
     context,
     bytes,
     title,
     importRevisions,
+    isBlank,
   }: {
     context: Context<SignedIn>;
     bytes: Uint8Array;
     title: string;
     importRevisions: boolean;
+    isBlank: boolean;
   }): Promise<Response> {
+    const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (queueRefusal) return queueRefusal;
     const userId = context.var.user.id;
-    const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions });
+    uploadBudget.record(userId);
+    const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
 
@@ -91,6 +135,7 @@ function mountCreation({ routes, services }: RouteMount): void {
       bytes: await buildSeedDocx(BLANK_DOCUMENT),
       title: parsed.data.title,
       importRevisions: false,
+      isBlank: true,
     });
   }
 
@@ -103,6 +148,8 @@ function mountCreation({ routes, services }: RouteMount): void {
       onError: (context) => context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge),
     }),
     async (context) => {
+      const uploadsRefusal = refusalWhenUploadsSpent(context);
+      if (uploadsRefusal) return uploadsRefusal;
       const isUpload = context.req.header('content-type')?.startsWith(MULTIPART_CONTENT_TYPE) === true;
       if (!isUpload) return createBlank(context);
       const body = await context.req.parseBody().catch(() => null);
@@ -111,20 +158,18 @@ function mountCreation({ routes, services }: RouteMount): void {
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const isAcceptedDocx = file.type === DOCX_MIME_TYPE && (await isDocx(bytes));
-      if (!isAcceptedDocx) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
+      const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
+      if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
+      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+      if (memoryRefusal) return memoryRefusal;
+      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true, isBlank: false });
     },
   );
 }
 
 function mountOpening({ routes, services }: RouteMount): void {
   const { documents, runtime } = services;
-
-  function notReady({ context, documentId }: { context: Context<SignedIn>; documentId: string }): Response {
-    console.warn(`${CREATOR_REFUSED_MESSAGE} ${documentId}`);
-    return context.json({ error: DOCUMENT_NOT_READY_ERROR }, HttpStatus.Conflict);
-  }
 
   routes.get('/:documentId', (context) => {
     const documentId = context.req.param('documentId');
@@ -141,22 +186,12 @@ function mountOpening({ routes, services }: RouteMount): void {
         retryAfterSeconds: secondsRoundedUp(answer.waitMs),
       });
     }
-    const { roomMode } = answer;
-    function colorSlotOf(): AuthorColorSlot {
-      return documents.colorSlotOf({ documentId, userId });
-    }
-    if (roomMode === RoomMode.Join)
-      return context.json({ document: summary, role, roomMode, creatorAttempt: null, creatorEpoch: null, colorSlot: colorSlotOf() });
-    if (role === DocumentRole.Reader) return notReady({ context, documentId });
-    const ticket = runtime.reserveCreator({ documentId, userId });
-    if (ticket === null) return notReady({ context, documentId });
     return context.json({
       document: summary,
       role,
-      roomMode,
-      creatorAttempt: ticket.attempt,
-      creatorEpoch: ticket.epoch,
-      colorSlot: colorSlotOf(),
+      roomMode: RoomMode.Join,
+      bootstrap: runtime.bootstrapRoom(documentId),
+      colorSlot: documents.colorSlotOf({ documentId, userId }),
     });
   });
 }
@@ -220,20 +255,22 @@ function mountReading({ routes, services }: RouteMount): void {
     const isCurrentUserOnline = isTabAsked
       ? runtime.onlineTabIds({ documentId, userId: context.var.user.id }).has(tab)
       : online.has(context.var.user.id);
-    const { attempt, epoch } = claimedTicketOf(new URL(context.req.url).searchParams);
-    const isTicketClaimed = attempt !== null && epoch !== null;
     return context.json({
       members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
       isCurrentUserOnline,
-      isAttemptSuperseded: isTicketClaimed && runtime.isAttemptSuperseded({ documentId, attempt, epoch }),
-      isAttemptRestarted: isTicketClaimed && runtime.isAttemptRestarted({ documentId, attempt, epoch }),
     });
   });
 }
 
-export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
+export function createDocumentsRoutes({
+  services,
+  memoryLimitMegabytes,
+}: {
+  services: AppServices;
+  memoryLimitMegabytes: number | null;
+}): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  mountCreation({ routes, services });
+  mountCreation({ routes, services, memoryLimitMegabytes });
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });

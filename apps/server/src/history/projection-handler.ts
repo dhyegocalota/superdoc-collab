@@ -8,10 +8,13 @@ import {
   type ReadModel,
   type UpdateLog,
 } from '@superdoc-collab/history';
-import { MAX_REVISIONS_IMPORT_BYTES } from '@superdoc-collab/types';
+import { MAX_REVISIONS_IMPORT_BYTES, type BootstrapLane } from '@superdoc-collab/types';
 import * as Y from 'yjs';
+import { withTimeout } from '../limits/with-timeout';
 import { describeError } from '../logging/describe-error';
 import {
+  BootstrapTimeoutError,
+  type BootstrapRequest,
   IMPORT_TOO_LARGE_MESSAGE,
   MissingVersionMarkError,
   ProjectionRequestKind,
@@ -19,7 +22,9 @@ import {
   type AnsweredReply,
   type AnsweredRequestKind,
   type BlocksReply,
+  type BootstrapReply,
   type ProjectionDoneReply,
+  type ProjectionRequest,
   type ProjectionRequestsByKind,
   type VersionReply,
 } from './projection-messages';
@@ -32,6 +37,9 @@ type ProjectionStores = {
   replays: GcFreeReplays;
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
   fileSizeBytes: (filePath: string) => number;
+  bootstrapRoom: (request: BootstrapRequest) => Promise<void>;
+  bootstrapTimeoutMsOf: (documentXmlBytes: number) => number;
+  releaseBootstrapHost: (lane: BootstrapLane) => Promise<void>;
 };
 
 export function createProjectionHandler({
@@ -40,6 +48,9 @@ export function createProjectionHandler({
   replays,
   importRevisions,
   fileSizeBytes,
+  bootstrapRoom,
+  bootstrapTimeoutMsOf,
+  releaseBootstrapHost,
 }: ProjectionStores): <Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]) => Promise<AnsweredReply> {
   function handleProject(documentId: string): ProjectionDoneReply {
     compact({ log: updateLog, documentName: documentId, everyUpdates: SNAPSHOT_EVERY_UPDATES });
@@ -98,12 +109,36 @@ export function createProjectionHandler({
     };
   }
 
+  async function handleBootstrap({
+    documentId,
+    filePath,
+    url,
+    token,
+    lane,
+    documentXmlBytes,
+  }: Extract<ProjectionRequest, { kind: ProjectionRequestKind.Bootstrap }>): Promise<BootstrapReply> {
+    const timeoutMs = bootstrapTimeoutMsOf(documentXmlBytes);
+    try {
+      await withTimeout({
+        work: bootstrapRoom({ documentId, filePath, url, token, lane, documentXmlBytes }),
+        milliseconds: timeoutMs,
+        onTimeout: () => {
+          throw new BootstrapTimeoutError(timeoutMs);
+        },
+      });
+    } finally {
+      await releaseBootstrapHost(lane);
+    }
+    return { kind: ProjectionRequestKind.Bootstrap, documentId };
+  }
+
   const handlers: Handlers = {
     [ProjectionRequestKind.Project]: (request) => handleProject(request.documentId),
     [ProjectionRequestKind.Import]: handleImport,
     [ProjectionRequestKind.Forget]: (request) => handleForget(request.documentId),
     [ProjectionRequestKind.Version]: versionReply,
     [ProjectionRequestKind.Blocks]: (request) => blocksReply(request.documentId),
+    [ProjectionRequestKind.Bootstrap]: handleBootstrap,
   };
 
   return async function handle<Kind extends AnsweredRequestKind>(request: ProjectionRequestsByKind[Kind]): Promise<AnsweredReply> {

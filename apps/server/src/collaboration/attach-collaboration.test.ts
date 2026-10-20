@@ -45,11 +45,13 @@ import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { Auth } from '../auth/auth';
 import { attachCollaboration } from './attach-collaboration';
+import { PRE_AUTHENTICATION_MAX_INFLATED_BYTES } from './socket-message-limit';
 import { AWARENESS_DROP_LOG, AWARENESS_IDS_LOG } from './collaboration-server';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
 
 const LOOPBACK_HOST = '127.0.0.1';
 const TYPING_BURST_FRAMES = 600;
+const AUTHENTICATED_ANSWER = Buffer.from([0]);
 const AWARENESS_BURST_FRAMES = 3000;
 const AWARENESS_ROOM_NAME = 'superdoc-room-1';
 const CLAIMED_ID_BASE = 1_000_000;
@@ -361,6 +363,18 @@ describe('attachCollaboration', () => {
     expect(response).toBe('');
     await server.stop();
   });
+  test('a bootstrap path upgrade without an origin reaches authentication', async () => {
+    const server = await startTestServer();
+    const response = await firstChunk({ server, path: ApiPath.BootstrapCollaboration, cookie: '', origin: '' });
+    expect(response.startsWith('HTTP/1.1 101')).toBe(true);
+    await server.stop();
+  });
+  test('an upgrade on a path that only extends the bootstrap path is destroyed', async () => {
+    const server = await startTestServer();
+    const response = await exchange({ server, path: `${ApiPath.BootstrapCollaboration}/other`, origin: '' });
+    expect(response).toBe('');
+    await server.stop();
+  });
   test('a socket that never authenticates is closed by the server as unauthorized', async () => {
     const server = await startTestServer();
     const { cookie } = await signedInUser({ server, name: 'Eva' });
@@ -453,32 +467,33 @@ describe('attachCollaboration', () => {
     expect(socket.destroyed).toBe(true);
   });
 
-  test('an agent upgrade from a non-loopback address is refused', () => {
-    const httpServer = new EventEmitter();
-    attachCollaboration({
-      httpServer: httpServer as unknown as Server,
-      auth: {} as Auth,
-      hocuspocus: {} as Hocuspocus,
-      versionRooms: {} as unknown as VersionRooms,
-      path: ApiPath.Collaboration,
-      allowedOrigin: ORIGIN,
-    });
-    const socket = new Duplex({ read: () => undefined, write: () => undefined });
-    const destroy = vi.spyOn(socket, 'destroy');
-    httpServer.emit(
-      'upgrade',
-      { url: ApiPath.AgentCollaboration, headers: {}, socket: { remoteAddress: FOREIGN_ADDRESS } },
-      socket,
-      Buffer.alloc(0),
-    );
-    expect(destroy).toHaveBeenCalledOnce();
-  });
+  test.each([ApiPath.AgentCollaboration, ApiPath.BootstrapCollaboration])(
+    'an upgrade on %s from a non-loopback address is refused',
+    (path) => {
+      const httpServer = new EventEmitter();
+      attachCollaboration({
+        httpServer: httpServer as unknown as Server,
+        auth: {} as Auth,
+        hocuspocus: {} as Hocuspocus,
+        versionRooms: {} as unknown as VersionRooms,
+        path: ApiPath.Collaboration,
+        allowedOrigin: ORIGIN,
+      });
+      const socket = new Duplex({ read: () => undefined, write: () => undefined });
+      const destroy = vi.spyOn(socket, 'destroy');
+      httpServer.emit('upgrade', { url: path, headers: {}, socket: { remoteAddress: FOREIGN_ADDRESS } }, socket, Buffer.alloc(0));
+      expect(destroy).toHaveBeenCalledOnce();
+    },
+  );
 });
 
-async function openCountedSocket() {
+async function openCountedSocket({ answers = true }: { answers?: boolean } = {}) {
   const received = vi.fn();
   const hocuspocus = {
-    handleConnection: (webSocket: WebSocket) => webSocket.on('message', received),
+    handleConnection: (webSocket: WebSocket) => {
+      webSocket.on('message', received);
+      if (answers) webSocket.send(AUTHENTICATED_ANSWER);
+    },
   } as unknown as Hocuspocus;
   const auth = {
     api: {
@@ -508,6 +523,23 @@ async function openCountedSocket() {
   await new Promise((resolve) => socket.on('open', resolve));
   return { socket, closed, received, httpServer };
 }
+
+test('the frame that breaches the pre-authentication total never reaches the room handler', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket({ answers: false });
+  socket.send(Buffer.alloc(PRE_AUTHENTICATION_MAX_INFLATED_BYTES + 1));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).not.toHaveBeenCalled();
+  await new Promise((resolve) => httpServer.close(resolve));
+});
+
+test('the frame that breaches the inflated budget never reaches the room handler', async () => {
+  const { socket, closed, received, httpServer } = await openCountedSocket();
+  socket.send(Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES));
+  socket.send(Buffer.alloc(MAX_SOCKET_MESSAGE_BYTES));
+  expect(await closed).toBe(POLICY_VIOLATION_CLOSE_CODE);
+  expect(received).toHaveBeenCalledTimes(1);
+  await new Promise((resolve) => httpServer.close(resolve));
+});
 
 test('a typing burst of 600 frames in one second is accepted and the socket stays open', async () => {
   const { socket, received, httpServer } = await openCountedSocket();

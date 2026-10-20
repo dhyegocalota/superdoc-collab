@@ -3,6 +3,7 @@ import {
   DEMO_ADMIN,
   INVITE_TOKEN_HEADER,
   OPEN_UNCOMMITTED_PER_MINUTE,
+  UPLOADS_PER_MINUTE,
   UTC_TIME_ZONE,
   type SessionUser,
   inviteTokenOf,
@@ -65,7 +66,10 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+    uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
+    bootstrapHostHeapMegabytes: null,
+    memoryLimitMegabytes: null,
   };
 }
 
@@ -92,6 +96,7 @@ export async function startTestServer({
   claim = true,
   showcaseOnClaim = false,
   now = Date.now,
+  memoryLimitMegabytes = null,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -102,6 +107,7 @@ export async function startTestServer({
   claim?: boolean;
   showcaseOnClaim?: boolean;
   now?: () => number;
+  memoryLimitMegabytes?: number | null;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -114,7 +120,10 @@ export async function startTestServer({
     trustedProxyHops,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+    uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
+    bootstrapHostHeapMegabytes: null,
+    memoryLimitMegabytes,
   };
   try {
     const running = await startServer({
@@ -269,7 +278,12 @@ export async function signedInUser({ server, name }: { server: TestServer; name:
 export async function signedInOwner({
   languageModel,
   versionRoomPolicy,
-}: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{ server: TestServer; owner: TestUser }> {
-  const server = await startTestServer({ languageModel, versionRoomPolicy });
+  memoryLimitMegabytes,
+}: {
+  languageModel?: LanguageModelChoice;
+  versionRoomPolicy?: VersionRoomPolicy;
+  memoryLimitMegabytes?: number | null;
+} = {}): Promise<{ server: TestServer; owner: TestUser }> {
+  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes });
   return { server, owner: await signedInUser({ server, name: OWNER_NAME }) };
 }

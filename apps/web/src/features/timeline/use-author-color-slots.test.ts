@@ -1,8 +1,6 @@
-import { authorColorKeyOf, authorColorSlot, documentPagePath, DocumentRole, RoomMode, type DocumentMember } from '@superdoc-collab/types';
+import { authorColorKeyOf, authorColorSlot, documentPagePath, DocumentRole, type DocumentMember } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
-import { QueryClient } from '@tanstack/react-query';
-import { openedDocumentQueryKey } from '@/features/editor/editor-api';
-import { DOCUMENT_ID, openedAs } from '@/testing/opened-document';
+import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderHookWithRouter } from '@/testing/render-with-providers';
 import { useAuthorColorSlots } from './use-author-color-slots';
 
@@ -45,24 +43,8 @@ test('before the members answer there is no resolver, so no member is given the 
   expect(resolverWith([])).toBeNull();
 });
 
-test('the members are read with the creator ticket of the opened document, the key the page polls', () => {
-  const queryClient = new QueryClient();
-  queryClient.setQueryData(openedDocumentQueryKey(DOCUMENT_ID), {
-    ...openedAs(DocumentRole.Owner, RoomMode.Create),
-    creatorAttempt: 2,
-    creatorEpoch: 'epoch-1',
-  });
+test('the members are read by the document of the page', () => {
   useMembers.mockReturnValue({ members: [member] });
-  renderHookWithRouter(() => useAuthorColorSlots(), { route: documentPagePath(DOCUMENT_ID), queryClient });
-  expect(useMembers).toHaveBeenLastCalledWith({ documentId: DOCUMENT_ID, creatorTicket: { attempt: 2, epoch: 'epoch-1' } });
-});
-
-test('the members are read without a ticket when the opened document carries none or is not loaded', () => {
-  const queryClient = new QueryClient();
-  useMembers.mockReturnValue({ members: [member] });
-  renderHookWithRouter(() => useAuthorColorSlots(), { route: documentPagePath(DOCUMENT_ID), queryClient });
-  expect(useMembers).toHaveBeenLastCalledWith({ documentId: DOCUMENT_ID, creatorTicket: null });
-  queryClient.setQueryData(openedDocumentQueryKey(DOCUMENT_ID), openedAs(DocumentRole.Owner, RoomMode.Join));
-  renderHookWithRouter(() => useAuthorColorSlots(), { route: documentPagePath(DOCUMENT_ID), queryClient });
-  expect(useMembers).toHaveBeenLastCalledWith({ documentId: DOCUMENT_ID, creatorTicket: null });
+  renderHookWithRouter(() => useAuthorColorSlots(), { route: documentPagePath(DOCUMENT_ID) });
+  expect(useMembers).toHaveBeenLastCalledWith(DOCUMENT_ID);
 });

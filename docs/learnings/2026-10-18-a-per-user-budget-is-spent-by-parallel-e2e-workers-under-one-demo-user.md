@@ -2,6 +2,7 @@
 
 - Date: 2026-10-18
 - Inspired by: the ninth `pnpm verify` run of room-admission, red on six E2E tests whose creator page showed "The document could not be loaded" right after its own upload, while 85 others passed.
+- Revisited: 2026-10-19 — still true; the upload limit of `POST /api/documents` got the same knob (`UPLOADS_PER_MINUTE`) after a full E2E run spent one demo user's uploads
 
 ## Signal
 Several unrelated specs fail at `uploadSeed` with the document load error on the uploader's own page, at the busiest minute of the run, and the trace shows the open route answering 429 while the members polls answer 200.

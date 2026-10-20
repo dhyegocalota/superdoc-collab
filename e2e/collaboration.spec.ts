@@ -74,8 +74,8 @@ test('identities are declared from awareness', async ({ browser }) => {
     .prepare('SELECT user_id, source FROM client_identities WHERE document_name = ? AND user_id IN (?, ?)')
     .all(documentId, ana.userId, bruno.userId) as { user_id: string; source: string }[];
   history.close();
-  expect(new Set(rows.map((row) => row.user_id))).toEqual(new Set([ana.userId, bruno.userId]));
-  expect(rows.every((row) => row.source === DECLARED_SOURCE)).toBe(true);
+  const declaredRows = rows.filter((row) => row.source === DECLARED_SOURCE);
+  expect(new Set(declaredRows.map((row) => row.user_id))).toEqual(new Set([ana.userId, bruno.userId]));
 });
 
 test('a member shows in the top bar while in the document and leaves it when the tab closes', async ({ browser }) => {

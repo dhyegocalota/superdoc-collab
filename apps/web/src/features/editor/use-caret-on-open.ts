@@ -1,7 +1,7 @@
 import { CARET_ON_OPEN_TIMEOUT_MS } from '@superdoc-collab/types';
 import { useEffect, type RefObject } from 'react';
 
-const FIRST_FRAGMENT_SELECTOR = '.superdoc-page .superdoc-fragment';
+export const FIRST_FRAGMENT_SELECTOR = '.superdoc-page .superdoc-fragment';
 const CARET_OFFSET_PX = 2;
 const PRIMARY_BUTTON = 0;
 const POINTER_IDENTIFIER = 1;

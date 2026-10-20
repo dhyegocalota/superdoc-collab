@@ -13,11 +13,13 @@ export async function storeDocument({
   title,
   bytes,
   importRevisions,
+  isBlank,
 }: DocumentStorage & {
   ownerUserId: string;
   title: string;
   bytes: Uint8Array;
   importRevisions: boolean;
+  isBlank: boolean;
 }): Promise<string> {
   const documentId = randomUUID();
   documents.create({ id: documentId, title, ownerUserId });
@@ -25,6 +27,8 @@ export async function storeDocument({
     documents.remove(documentId);
     throw error;
   });
+  if (isBlank) runtime.bootstrapBlankRoom(documentId);
+  if (!isBlank) runtime.bootstrapRoom(documentId);
   if (importRevisions) runtime.importRevisions(documentId);
   return documentId;
 }

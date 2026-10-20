@@ -2,10 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentPagePath } from '@superdoc-collab/types';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import type { UploadProgress } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY, uploadDocument, validateUpload } from './documents-api';
 import { ONE_FILE_AT_A_TIME_MESSAGE } from './documents-copy';
 
 export type DocumentUpload = {
+  progress: UploadProgress | null;
   uploadFiles: (files: File[]) => void;
   clear: () => void;
   message: string | null;
@@ -24,13 +26,15 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
   const { mutate, error, reset, isPending } = useMutation({
-    mutationFn: uploadDocument,
+    mutationFn: (file: File) => uploadDocument({ file, onProgress: setProgress }),
     onSuccess: async (document) => {
       await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
       onUploaded?.();
       await navigate(documentPagePath(document.id));
     },
+    onSettled: () => setProgress(null),
   });
 
   function uploadFiles(files: File[]): void {
@@ -48,5 +52,5 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
     reset();
   }
 
-  return { uploadFiles, clear, message: uploadErrorMessage({ rejectionMessage, error }), isPending };
+  return { progress, uploadFiles, clear, message: uploadErrorMessage({ rejectionMessage, error }), isPending };
 }

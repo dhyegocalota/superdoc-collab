@@ -26,13 +26,22 @@ async function afterReleaseDelay(): Promise<void> {
   await vi.advanceTimersByTimeAsync(ROOM_MEMORY_RELEASE_DELAY_MS);
 }
 
-function releaseWith({ readings, clock = () => 0 }: { readings: number[]; clock?: () => number }) {
+function releaseWith({
+  readings,
+  clock = () => 0,
+  maxHeavyRooms = null,
+}: {
+  readings: number[];
+  clock?: () => number;
+  maxHeavyRooms?: number | null;
+}) {
   const collectGarbage = vi.fn();
   const release = createRoomMemoryRelease({
     collectGarbage,
     memoryUsage: residentReadings(readings),
     cooldownMs: COOLDOWN_MS,
     now: clock,
+    maxHeavyRooms,
   });
   return { collectGarbage, release };
 }
@@ -104,6 +113,7 @@ test('without an exposed collector nothing runs and nothing is logged', async ()
     memoryUsage: residentReadings([]),
     cooldownMs: COOLDOWN_MS,
     now: () => 0,
+    maxHeavyRooms: null,
   });
   release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
@@ -143,4 +153,35 @@ test('the bytes of an unloaded room are forgotten, so a small room of the same n
   release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
   await vi.advanceTimersByTimeAsync(COOLDOWN_MS + ROOM_MEMORY_RELEASE_DELAY_MS);
   expect(collectGarbage).not.toHaveBeenCalled();
+});
+
+const HEAVY_BYTES = LARGE_ROOM_STATE_BYTES + 1;
+
+test('the heavy rooms loaded are the rooms above the large room limit, counted from the bytes they grew by, and an unloaded one leaves the count', () => {
+  const { release } = releaseWith({ readings: [] });
+  release.grew({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  release.grew({ documentName: SMALL_ROOM, bytes: LARGE_ROOM_STATE_BYTES });
+  expect(release.heavyRoomCount()).toBe(1);
+  release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES });
+  release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: 1 });
+  expect(release.heavyRoomCount()).toBe(2);
+  release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
+  expect(release.heavyRoomCount()).toBe(1);
+});
+
+test('the ceiling is reached when as many heavy rooms are loaded as the limit, and a room that is already loaded is never at it', () => {
+  const { release } = releaseWith({ readings: [], maxHeavyRooms: 2 });
+  release.grew({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  expect(release.isAtCeiling(OTHER_HEAVY_ROOM)).toBe(false);
+  release.grew({ documentName: OTHER_HEAVY_ROOM, bytes: HEAVY_BYTES });
+  expect(release.isAtCeiling(THIRD_HEAVY_ROOM)).toBe(true);
+  expect(release.isAtCeiling(OTHER_HEAVY_ROOM)).toBe(false);
+  release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
+  expect(release.isAtCeiling(THIRD_HEAVY_ROOM)).toBe(false);
+});
+
+test('without a limit the ceiling is never reached', () => {
+  const { release } = releaseWith({ readings: [], maxHeavyRooms: null });
+  [HEAVY_ROOM, OTHER_HEAVY_ROOM, THIRD_HEAVY_ROOM].forEach((documentName) => release.grew({ documentName, bytes: HEAVY_BYTES }));
+  expect(release.isAtCeiling('fourth-room')).toBe(false);
 });

@@ -142,6 +142,30 @@ test('a queued bootstrap says it waits for its turn', () => {
 });
 
 test.each([
+  [3, 240_000, '3 documents ahead · about 4 min · 12 s'],
+  [1, 45_000, '1 document ahead · about 45 s · 12 s'],
+  [2, 1_000, '2 documents ahead · about 5 s · 12 s'],
+])('a queued bootstrap with %i documents ahead and %i ms of wait reads %s', (queuePosition, queueWaitMs, detail) => {
+  const view = preparingView({
+    bootstrap: { ...bootstrapAt(BootstrapStage.Queued), queuePosition, queueWaitMs },
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+  });
+  expect(view).toEqual({ stage: OpenStage.Preparing, detail, fraction: null });
+});
+
+test('a queued bootstrap with nothing ahead of it still says it waits for its turn', () => {
+  const view = preparingView({
+    bootstrap: { ...bootstrapAt(BootstrapStage.Queued), queuePosition: 0, queueWaitMs: 0 },
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+  });
+  expect(view.detail).toBe('Waiting for its turn · 12 s');
+});
+
+test.each([
   ['a preparing bootstrap of unknown size', bootstrapAt(BootstrapStage.Preparing)],
   ['a legacy answer with no bootstrap', null],
 ])('%s still ticks the elapsed time', (_, bootstrap) => {

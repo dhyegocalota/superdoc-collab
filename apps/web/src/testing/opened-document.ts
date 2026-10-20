@@ -36,6 +36,8 @@ export const READY_BOOTSTRAP: BootstrapProgress = {
   estimatedMs: null,
   documentXmlBytes: 0,
   preparingElapsedMs: null,
+  queuePosition: null,
+  queueWaitMs: null,
 };
 
 export function bootstrapAt(stage: BootstrapStage): BootstrapProgress {

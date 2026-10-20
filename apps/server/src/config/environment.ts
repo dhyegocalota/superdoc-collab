@@ -1,4 +1,10 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import {
+  MAX_BOOTSTRAP_WAIT_MS,
+  maxLoadedHeavyRooms,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  presentOrNull,
+  UPLOADS_PER_MINUTE,
+} from '@superdoc-collab/types';
 import { z } from 'zod';
 
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
@@ -70,6 +76,8 @@ export type Environment = {
   projectionWorkerHeapMegabytes: number | null;
   bootstrapHostHeapMegabytes: number | null;
   memoryLimitMegabytes: number | null;
+  maxBootstrapWaitMs: number;
+  maxLoadedHeavyRooms: number | null;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -83,6 +91,18 @@ function limitFrom({ name, value, fallback }: { name: string; value: string | un
   const limit = optionalLimitFrom({ name, value });
   if (limit === null) return fallback;
   return limit;
+}
+
+function heavyRoomCeilingFrom({
+  explicit,
+  memoryLimitMegabytes,
+}: {
+  explicit: number | null;
+  memoryLimitMegabytes: number | null;
+}): number | null {
+  if (explicit !== null) return explicit;
+  if (memoryLimitMegabytes === null) return null;
+  return maxLoadedHeavyRooms(memoryLimitMegabytes);
 }
 
 export function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
@@ -106,6 +126,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
   const parsed = schema.parse(source);
   if (new URL(parsed.APP_ORIGIN).origin !== parsed.APP_ORIGIN)
     throw new InvalidOriginError({ name: 'APP_ORIGIN', value: parsed.APP_ORIGIN });
+  const memoryLimitMegabytes = optionalLimitFrom({ name: 'MEMORY_LIMIT_MEGABYTES', value: source.MEMORY_LIMIT_MEGABYTES });
   return {
     port: parsed.PORT,
     host: presentOrNull(source.HOST),
@@ -129,6 +150,15 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'BOOTSTRAP_HOST_HEAP_MEGABYTES',
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
-    memoryLimitMegabytes: optionalLimitFrom({ name: 'MEMORY_LIMIT_MEGABYTES', value: source.MEMORY_LIMIT_MEGABYTES }),
+    memoryLimitMegabytes,
+    maxBootstrapWaitMs: limitFrom({
+      name: 'MAX_BOOTSTRAP_WAIT_MS',
+      value: source.MAX_BOOTSTRAP_WAIT_MS,
+      fallback: MAX_BOOTSTRAP_WAIT_MS,
+    }),
+    maxLoadedHeavyRooms: heavyRoomCeilingFrom({
+      explicit: optionalLimitFrom({ name: 'MAX_LOADED_HEAVY_ROOMS', value: source.MAX_LOADED_HEAVY_ROOMS }),
+      memoryLimitMegabytes,
+    }),
   };
 }

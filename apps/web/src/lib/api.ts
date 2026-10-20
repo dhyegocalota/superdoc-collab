@@ -9,6 +9,8 @@ export class DocumentUnavailableError extends ApiRequestError {}
 
 export class AuthenticationError extends ApiRequestError {}
 
+export class ServerBusyError extends ApiRequestError {}
+
 export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
   return `${subject} failed with status ${status}.`;
 }
@@ -20,6 +22,12 @@ export class RetryLaterError extends ApiRequestError {
     super(message);
     this.retryAfterMs = retryAfterMs;
   }
+}
+
+export async function refusalMessageOf({ response, fallback }: { response: Response; fallback: string }): Promise<string> {
+  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+  if (typeof body?.error !== 'string') return fallback;
+  return body.error;
 }
 
 export function apiGet(path: string): Promise<Response> {

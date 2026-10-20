@@ -115,17 +115,19 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     bytes,
     title,
     importRevisions,
+    isBlank,
   }: {
     context: Context<SignedIn>;
     bytes: Uint8Array;
     title: string;
     importRevisions: boolean;
+    isBlank: boolean;
   }): Promise<Response> {
     const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
     if (queueRefusal) return queueRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
-    const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions });
+    const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
 
@@ -137,6 +139,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       bytes: await buildSeedDocx(BLANK_DOCUMENT),
       title: parsed.data.title,
       importRevisions: false,
+      isBlank: true,
     });
   }
 
@@ -164,7 +167,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
       if (memoryRefusal) return memoryRefusal;
-      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true });
+      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true, isBlank: false });
     },
   );
 }

@@ -57,6 +57,9 @@ export class RoomBootstrap {
   private readonly running: Record<BootstrapLane, boolean> = { [BootstrapLane.Light]: false, [BootstrapLane.Heavy]: false };
   private readonly conversionRates: number[] = [];
   private readonly commitWaiters = new Map<string, () => void>();
+  private blankState: Uint8Array | null = null;
+  private blankConverting: string | null = null;
+  private blankWaiting: string[] = [];
   private readonly run: BootstrapRun;
   private readonly issueToken: (parameters: { userId: string; documentId: string; attempt: string }) => string;
   private readonly collaborationUrl: () => string;
@@ -115,31 +118,29 @@ export class RoomBootstrap {
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
-    const documentXmlBytes = this.documentXmlBytesOf(documentId);
-    const total = documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO;
-    const estimatedMs = (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
-    const progress = {
-      stage: BootstrapStage.Queued,
-      done: 0,
-      total,
-      stateBytes: null,
-      estimatedMs,
-      documentXmlBytes,
-      preparingElapsedMs: null,
-    };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
-    const lane = bootstrapLaneOf(documentXmlBytes);
-    this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
-    this.pump(lane);
+    const progress = this.register(documentId);
+    this.enqueue(documentId);
     return progress;
   }
 
   requestBlank(documentId: string): BootstrapProgress {
-    throw new Error('requestBlank is not implemented');
+    const existing = this.jobs.peek(documentId);
+    if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
+    const ownerId = this.ownerOf(documentId);
+    if (this.blankState !== null && ownerId !== null) return this.commitFromState({ documentId, ownerId, state: this.blankState });
+    if (this.blankConverting === null) {
+      this.blankConverting = documentId;
+      return this.request(documentId);
+    }
+    this.blankWaiting.push(documentId);
+    return this.register(documentId);
   }
 
   blankCommitted({ documentId, state }: { documentId: string; state: Uint8Array }): void {
-    throw new Error('blankCommitted is not implemented');
+    if (documentId !== this.blankConverting) return;
+    this.blankState = state;
+    this.blankConverting = null;
+    this.blankWaiting.splice(0).forEach((waitingId) => this.settleWaiting({ documentId: waitingId, state }));
   }
 
   begin(documentId: string): string {
@@ -209,8 +210,51 @@ export class RoomBootstrap {
   }
 
   forget(documentId: string): void {
+    this.blankWaiting = this.blankWaiting.filter((waitingId) => waitingId !== documentId);
+    if (this.blankConverting === documentId) this.releaseBlankWaiters();
     this.jobs.delete(documentId);
     Object.values(this.queues).forEach((queue) => queue.remove(documentId));
+  }
+
+  private register(documentId: string): BootstrapProgress {
+    const documentXmlBytes = this.documentXmlBytesOf(documentId);
+    const total = documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO;
+    const estimatedMs = (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+    const progress = {
+      stage: BootstrapStage.Queued,
+      done: 0,
+      total,
+      stateBytes: null,
+      estimatedMs,
+      documentXmlBytes,
+      preparingElapsedMs: null,
+    };
+    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
+    return progress;
+  }
+
+  private enqueue(documentId: string): void {
+    const lane = bootstrapLaneOf(this.documentXmlBytesOfJob(documentId));
+    this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
+    this.pump(lane);
+  }
+
+  private settleWaiting({ documentId, state }: { documentId: string; state: Uint8Array }): void {
+    const ownerId = this.ownerOf(documentId);
+    if (ownerId === null) return this.enqueue(documentId);
+    this.commitFromState({ documentId, ownerId, state });
+  }
+
+  private commitFromState({ documentId, ownerId, state }: { documentId: string; ownerId: string; state: Uint8Array }): BootstrapProgress {
+    this.commitBlank({ documentId, ownerId, state });
+    const progress = this.progressOf(documentId);
+    if (progress === null) throw new BootstrapUncommittedError();
+    return progress;
+  }
+
+  private releaseBlankWaiters(): void {
+    this.blankConverting = null;
+    this.blankWaiting.splice(0).forEach((waitingId) => this.enqueue(waitingId));
   }
 
   private answerOf(job: BootstrapJob): BootstrapProgress {
@@ -322,5 +366,6 @@ export class RoomBootstrap {
       },
     });
     console.error(`${BOOTSTRAP_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);
+    if (this.blankConverting === documentId) this.releaseBlankWaiters();
   }
 }

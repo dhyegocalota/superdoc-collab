@@ -453,9 +453,11 @@ test('opening an uncommitted document nobody bootstrapped starts one bootstrap a
 test('an upload and a blank create each start a bootstrap for the new document', async () => {
   const { server, owner } = await signedInOwner();
   const bootstrap = vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const blankBootstrap = vi.spyOn(server.services.runtime, 'bootstrapBlankRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
   const uploaded: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan') })).json();
   const blank: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Blank' })).json();
-  expect(bootstrap.mock.calls.map(([documentId]) => documentId)).toEqual([uploaded.id, blank.id]);
+  expect(bootstrap.mock.calls.map(([documentId]) => documentId)).toEqual([uploaded.id]);
+  expect(blankBootstrap.mock.calls.map(([documentId]) => documentId)).toEqual([blank.id]);
   await server.stop();
 });
 

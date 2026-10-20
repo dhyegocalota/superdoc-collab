@@ -21,6 +21,7 @@ export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   bootstrapRoom: (documentId: string) => BootstrapProgress;
+  bootstrapBlankRoom: (documentId: string) => BootstrapProgress;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
@@ -61,13 +62,21 @@ export function createCollaborationRuntime({
   function connectionsOf(documentId: string): Connection[] {
     return roomsOf(documentId).flatMap((room) => [...room.connections.values()].map(({ connection }) => connection));
   }
+  function bootstrapWith({
+    documentId,
+    request,
+  }: {
+    documentId: string;
+    request: (documentId: string) => BootstrapProgress;
+  }): BootstrapProgress {
+    const progress = roomBootstrap.progressOf(documentId);
+    if (progress !== null && progress.stage !== BootstrapStage.Failed) return progress;
+    if (bootstrap.isKnownCommitted(documentId)) return COMMITTED_WITHOUT_BOOTSTRAP;
+    return request(documentId);
+  }
   return {
-    bootstrapRoom: (documentId) => {
-      const progress = roomBootstrap.progressOf(documentId);
-      if (progress !== null && progress.stage !== BootstrapStage.Failed) return progress;
-      if (bootstrap.isKnownCommitted(documentId)) return COMMITTED_WITHOUT_BOOTSTRAP;
-      return roomBootstrap.request(documentId);
-    },
+    bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
+    bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(

@@ -88,6 +88,14 @@ export function roomHeapBudgetMegabytes({
   if (budgets.length === 0) return null;
   return Math.max(0, Math.min(...budgets));
 }
+export function largestHoldableMegabytes(roomHeapBudgetMegabytes: number): number {
+  throw new Error(`largestHoldableMegabytes is not implemented for ${roomHeapBudgetMegabytes}`);
+}
+const ROOM_HOLD_NONE_MESSAGE = 'This server has no memory to hold a document that needs a heavy room, even prepared on a device.';
+export function roomHoldShortMessage(largestMegabytes: number): string {
+  if (largestMegabytes === 0) return ROOM_HOLD_NONE_MESSAGE;
+  return `This server cannot hold a document this large at its current memory, even prepared on a device. The largest it can hold has up to ${largestMegabytes} MB of text and layout.`;
+}
 export function isHeavyRoomDocument(documentXmlBytes: number): boolean {
   return documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO > LARGE_ROOM_STATE_BYTES;
 }

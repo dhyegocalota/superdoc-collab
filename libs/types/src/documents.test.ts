@@ -15,7 +15,9 @@ import {
   largestPreparableMegabytes,
   LARGE_ROOM_STATE_BYTES,
   MAX_DOCUMENT_XML_BYTES,
+  largestHoldableMegabytes,
   roomHeapBudgetMegabytes,
+  roomHoldShortMessage,
   roomHeapMegabytesOf,
   SERVER_HEAP_BASELINE_MEGABYTES,
   ROOM_LOAD_SPIKE_HEAP_MEGABYTES,
@@ -86,6 +88,17 @@ describe('documents contracts', () => {
     expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: null, serverHeapMegabytes })).toBe(heapLeft);
     expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: null, serverHeapMegabytes: null })).toBeNull();
     expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 1024, serverHeapMegabytes: 400 })).toBe(0);
+  });
+
+  test('the largest document a room heap budget can hold is read off its heavy share', () => {
+    expect(largestHoldableMegabytes(638)).toBe(6);
+    expect(largestHoldableMegabytes(1457)).toBe(14);
+    expect(largestHoldableMegabytes(0)).toBe(0);
+  });
+
+  test('a server with a heap for no heavy room says so, otherwise it names the largest size', () => {
+    expect(roomHoldShortMessage(0)).toContain('no memory');
+    expect(roomHoldShortMessage(6)).toContain('6 MB');
   });
 
   test('pin: a room costs 19 bytes of heap for every byte of its state', () => {

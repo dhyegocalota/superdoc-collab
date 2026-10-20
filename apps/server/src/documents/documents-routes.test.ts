@@ -4,6 +4,8 @@ import {
   ApiPath,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   bootstrapMemoryShortMessage,
+  largestHoldableMegabytes,
+  roomHoldShortMessage,
   largestPreparableMegabytes,
   BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_STATE_BYTES_RATIO,
@@ -837,5 +839,59 @@ test('refused uploads spend nothing of the minute, and a good upload after them 
   );
   expect(new Set(refusals.map((response) => response.status))).toEqual(new Set([HttpStatus.UnsupportedMediaType]));
   expect((await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan') })).status).toBe(HttpStatus.Created);
+  await server.stop();
+});
+
+const FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES = 638;
+const SIX_GIGABYTE_ROOM_HEAP_MEGABYTES = 1457;
+const SIX_GIGABYTES = 6144;
+const BUSY_WAIT_MS = 600_000;
+
+test('at four gigabytes the heap holds no room for the heavy file, so the 413 offers no device and names the largest size', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: FOUR_GIGABYTES,
+    roomHeapBudgetMegabytes: FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const refused = await upload({ server, cookie: owner.cookie, bytes });
+  const forced = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  const expected = {
+    error: roomHoldShortMessage(largestHoldableMegabytes(FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES)),
+    canPrepareOnDevice: false,
+  };
+  expect([refused.status, await refused.json(), forced.status, await forced.json()]).toEqual([
+    HttpStatus.PayloadTooLarge,
+    expected,
+    HttpStatus.PayloadTooLarge,
+    expected,
+  ]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
+  await server.stop();
+});
+
+test('at six gigabytes the heap holds the heavy file, so the device is offered and its upload is stored', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: SIX_GIGABYTES,
+    roomHeapBudgetMegabytes: SIX_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const refused = await upload({ server, cookie: owner.cookie, bytes });
+  const accepted = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  expect([refused.status, (await refused.json()).canPrepareOnDevice, accepted.status]).toEqual([
+    HttpStatus.PayloadTooLarge,
+    true,
+    HttpStatus.Created,
+  ]);
+  await server.stop();
+});
+
+test('a device upload never enters the lane, so a full queue or a long wait does not refuse it', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  vi.spyOn(server.services.runtime, 'bootstrapQueueWaitMs').mockReturnValue(BUSY_WAIT_MS);
+  vi.spyOn(server.services.runtime, 'bootstrapWaitMs').mockReturnValue(BUSY_WAIT_MS);
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const device = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  const lane = await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
+  expect([device.status, lane.status]).toEqual([HttpStatus.Created, HttpStatus.TooManyRequests]);
   await server.stop();
 });

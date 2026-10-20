@@ -1,10 +1,12 @@
 import { PERCENT_MULTIPLIER } from '@superdoc-collab/types';
-import { CheckIcon, CircleIcon, Loader2Icon } from 'lucide-react';
+import { CheckIcon, CircleIcon, Loader2Icon, Minimize2Icon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { OPEN_PROGRESS_LABEL, OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
+import { MINIMIZE_PROGRESS_LABEL, OPEN_PROGRESS_LABEL, OPEN_STAGE_LABELS, stageAnnouncement } from './open-progress-copy';
+import { MinimizedOpenProgressBar } from './minimized-open-progress-bar';
 import { OpenStage } from './open-stage';
 
 export type OpenProgressView = { stage: OpenStage; detail: string; fraction: number | null };
@@ -47,6 +49,7 @@ export function progressValueOf(fraction: number | null): number | null {
 }
 
 export function OpenProgressPanel({ title, stages, view, action, isTranslucent = false, minimization }: OpenProgressPanelProps) {
+  if (minimization?.isMinimized) return <MinimizedOpenProgressBar view={view} onMaximize={() => minimization.onMinimizedChange(false)} />;
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
       <Card
@@ -55,7 +58,22 @@ export function OpenProgressPanel({ title, stages, view, action, isTranslucent =
         className={cn('w-full max-w-md gap-4', isTranslucent && TRANSLUCENT_CARD_CLASS)}
       >
         <CardContent role="status" aria-live="polite" className="flex flex-col gap-4">
-          {title && <p className="truncate font-semibold">{title}</p>}
+          {(title || minimization) && (
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate font-semibold">{title}</p>
+              {minimization && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={MINIMIZE_PROGRESS_LABEL}
+                  onClick={() => minimization.onMinimizedChange(true)}
+                >
+                  <Minimize2Icon aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+          )}
           <p className="sr-only">{stageAnnouncement({ stages, stage: view.stage })}</p>
           <ol className="flex flex-col gap-2 text-sm">
             {stages.map((listed) => {

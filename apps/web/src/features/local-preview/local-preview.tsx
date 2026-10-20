@@ -44,6 +44,7 @@ export function LocalPreview({
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [hasFailed, setHasFailed] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const isPanelVisible = isProgressShown && !hasFailed;
 
   const freezeSurface = useRef<(() => void) | null>(null);
@@ -101,6 +102,7 @@ export function LocalPreview({
             stages={EDITOR_OPEN_STAGES}
             startedAt={startedAt}
             isTranslucent
+            minimization={pageCount > 0 ? { isMinimized, onMinimizedChange: setIsMinimized } : undefined}
             viewAt={
               isSwapping
                 ? swappingViewAt

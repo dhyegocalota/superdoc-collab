@@ -133,3 +133,14 @@ test('a room grown by several updates is heavy once their bytes pass the size', 
   await afterReleaseDelay();
   expect(collectGarbage).toHaveBeenCalledOnce();
 });
+
+test('the bytes of an unloaded room are forgotten, so a small room of the same name later is not heavy', async () => {
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  const { collectGarbage, release } = releaseWith({ readings: [1, 2], clock: () => Date.now() });
+  release.grew({ documentName: HEAVY_ROOM, bytes: LARGE_ROOM_STATE_BYTES + 1 });
+  release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => true });
+  release.grew({ documentName: HEAVY_ROOM, bytes: 1 });
+  release.unloaded({ documentName: HEAVY_ROOM, isReloaded: () => false });
+  await vi.advanceTimersByTimeAsync(COOLDOWN_MS + ROOM_MEMORY_RELEASE_DELAY_MS);
+  expect(collectGarbage).not.toHaveBeenCalled();
+});

@@ -26,10 +26,29 @@ export function createRoomMemoryRelease({
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
+  let isRetryPending = false;
+
+  function retryAfter({
+    remainingMs,
+    release,
+    isReloaded,
+  }: {
+    remainingMs: number;
+    release: NonNullable<typeof collectGarbage>;
+    isReloaded: () => boolean;
+  }): void {
+    if (isRetryPending) return;
+    isRetryPending = true;
+    setTimeout(() => {
+      isRetryPending = false;
+      collect({ release, isReloaded });
+    }, remainingMs).unref();
+  }
 
   function collect({ release, isReloaded }: { release: NonNullable<typeof collectGarbage>; isReloaded: () => boolean }): void {
     if (isReloaded()) return;
-    if (cooldown.remainingMs(RELEASE_COOLDOWN_KEY) > 0) return;
+    const remainingMs = cooldown.remainingMs(RELEASE_COOLDOWN_KEY);
+    if (remainingMs > 0) return retryAfter({ remainingMs, release, isReloaded });
     cooldown.start(RELEASE_COOLDOWN_KEY);
     const { rss: residentBefore } = memoryUsage();
     const startedAt = now();

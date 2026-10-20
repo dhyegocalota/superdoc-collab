@@ -40,6 +40,28 @@ On the heavy document (9.5 MB, 56,800 paragraphs) the projection worker needs ab
 | Bootstrap projection | 7.7 s | 4.1 s |
 | Version step (cold, warm, warm) | 3.9 s, 2.8 s, 2.2 s | 1.1 s, 1.1 s, 1.1 s |
 
+### A version step end to end, on the heavy document (9.5 MB, 85 events, a 36.6 MB state; stack on the built server, headless browser, machine under load)
+
+The worker is not where a step spends its time. Every step, first or later, shows the new version about 14 to 19 s after the key press, because the browser applies and renders the full 36.6 MB state in a new frame. The live editor of the same document takes 13 to 15 s to its first text run in the same walk, so a version frame costs one editor open.
+
+| Segment | First step (viewer and cache cold) | Later step |
+|---------|------------------------------------|------------|
+| Route answers 202 (job started) | 0.3 s | 0.3 s |
+| Worker: snapshot read, apply of the snapshot, tail replay | 10 ms, 0.71 s, 6 ms | 12 ms, 0.99 s, 3 ms |
+| Worker: encode, main-story text | 0.21 s, 0.20 s | 0.24 s, 0.21 s |
+| Worker round trip as the service sees it | 1.1 s | 1.5 s |
+| Route answers 200 (the client polls once a second) | 2.3 s | 2.6 s |
+| Room document ready on the server (apply of the 36.6 MB state) | 3.9 s (1.2 s apply) | 5.1 s (1.9 s apply) |
+| Frame delivered to the browser (36.6 MB inflated, 5.2 MB deflated) | 5.8 s | 7.4 s |
+| Frame ready in the browser | 15.5 s | 17.9 s |
+| Browser apply and render of the version | 9.7 s | 10.5 s |
+
+- The snapshot read is 10 ms and the tail replay is 3 to 6 ms: the log is read from the nearest snapshot, never from sequence 0, and the first request pays no extra cold read.
+- The 36.6 MB state travels on the collaboration socket, already deflated to 5.2 MB in 0.1 s; the version route carries only the summary, so deflating the route and reusing the live state would not move the step.
+- Earlier readings of 0.85 to 2.9 s for later steps timed the banner and the address, which change 0.3 s after the key press while the previous frame stays on screen; the new frame is the signal used above.
+- The poll wastes up to 1 s per step (the `Retry-After` is whole seconds); the room apply holds the server's event loop for 1.2 to 1.9 s per frame. Neither is worth a change before the render cost moves.
+- A step to the version the cache already holds answers 200 in 0.3 to 0.6 s and still takes 14 to 21 s to render.
+
 ## Failure modes
 
 | What | Signal | Back out |

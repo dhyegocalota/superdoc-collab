@@ -188,3 +188,12 @@ test('an update merged from two clients records both client ids sorted, and a de
   expect(appended.yjsClientIds).toEqual([30, 70]);
   expect(deleted.yjsClientIds).toEqual([]);
 });
+
+test('byteLength sums the update bytes of one document only', () => {
+  const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
+  const updates = typedUpdates(2);
+  updates.forEach((update) => log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update }));
+  log.append({ documentName: OTHER_DOCUMENT, connectionUserId: 'bruno', connectionActor: ClientActor.Human, update: updates[0]! });
+  expect(log.byteLength(DOCUMENT)).toBe(updates.reduce((total, update) => total + update.byteLength, 0));
+  expect(log.byteLength('missing')).toBe(0);
+});

@@ -153,6 +153,13 @@ export class UpdateLog {
     return rows.map(toLoggedUpdate);
   }
 
+  byteLength(documentName: string): number {
+    const row = this.database
+      .prepare('SELECT COALESCE(SUM(LENGTH(update_bytes)), 0) AS bytes FROM updates WHERE document_name = ?')
+      .get(documentName) as { bytes: number };
+    return row.bytes;
+  }
+
   hasUpdates(documentName: string): boolean {
     return this.database.prepare('SELECT 1 FROM updates WHERE document_name = ? LIMIT 1').get(documentName) !== undefined;
   }

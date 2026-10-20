@@ -20,7 +20,8 @@ export function deviceRefusalOf({
 }
 
 export function canPreviewOnDevice(deviceMemoryGigabytes: number | null): boolean {
-  throw new Error('canPreviewOnDevice is not implemented');
+  if (deviceMemoryGigabytes === null) return false;
+  return deviceMemoryGigabytes >= DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES;
 }
 
 function exposedDeviceMemory(): number | null {
@@ -32,4 +33,8 @@ function exposedDeviceMemory(): number | null {
 export function useDeviceRefusal(): DeviceRefusal | null {
   const isPhoneLayout = useIsPhoneLayout();
   return deviceRefusalOf({ isPhoneLayout, deviceMemoryGigabytes: exposedDeviceMemory() });
+}
+
+export function useCanPreviewOnDevice(): boolean {
+  return canPreviewOnDevice(exposedDeviceMemory());
 }

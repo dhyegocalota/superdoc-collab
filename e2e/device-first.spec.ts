@@ -46,6 +46,7 @@ const SAMPLE_INTERVAL_MS = 100;
 const SAMPLES_KEY = 'deviceFirstSamples';
 const MAX_EDITABLE_MS = 120_000;
 const SETTLE_SAMPLING_MS = 3000;
+const PREVIEW_CAPABLE_DEVICE_MEMORY_GIGABYTES = 8;
 
 type Sample = { at: number; hasPanel: boolean; hasLiveText: boolean; hasPreviewText: boolean; hasText: boolean; detail: string | null };
 
@@ -80,6 +81,13 @@ async function recordPageLife(page: Page): Promise<void> {
   );
 }
 
+async function useCapableDevice(page: Page): Promise<void> {
+  await page.addInitScript(
+    (deviceMemory) => Object.defineProperty(navigator, 'deviceMemory', { get: () => deviceMemory }),
+    PREVIEW_CAPABLE_DEVICE_MEMORY_GIGABYTES,
+  );
+}
+
 async function samplesOf(page: Page): Promise<Sample[]> {
   return page.evaluate((key) => (window as unknown as Record<string, Sample[]>)[key]!, SAMPLES_KEY);
 }
@@ -90,6 +98,7 @@ test('a heavy upload is prepared on the uploader device, the panel stays until t
   test.setTimeout(TEST_TIMEOUT_MS);
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
+  await useCapableDevice(ana.page);
   await recordPageLife(ana.page);
   const stopSampling = await startTabMemorySampler({ browser, page: ana.page });
   await ana.page.goto(AppRoute.Documents);

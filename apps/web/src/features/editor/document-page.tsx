@@ -15,7 +15,7 @@ import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
 import { useOpenStartedAt } from '@/features/open-progress/use-open-started-at';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { LocalPreview } from '@/features/local-preview/local-preview';
-import { useDeviceRefusal } from '@/features/local-preview/device-guard';
+import { useCanPreviewOnDevice, useDeviceRefusal } from '@/features/local-preview/device-guard';
 import { useLocalPreview } from '@/features/local-preview/use-local-preview';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -113,6 +113,7 @@ export function DocumentPage() {
   useDocumentTitle(opened ? opened.document.title : null);
   const cachedTitle = useCachedTitle(documentId);
   const deviceGuardRefusal = useDeviceRefusal();
+  const canPreviewOnDevice = useCanPreviewOnDevice();
   const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
   const isDeviceEditorUsable = loadProgress.isSynced && hasPaintedParagraph;
   const isCreatingOnDevice = isDeviceJobCreatedHere && !isDeviceEditorUsable;
@@ -121,7 +122,7 @@ export function DocumentPage() {
     documentId,
     readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness,
     isLiveEditorPainted: (isDeviceJobCreatedHere ? isDeviceEditorUsable : hasPaintedParagraph) || isOpenFailing,
-    isPreparingHere: isDeviceJobCreatedHere && deviceGuardRefusal === null,
+    isPreparingHere: isDeviceJobCreatedHere && deviceGuardRefusal === null && canPreviewOnDevice,
   });
   const previewScrollFraction = useRef<number | null>(null);
   useEffect(() => {

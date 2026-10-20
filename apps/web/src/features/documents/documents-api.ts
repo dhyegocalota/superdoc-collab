@@ -5,10 +5,13 @@ import {
   HttpStatus,
   MAX_UPLOAD_BYTES,
   NOT_A_DOCX_MESSAGE,
+  PREPARATION_FIELD,
+  PreparationSource,
   UPLOAD_FIELD,
   UPLOAD_TOO_LARGE_MESSAGE,
   type DocumentSummary,
   type DocumentsList,
+  type UploadRefusal,
 } from '@superdoc-collab/types';
 import { ApiRequestError, apiGet, apiSend, apiSendWithProgress, readJson, refusalMessageOf, type UploadProgress } from '@/lib/api';
 import { CREATE_SUBJECT, LIST_SUBJECT, UPLOAD_SUBJECT } from './documents-copy';
@@ -26,18 +29,37 @@ export function validateUpload(file: File): string | null {
   return null;
 }
 
+export class UploadRefusedError extends ApiRequestError {
+  readonly canPrepareOnDevice: boolean;
+
+  constructor({ error, canPrepareOnDevice }: UploadRefusal) {
+    super(error);
+    this.canPrepareOnDevice = canPrepareOnDevice;
+  }
+}
+
+async function refusalOf(response: Response): Promise<UploadRefusal> {
+  const body = (await response.json().catch(() => null)) as Partial<UploadRefusal> | null;
+  if (typeof body?.error !== 'string') return { error: UPLOAD_TOO_LARGE_MESSAGE, canPrepareOnDevice: false };
+  return { error: body.error, canPrepareOnDevice: body.canPrepareOnDevice === true };
+}
+
 export async function uploadDocument({
   file,
+  preparation,
   onProgress,
 }: {
   file: File;
+  preparation: PreparationSource;
   onProgress: (progress: UploadProgress) => void;
 }): Promise<DocumentSummary> {
   const form = new FormData();
   form.set(UPLOAD_FIELD, file);
+  if (preparation === PreparationSource.Device) form.set(PREPARATION_FIELD, preparation);
   const response = await apiSendWithProgress({ path: ApiPath.Documents, method: HttpMethod.Post, body: form, onProgress });
-  const isRefusedWithMessage = response.status === HttpStatus.PayloadTooLarge || response.status === HttpStatus.ServiceUnavailable;
-  if (isRefusedWithMessage) throw new ApiRequestError(await refusalMessageOf({ response, fallback: UPLOAD_TOO_LARGE_MESSAGE }));
+  if (response.status === HttpStatus.PayloadTooLarge) throw new UploadRefusedError(await refusalOf(response));
+  if (response.status === HttpStatus.ServiceUnavailable)
+    throw new ApiRequestError(await refusalMessageOf({ response, fallback: UPLOAD_TOO_LARGE_MESSAGE }));
   if (response.status === HttpStatus.UnsupportedMediaType) throw new ApiRequestError(NOT_A_DOCX_MESSAGE);
   return readJson<DocumentSummary>({ response, subject: UPLOAD_SUBJECT });
 }

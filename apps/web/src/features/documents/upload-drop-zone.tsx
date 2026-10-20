@@ -1,10 +1,10 @@
 import { Upload } from 'lucide-react';
 import { useRef, type ChangeEvent } from 'react';
-import { ErrorMessage } from '@/components/error-message';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CHOOSE_FILE_LABEL, DROP_ZONE_LABEL, DROP_ZONE_LIMIT, FILE_INPUT_LABEL } from './documents-copy';
+import { UploadMessage } from './upload-message';
 import { UploadProgressStatus } from './upload-progress-status';
 import type { DocumentUpload } from './use-upload-document';
 
@@ -49,7 +49,7 @@ export function UploadDropZone({ upload }: { upload: DocumentUpload }) {
         </Button>
         {upload.isPending && <UploadProgressStatus progress={upload.progress} />}
       </div>
-      {upload.message !== null && <ErrorMessage>{upload.message}</ErrorMessage>}
+      <UploadMessage upload={upload} />
     </div>
   );
 }

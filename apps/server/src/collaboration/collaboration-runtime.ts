@@ -22,6 +22,8 @@ export type DocumentRuntime = {
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   bootstrapRoom: (documentId: string) => BootstrapProgress;
   bootstrapBlankRoom: (documentId: string) => BootstrapProgress;
+  isPreparedOnDevice: (documentId: string) => boolean;
+  isDeviceCreator: (parameters: { documentId: string; userId: string }) => boolean;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
   bootstrapWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
@@ -78,6 +80,8 @@ export function createCollaborationRuntime({
   return {
     bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
+    isPreparedOnDevice: (documentId) => roomBootstrap.isDevicePending(documentId),
+    isDeviceCreator: (parameters) => roomBootstrap.isDeviceCreator(parameters),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     bootstrapWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.predictedWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {

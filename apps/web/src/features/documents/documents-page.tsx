@@ -26,6 +26,7 @@ import { UploadDropOverlay } from './upload-drop-overlay';
 import { useCreateDocument } from './use-create-document';
 import { useDocuments } from './use-documents';
 import { DocumentsView, useDocumentsView } from './use-documents-view';
+import { UploadMessage } from './upload-message';
 import { useUploadDocument } from './use-upload-document';
 
 type DocumentListProps = { documents: DocumentSummary[]; emptyMessage: string; kind: DocumentListKind };
@@ -81,7 +82,7 @@ export function DocumentsPage() {
                   <NewDocumentButton isPending={createDocument.isPending} onCreate={() => createDocument.mutate()} />
                 </div>
               </div>
-              {upload.message !== null && <ErrorMessage>{upload.message}</ErrorMessage>}
+              <UploadMessage upload={upload} />
               <DocumentList documents={data.mine} emptyMessage={MINE_EMPTY_MESSAGE} kind={DocumentListKind.Mine} />
             </section>
             <section className="space-y-4">

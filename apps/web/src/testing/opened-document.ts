@@ -51,5 +51,6 @@ export function openedAs(role: DocumentRole, roomMode = RoomMode.Create): Opened
     roomMode,
     colorSlot: EDITOR_COLOR_SLOT,
     bootstrap: READY_BOOTSTRAP,
+    preparedOnDeviceOf: null,
   };
 }

@@ -37,9 +37,9 @@ let secondId: string;
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  origin = await startRestartableStack(RestartablePort.Backpressure, {
-    MAX_BOOTSTRAP_WAIT_MS: String(WAIT_CEILING_MS),
-    ROOM_HEAP_BUDGET_MEGABYTES: String(ROOM_HEAP_BUDGET_MEGABYTES),
+  origin = await startRestartableStack({
+    port: RestartablePort.Backpressure,
+    overrides: { MAX_BOOTSTRAP_WAIT_MS: String(WAIT_CEILING_MS), ROOM_HEAP_BUDGET_MEGABYTES: String(ROOM_HEAP_BUDGET_MEGABYTES) },
   });
 });
 

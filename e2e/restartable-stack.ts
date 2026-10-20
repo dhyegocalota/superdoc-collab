@@ -10,6 +10,7 @@ export enum RestartablePort {
   ConnectionState = 3150,
   ExitConfirmation = 3160,
   Backpressure = 3170,
+  LocalPreview = 3171,
 }
 
 const SEED_COMMAND = 'apps/server/dist/seed.js';
@@ -39,7 +40,13 @@ async function seedDatabase(seedEnvironment: Record<string, string>): Promise<vo
   if (exitCode !== 0) throw new Error(`${SEED_COMMAND} exited with ${exitCode}`);
 }
 
-export async function startRestartableStack(port: RestartablePort, overrides: Record<string, string> = {}): Promise<string> {
+export async function startRestartableStack({
+  port,
+  overrides = {},
+}: {
+  port: RestartablePort;
+  overrides?: Record<string, string>;
+}): Promise<string> {
   await assertPortFree(port);
   const databaseDir = mkdtempSync(join(tmpdir(), DATABASE_DIRECTORY_PREFIX));
   origin = localOrigin(port);

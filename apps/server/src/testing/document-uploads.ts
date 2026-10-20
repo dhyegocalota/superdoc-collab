@@ -1,4 +1,4 @@
-import { ApiPath, HttpMethod, DOCX_MIME_TYPE, UPLOAD_FIELD, type DocumentsList } from '@superdoc-collab/types';
+import { ApiPath, HttpMethod, DOCX_MIME_TYPE, PREPARATION_FIELD, UPLOAD_FIELD, type DocumentsList } from '@superdoc-collab/types';
 import JSZip from 'jszip';
 import type { TestServer } from './test-server';
 
@@ -10,15 +10,18 @@ export async function upload({
   bytes,
   type = DOCX_MIME_TYPE,
   fileName = 'Plan.docx',
+  preparation,
 }: {
   server: TestServer;
   cookie: string;
   bytes: Uint8Array;
   type?: string;
   fileName?: string;
+  preparation?: string;
 }): Promise<Response> {
   const form = new FormData();
   form.set(UPLOAD_FIELD, new File([new Uint8Array(bytes)], fileName, { type }));
+  if (preparation !== undefined) form.set(PREPARATION_FIELD, preparation);
   return fetch(`${server.baseUrl}${ApiPath.Documents}`, {
     method: HttpMethod.Post,
     headers: { cookie, origin: server.baseUrl },

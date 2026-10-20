@@ -62,6 +62,8 @@ import {
   STAY_LABEL,
   TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
+import { discardLocalFile, keepLocalFile, localFileOf } from '@/features/local-preview/local-file-store';
+import { PREVIEW_BADGE_MESSAGE } from '@/features/local-preview/local-preview-copy';
 import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
@@ -95,7 +97,7 @@ type SuperDocConfig = {
   onCollaborationReady: () => void;
   zoom: { mode: string };
   ui: { toolbar?: { container: HTMLElement } };
-  onReady: (payload: { superdoc: unknown }) => void;
+  onReady?: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
   onPaginationUpdate: (payload: { totalPages: number }) => void;
 };
@@ -108,7 +110,7 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
     superDocExport,
     SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
       const instance = { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
-      config.onReady({ superdoc: instance });
+      config.onReady?.({ superdoc: instance });
       return instance;
     }),
   };
@@ -206,7 +208,10 @@ function mockDocumentApi({
       const reloadedBody = isReload && openedAfterReload ? openedAfterReload : current;
       if (isReload) await reloadGate;
       if (isReload && isReloadUnreachable) throw new TypeError('Failed to fetch');
-      const answered = status === HttpStatus.Ok ? { ...reloadedBody, bootstrap: bootstrapAt(bootstrapStage()) } : openBody;
+      const answeredStage = bootstrapStage();
+      const answeredRoomMode = answeredStage === BootstrapStage.Ready ? reloadedBody.roomMode : RoomMode.Join;
+      const answered =
+        status === HttpStatus.Ok ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: bootstrapAt(answeredStage) } : openBody;
       return jsonResponse({ body: answered, status });
     }
     throw new Error(`unexpected request ${String(input)}`);
@@ -246,6 +251,7 @@ async function reloadAfterFailure(): Promise<SuperDocConfig> {
 
 beforeEach(() => {
   localStorage.clear();
+  discardLocalFile(DOCUMENT_ID);
   SuperDoc.mockClear();
   installAuthorPalette();
 });
@@ -632,7 +638,7 @@ test('a connection exception fails the connection with its reason and not the ed
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
   act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onException(payload));
-  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.HeavyRoomsFull]);
+  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 
@@ -1027,4 +1033,54 @@ test('a failed connection hides the panel so the banner is not covered', async (
   act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
   await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+type OpenedConfig = { documentMode: string; documents: { data: Blob; v2Collaboration?: unknown }[] };
+
+function configOfCall(index: number): OpenedConfig {
+  return SuperDoc.mock.calls[index]![0] as unknown as OpenedConfig;
+}
+
+test('while the shared copy is being prepared the uploader reads the kept file as a read-only preview', async () => {
+  const file = new File([new Uint8Array([1, 2, 3])], 'plan.docx');
+  keepLocalFile({ documentId: DOCUMENT_ID, file });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByText(PREVIEW_BADGE_MESSAGE)).toBeInTheDocument();
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const preview = configOfCall(0);
+  expect([preview.documentMode, preview.documents[0]!.data, preview.documents[0]!.v2Collaboration]).toEqual([
+    DocumentMode.Viewing,
+    file,
+    undefined,
+  ]);
+});
+
+test(
+  'when the answer turns Ready the live editor replaces the preview in place and the kept file is dropped',
+  async () => {
+    let isBootstrapped = false;
+    keepLocalFile({ documentId: DOCUMENT_ID, file: new File([new Uint8Array([1, 2, 3])], 'plan.docx') });
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Join),
+      bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Preparing),
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await screen.findByText(PREVIEW_BADGE_MESSAGE);
+    isBootstrapped = true;
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
+    expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
+    expect(superDocDestroy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
+    expect(localFileOf(DOCUMENT_ID)).toBeNull();
+  },
+  TEST_TIMEOUT_MS,
+);
+
+test('a document with no kept file waits without a preview', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId('waiting-title-skeleton');
+  expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
+  expect(SuperDoc).not.toHaveBeenCalled();
 });

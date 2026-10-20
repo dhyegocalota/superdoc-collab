@@ -1,7 +1,9 @@
+import { buildSeedDocx } from '@superdoc-collab/history';
 import { commitBootstrap as markBootstrapCommitted, writeStory } from '@superdoc-collab/history/testing';
 import {
   ACCESS_REVOKED_CLOSE_CODE,
   ApiPath,
+  BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   BootstrapStage,
   ClientActor,
   DocumentRole,
@@ -23,7 +25,7 @@ import {
   memberWithRole,
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
-import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
+import { signedInOwner, signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
 import { HEAVY_ROOMS_FULL_REASON, HEAVY_ROOMS_USER_CAP_REASON, HeavyRoomsRefusal } from '@superdoc-collab/types';
 import {
   createCollaborationServer,
@@ -692,6 +694,90 @@ test('an accepted update grows the room memory by its byte length', async () => 
   expect(roomMemory.grew).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: update.byteLength });
 });
 
+describe('collaboration device creator', () => {
+  const NO_MEMORY_MEGABYTES = BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
+
+  async function documentOnDevice() {
+    const { server, owner } = await signedInOwner({ memoryLimitMegabytes: NO_MEMORY_MEGABYTES });
+    const documentId = randomUUID();
+    server.services.documents.create({ id: documentId, title: 'Heavy', ownerUserId: owner.id });
+    await server.services.storage.put({ documentId, bytes: await buildSeedDocx([{ text: 'Heavy', trackedChanges: [] }]) });
+    server.services.runtime.bootstrapRoom(documentId);
+    return { server, owner, documentId };
+  }
+
+  function connectAsDeviceCreator({ server, owner, documentId }: Awaited<ReturnType<typeof documentOnDevice>>, tabId?: string) {
+    const path = tabId === undefined ? undefined : `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${tabId}`;
+    return connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null, path });
+  }
+
+  test('the owner streams the seed over its member socket, commits, and its next edits are logged as an ordinary member', async () => {
+    const scenario = await documentOnDevice();
+    const { server, documentId, owner } = scenario;
+    const creator = await connectAsDeviceCreator(scenario);
+    writeStory({ document: creator.document, texts: ['seeded on the device'] });
+    markBootstrapCommitted(creator.document);
+    await expect.poll(() => server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+    expect(server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Ready);
+    const committedRows = loggedRows({ server, documentId }).length;
+    creator.document.getText('t').insert(0, 'edit after the commit');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(committedRows);
+    expect(loggedRows({ server, documentId }).at(-1)).toMatchObject({ connectionUserId: owner.id, connectionActor: ClientActor.Human });
+    creator.close();
+    await server.stop();
+  });
+
+  test('a member who is not the owner is refused while the device prepares the room', async () => {
+    const scenario = await documentOnDevice();
+    const editor = await memberWithRole({ server: scenario.server, documentId: scenario.documentId, role: DocumentRole.Editor });
+    await expect(
+      connectToDocument({ server: scenario.server, cookie: editor.cookie, documentId: scenario.documentId, bootstrapToken: null }),
+    ).rejects.toBeInstanceOf(CollaborationRefusedError);
+    await scenario.server.stop();
+  });
+
+  test('a second socket of the owner supersedes the first and the first writes are dropped', async () => {
+    const scenario = await documentOnDevice();
+    const { server, documentId } = scenario;
+    const first = await connectAsDeviceCreator(scenario);
+    const second = await connectAsDeviceCreator(scenario);
+    first.document.getText('t').insert(0, 'written by the superseded tab');
+    second.document.getText('t').insert(0, 'written by the current tab');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBe(1);
+    [first, second].forEach((client) => client.close());
+    await server.stop();
+  });
+
+  test('two sockets of one tab share the claim, both write, and the job lives until the last one leaves', async () => {
+    const scenario = await documentOnDevice();
+    const { server, documentId } = scenario;
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const tabId = randomUUID();
+    const first = await connectAsDeviceCreator(scenario, tabId);
+    const second = await connectAsDeviceCreator(scenario, tabId);
+    first.document.getText('t').insert(0, 'written by the first socket');
+    second.document.getText('t').insert(0, 'written by the second socket');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBe(2);
+    second.close();
+    await expect.poll(() => server.services.runtime.onlineTabIds({ documentId, userId: scenario.owner.id }).size).toBe(1);
+    expect(server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Preparing);
+    first.close();
+    await expect.poll(() => server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Failed);
+    await server.stop();
+  });
+
+  test('the creator leaving before the commit fails the job', async () => {
+    const scenario = await documentOnDevice();
+    const { server, documentId } = scenario;
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const creator = await connectAsDeviceCreator(scenario);
+    creator.document.getText('t').insert(0, 'half of the seed');
+    creator.close();
+    await expect.poll(() => server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Failed);
+    await server.stop();
+  });
+});
+
 test('loading a room reports the size of its restored state as the size of the room', async () => {
   const roomMemory = { grew: vi.fn(), loaded: vi.fn(), unloaded: vi.fn() };
   const documentId = randomUUID();
@@ -716,8 +802,10 @@ test('loading a room reports the size of its restored state as the size of the r
 
 test('a socket that disconnects gives back the place its user was admitted with, and a bootstrap socket gives back nothing', async () => {
   const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), released: vi.fn() };
+  const roomBootstrap = { deviceClosed: vi.fn() };
   const hocuspocus = createCollaborationServer({
     roomMemory,
+    roomBootstrap,
     onLogged: vi.fn(),
     onStored: vi.fn(),
   } as unknown as Parameters<typeof createCollaborationServer>[0]);
@@ -726,7 +814,7 @@ test('a socket that disconnects gives back the place its user was admitted with,
     hocuspocus.hooks('onDisconnect', {
       socketId: 'socket-1',
       documentName,
-      context: { userId: 'u1', bootstrapAttempt },
+      context: { documentId: 'doc-1', userId: 'u1', bootstrapAttempt },
     } as unknown as Parameters<typeof hocuspocus.hooks<'onDisconnect'>>[1]);
   await disconnect('attempt-1');
   expect(roomMemory.released).not.toHaveBeenCalled();

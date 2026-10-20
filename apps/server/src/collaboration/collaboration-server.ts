@@ -165,12 +165,12 @@ export function createCollaborationServer({
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   const admitters: Record<
     SocketKind,
-    (parameters: { requestHeaders: IncomingHttpHeaders; token: string; documentId: string }) => Promise<Admission>
+    (parameters: { requestHeaders: IncomingHttpHeaders; token: string; documentId: string; tabId: string | null }) => Promise<Admission>
   > = {
-    [SocketKind.Member]: async ({ requestHeaders, documentId }) => ({
-      ...(await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId })),
-      bootstrapAttempt: null,
-    }),
+    [SocketKind.Member]: async ({ requestHeaders, documentId, tabId }) => {
+      const member = await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
+      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId, tabId }) };
+    },
     [SocketKind.Agent]: async ({ token, documentId }) => ({
       ...(await authenticateAgent({ auth, documents, token, documentId })),
       impersonationEndsAt: null,
@@ -208,7 +208,13 @@ export function createCollaborationServer({
     async onAuthenticate({ requestHeaders, requestParameters, request, token, documentName, connection }): Promise<CollaborationContext> {
       const documentId = requireDocumentId(documentName);
       const socketKind = socketKindOf(request);
-      const { userId, role, impersonationEndsAt, bootstrapAttempt } = await admitters[socketKind]({ requestHeaders, token, documentId });
+      const tabId = tabIdOf(requestParameters);
+      const { userId, role, impersonationEndsAt, bootstrapAttempt } = await admitters[socketKind]({
+        requestHeaders,
+        token,
+        documentId,
+        tabId,
+      });
       if (role === DocumentRole.Reader) connection.readOnly = true;
       if (bootstrapAttempt === null) admitToCommittedRoom({ documentId, userId });
       return {
@@ -216,7 +222,7 @@ export function createCollaborationServer({
         documentId,
         actor: ACTOR_BY_SOCKET_KIND[socketKind],
         bootstrapAttempt,
-        tabId: tabIdOf(requestParameters),
+        tabId,
         impersonationEndsAt,
       };
     },
@@ -283,10 +289,11 @@ export function createCollaborationServer({
       onLogged(documentId);
     },
     async onDisconnect({ socketId, documentName, context }) {
-      const { userId, bootstrapAttempt } = context as CollaborationContext;
+      const { documentId, userId, bootstrapAttempt } = context as CollaborationContext;
       if (bootstrapAttempt === null) roomMemory.released({ documentName, userId });
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
+      if (bootstrapAttempt !== null) roomBootstrap.deviceClosed({ documentId, attempt: bootstrapAttempt });
     },
     async onStoreDocument({ documentName }) {
       onStored(requireDocumentId(documentName));

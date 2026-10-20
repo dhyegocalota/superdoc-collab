@@ -15,6 +15,7 @@ import {
   ClientActor,
   HOUR_MS,
   HttpStatus,
+  isPreparable,
   MINUTE_MS,
   SECOND_MS,
   TOPICS_INTERRUPTED_MESSAGE,
@@ -274,6 +275,11 @@ function createServices({
       if (heavyUploadBudget.waitMs(ownerId) !== null) return false;
       heavyUploadBudget.record(ownerId);
       return true;
+    },
+    isPreparableByServer: (documentId) => {
+      const { memoryLimitMegabytes } = environment;
+      if (memoryLimitMegabytes === null) return true;
+      return isPreparable({ documentXmlBytes: documentXmlBytesOf(documentId), memoryLimitMegabytes });
     },
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {

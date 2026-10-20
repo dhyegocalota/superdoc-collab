@@ -61,6 +61,6 @@ test('a missing title and an action are both honoured', () => {
 
 test('the bar of an estimated conversion follows the fraction it is shown', () => {
   const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), total: 9_961_472, stateBytes: null, estimatedMs: 40_000 };
-  renderPanel({ view: preparingView({ bootstrap, elapsedSeconds: 12, startedAt: 0, answeredAt: 0 }) });
+  renderPanel({ view: preparingView({ bootstrap, elapsedSeconds: 12, startedAt: 0, answeredAt: 0, preparedOnDeviceOf: null }) });
   expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30');
 });

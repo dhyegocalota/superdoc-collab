@@ -203,6 +203,7 @@ function inviteHeaders(server: TestServer): Record<string, string> {
   return { [INVITE_TOKEN_HEADER]: inviteTokenOf(server.services.invites.create({ createdBy: server.admin.id }).url) };
 }
 
+const OCTET_VALUES = 256;
 let nextClientAddress = 0;
 
 async function postCredentials({
@@ -216,7 +217,8 @@ async function postCredentials({
   body: Record<string, string>;
   headers?: Record<string, string>;
 }): Promise<Response> {
-  const clientAddress = `10.200.0.${nextClientAddress++}`;
+  const addressIndex = nextClientAddress++;
+  const clientAddress = `10.200.${Math.floor(addressIndex / OCTET_VALUES)}.${addressIndex % OCTET_VALUES}`;
   return fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: server.baseUrl, ...headers },

@@ -24,6 +24,8 @@ import {
   RoomMode,
   AUTHOR_COLOR_SLOT_COUNT,
   authorColorSlot,
+  PreparationSource,
+  INVALID_PREPARATION_MESSAGE,
   type DocumentMembers,
   type DocumentsList,
   type DocumentSummary,
@@ -197,8 +199,65 @@ test('a document too large for the memory of the server to prepare is 413 with t
   const response = await upload({ server, cookie: owner.cookie, bytes });
   expect([response.status, await response.json()]).toEqual([
     HttpStatus.PayloadTooLarge,
-    { error: bootstrapMemoryShortMessage(largestPreparableMegabytes(FOUR_GIGABYTES)) },
+    { error: bootstrapMemoryShortMessage(largestPreparableMegabytes(FOUR_GIGABYTES)), canPrepareOnDevice: true },
   ]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
+  await server.stop();
+});
+
+test('a refused document sent again for the device is stored, not converted, and its owner is answered Create', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const response = await upload({
+    server,
+    cookie: owner.cookie,
+    bytes: await docxWithXmlBytes(HEAVY_XML_BYTES),
+    preparation: PreparationSource.Device,
+  });
+  const created: DocumentSummary = await response.json();
+  expect(response.status).toBe(HttpStatus.Created);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(1);
+  const opened = await openedBy({ server, user: owner, documentId: created.id });
+  expect([opened.roomMode, opened.bootstrap.stage, opened.preparedOnDeviceOf]).toEqual([
+    RoomMode.Create,
+    BootstrapStage.Preparing,
+    created.owner.name,
+  ]);
+  expect(bootstrapRun).not.toHaveBeenCalled();
+  await server.stop();
+});
+
+test('everyone but the owner joins a document prepared on the device and is told whose device it is', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const editor = await memberWithRole({ server, documentId: created.id, role: DocumentRole.Editor });
+  const opened = await openedBy({ server, user: editor, documentId: created.id });
+  expect([opened.roomMode, opened.bootstrap.stage, opened.preparedOnDeviceOf]).toEqual([
+    RoomMode.Join,
+    BootstrapStage.Preparing,
+    created.owner.name,
+  ]);
+  await server.stop();
+});
+
+test('a document the server can hold is prepared by the server even when the device is asked for', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const opened = await openedBy({ server, user: owner, documentId: created.id });
+  expect([opened.roomMode, opened.preparedOnDeviceOf]).toEqual([RoomMode.Join, null]);
+  await vi.waitFor(() => expect(bootstrapRun).toHaveBeenCalledTimes(1));
+  await server.stop();
+});
+
+test('a preparation source outside the enum is 400 and nothing is stored', async () => {
+  const { server, owner } = await signedInOwner();
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan'), preparation: 'cloud' });
+  expect([response.status, await response.json()]).toEqual([HttpStatus.BadRequest, { error: INVALID_PREPARATION_MESSAGE }]);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
   await server.stop();
 });

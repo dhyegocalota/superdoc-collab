@@ -38,6 +38,7 @@ function bootstrapWithPendingRuns({
   commitBlank = () => undefined,
   onEnded = () => undefined,
   spendRetry = () => true,
+  isPreparableByServer = () => true,
 }: {
   ownerOf?: (documentId: string) => string | null;
   now?: () => number;
@@ -45,6 +46,7 @@ function bootstrapWithPendingRuns({
   commitBlank?: (committed: { documentId: string; ownerId: string; state: Uint8Array }) => void;
   onEnded?: (documentId: string) => void;
   spendRetry?: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
+  isPreparableByServer?: (documentId: string) => boolean;
 } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
@@ -58,6 +60,7 @@ function bootstrapWithPendingRuns({
     commitBlank,
     onEnded,
     spendRetry,
+    isPreparableByServer,
     now,
   });
   return { bootstrap, pending, issueToken };
@@ -635,6 +638,165 @@ test('a blank that waited and whose commit from the state throws is prepared in 
   pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
   expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
+});
+
+const OTHER_USER_ID = 'user-bruno';
+
+function deviceBootstrap(options: Parameters<typeof bootstrapWithPendingRuns>[0] = {}) {
+  return bootstrapWithPendingRuns({ isPreparableByServer: () => false, now: () => 1_000_000, ...options });
+}
+
+test('a document the server cannot hold is prepared on the device of its owner and never queued', async () => {
+  const { bootstrap, pending } = deviceBootstrap();
+  expect(bootstrap.request(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Preparing,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: ESTIMATED_MS,
+    documentXmlBytes: FILE_BYTES,
+    preparingElapsedMs: 0,
+    queuePosition: null,
+    queueWaitMs: null,
+  });
+  await Promise.resolve();
+  expect(pending).toHaveLength(0);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
+});
+
+test('a document the server can hold is not a device job', () => {
+  const { bootstrap } = bootstrapWithPendingRuns();
+  bootstrap.request(DOCUMENT_ID);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+});
+
+test('the owner claims a device job and the claim is the current attempt', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null });
+  expect(attempt).not.toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: attempt! })).toBe(true);
+});
+
+test('a person who is not the owner cannot claim a device job', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID, tabId: null })).toBeNull();
+});
+
+test('a second claim supersedes the first and the first is no longer current', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  const second = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  expect(second).not.toBe(first);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(false);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second })).toBe(true);
+});
+
+test('the bytes the claimed device sends raise the progress', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null });
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.done).toBe(FRAME_BYTES);
+});
+
+test('the commit makes a device job Ready, keeps the committing attempt writing and refuses a later claim', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(true);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+});
+
+test('the claimed device closing before the commit fails the job once, and the owner claims it again', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(error.mock.calls[0]![0]).toContain(BOOTSTRAP_FAILED_MESSAGE);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
+  const again = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null });
+  expect(again).not.toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  error.mockRestore();
+});
+
+const TAB_ID = 'tab-ana-laptop';
+const OTHER_TAB_ID = 'tab-ana-phone';
+
+test('a second socket of the claiming tab shares the attempt, and another tab supersedes it', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  const sameTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  const otherTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: OTHER_TAB_ID })!;
+  expect(sameTab).toBe(first);
+  expect(otherTab).not.toBe(first);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(false);
+});
+
+test('the job fails only when the last socket of the claiming tab closes before the commit', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID });
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  error.mockRestore();
+});
+
+test('a superseded device closing changes nothing', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  const second = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt: first });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: second })).toBe(true);
+});
+
+test('only the owner of a pending device job is its creator', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  expect([
+    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID }),
+    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID }),
+  ]).toEqual([true, false]);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(false);
+});
+
+test('the committing device closing after the commit leaves the job Ready', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
+});
+
+test('a failed device job is still the owner to claim, so a reopen converts again', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.deviceClosed({
+    documentId: DOCUMENT_ID,
+    attempt: bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!,
+  });
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID })).toBe(true);
+  error.mockRestore();
 });
 
 const LARGE_ESTIMATED_MS = (LARGE_FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE;

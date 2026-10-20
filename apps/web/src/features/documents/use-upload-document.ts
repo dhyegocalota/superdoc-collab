@@ -53,7 +53,7 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
     const nextRejectionMessage = files.length > 1 ? ONE_FILE_AT_A_TIME_MESSAGE : validateUpload(file);
     setRejectionMessage(nextRejectionMessage);
     if (nextRejectionMessage !== null) return;
-    mutate({ file, preparation: PreparationSource.Server });
+    mutate({ file, preparation: deviceRefusal === null ? PreparationSource.Device : PreparationSource.Server });
   }
 
   function clear(): void {

@@ -1,4 +1,10 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import {
+  MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
+  roomHeapBudgetMegabytes,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  UPLOADS_PER_MINUTE,
+} from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
@@ -35,6 +41,9 @@ describe('loadEnvironment', () => {
       projectionWorkerHeapMegabytes: null,
       bootstrapHostHeapMegabytes: null,
       memoryLimitMegabytes: null,
+      maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
+      roomHeapBudgetMegabytes: null,
+      heavyConversionsPerHour: MAX_HEAVY_CONVERSIONS_PER_HOUR,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -140,6 +149,42 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when MEMORY_LIMIT_MEGABYTES is %s', (value) => {
     const name = 'MEMORY_LIMIT_MEGABYTES';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('reads the wait ceiling when it is set and keeps the shared constant otherwise', () => {
+    expect(loadEnvironment({ ...complete, MAX_BOOTSTRAP_WAIT_MS: '1000' }).maxBootstrapWaitMs).toBe(1000);
+    expect(loadEnvironment({ ...complete, MAX_BOOTSTRAP_WAIT_MS: '' }).maxBootstrapWaitMs).toBe(MAX_BOOTSTRAP_WAIT_MS);
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_BOOTSTRAP_WAIT_MS is %s', (value) => {
+    const name = 'MAX_BOOTSTRAP_WAIT_MS';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('reads the hourly heavy conversions of an owner when it is set and keeps the shared constant otherwise', () => {
+    expect(loadEnvironment({ ...complete, MAX_HEAVY_CONVERSIONS_PER_HOUR: '50' }).heavyConversionsPerHour).toBe(50);
+    expect(loadEnvironment({ ...complete, MAX_HEAVY_CONVERSIONS_PER_HOUR: '' }).heavyConversionsPerHour).toBe(
+      MAX_HEAVY_CONVERSIONS_PER_HOUR,
+    );
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_HEAVY_CONVERSIONS_PER_HOUR is %s', (value) => {
+    const name = 'MAX_HEAVY_CONVERSIONS_PER_HOUR';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('derives the room heap budget from the memory limit and the server heap, and lets ROOM_HEAP_BUDGET_MEGABYTES override it', () => {
+    const derived = roomHeapBudgetMegabytes({ memoryLimitMegabytes: 8192, serverHeapMegabytes: 3276 });
+    expect(loadEnvironment({ ...complete, MEMORY_LIMIT_MEGABYTES: '8192', SERVER_HEAP_MEGABYTES: '3276' }).roomHeapBudgetMegabytes).toBe(
+      derived,
+    );
+    expect(
+      loadEnvironment({ ...complete, MEMORY_LIMIT_MEGABYTES: '8192', SERVER_HEAP_MEGABYTES: '3276', ROOM_HEAP_BUDGET_MEGABYTES: '1000' })
+        .roomHeapBudgetMegabytes,
+    ).toBe(1000);
+    expect(loadEnvironment({ ...complete, ROOM_HEAP_BUDGET_MEGABYTES: '2000' }).roomHeapBudgetMegabytes).toBe(2000);
+  });
+  test('sets no room heap budget when neither the memory limit nor the server heap nor the override is known', () => {
+    expect(loadEnvironment(complete).roomHeapBudgetMegabytes).toBeNull();
+  });
+  test.each(['ROOM_HEAP_BUDGET_MEGABYTES', 'SERVER_HEAP_MEGABYTES'])('fails startup when %s is not a positive integer', (name) => {
+    const value = 'abc';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test.each([undefined, ''])('leaves the bootstrap host heap to Node when it is %j', (value) => {

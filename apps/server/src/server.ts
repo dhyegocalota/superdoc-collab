@@ -8,11 +8,25 @@ import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import * as Y from 'yjs';
-import { ApiPath, ClientActor, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  BootstrapLane,
+  bootstrapLaneOf,
+  ClientActor,
+  HOUR_MS,
+  HttpStatus,
+  isPreparable,
+  MINUTE_MS,
+  SECOND_MS,
+  TOPICS_INTERRUPTED_MESSAGE,
+} from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
+import { cachedDocumentXmlBytes } from './documents/cached-document-xml-bytes';
+import { createHeavyRoomAdmission } from './collaboration/heavy-room-admission';
+import { createProcessRoomMemoryRelease } from './collaboration/room-memory-release';
 import { createAgentToolkit } from '@superdoc/sdk';
 import { InvitesRepository } from './admin/invites';
 import { PasswordResetLinkCapture, PasswordResets } from './admin/password-reset-links';
@@ -246,13 +260,27 @@ function createServices({
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
+  const documentXmlBytesOf = cachedDocumentXmlBytes((documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))));
+  const heavyUploadBudget = new KeyedSlidingWindow({ windowMs: HOUR_MS, maxEvents: environment.heavyConversionsPerHour, now });
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
       signBootstrapToken({ secret: environment.authSecret, userId, documentId, attempt, now: Date.now() }),
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.BootstrapCollaboration}`,
     ownerOf: (documentId) => documents.ownerOf(documentId),
-    documentXmlBytesOf: (documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))),
+    documentXmlBytesOf,
+    onEnded: (documentId) => heavyRooms.releaseUpload(documentId),
+    spendRetry: ({ ownerId, documentXmlBytes }) => {
+      if (ownerId === null || bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return true;
+      if (heavyUploadBudget.waitMs(ownerId) !== null) return false;
+      heavyUploadBudget.record(ownerId);
+      return true;
+    },
+    isPreparableByServer: (documentId) => {
+      const { memoryLimitMegabytes } = environment;
+      if (memoryLimitMegabytes === null) return true;
+      return isPreparable({ documentXmlBytes: documentXmlBytesOf(documentId), memoryLimitMegabytes });
+    },
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {
       const rebasedState = rebaseRoomDocumentId({ state, documentId });
@@ -272,6 +300,18 @@ function createServices({
   });
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
+  const roomMemory = createProcessRoomMemoryRelease({
+    roomHeapBudgetMegabytes: environment.roomHeapBudgetMegabytes,
+    measureRoom: (documentName) => {
+      const room = hocuspocus.documents.get(documentName);
+      return room === undefined ? null : Y.encodeStateAsUpdate(room).byteLength;
+    },
+  });
+  const heavyRooms = createHeavyRoomAdmission({
+    roomMemory,
+    documentXmlBytesOf,
+    isInFlight: (documentId) => roomBootstrap.isInFlight(documentId),
+  });
   const hocuspocus = createCollaborationServer({
     auth,
     documents,
@@ -279,6 +319,8 @@ function createServices({
     roomBootstrap,
     bootstrap,
     roomModes,
+    roomMemory,
+    heavyRooms,
     onLogged: (documentId) => throttle.request(documentId),
     onStored: (documentId) => {
       documents.touch(documentId);
@@ -314,12 +356,14 @@ function createServices({
     readModel,
     scheduler,
     runtime,
+    heavyRooms,
     shareLinks,
     insightsRepository,
     throttle,
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
+    heavyUploadBudget,
     timelinePipelines,
     insights,
     versions,

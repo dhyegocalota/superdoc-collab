@@ -188,3 +188,22 @@ test('an update merged from two clients records both client ids sorted, and a de
   expect(appended.yjsClientIds).toEqual([30, 70]);
   expect(deleted.yjsClientIds).toEqual([]);
 });
+
+test('the estimated state bytes sum the update bytes of one document only when no snapshot exists', () => {
+  const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
+  const updates = typedUpdates(2);
+  updates.forEach((update) => log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update }));
+  log.append({ documentName: OTHER_DOCUMENT, connectionUserId: 'bruno', connectionActor: ClientActor.Human, update: updates[0]! });
+  expect(log.estimatedStateBytes(DOCUMENT)).toBe(updates.reduce((total, update) => total + update.byteLength, 0));
+  expect(log.estimatedStateBytes('missing')).toBe(0);
+});
+
+test('the estimated state bytes are the latest snapshot plus only the updates after it', () => {
+  const log = new UpdateLog(openTestDatabase({ set: MigrationSet.History }));
+  const updates = typedUpdates(4);
+  updates.forEach((update) => log.append({ documentName: DOCUMENT, connectionUserId: 'ana', connectionActor: ClientActor.Human, update }));
+  const state = new Uint8Array(1000);
+  log.writeSnapshot({ documentName: DOCUMENT, sequence: 2, state: new Uint8Array(10) });
+  log.writeSnapshot({ documentName: DOCUMENT, sequence: 3, state });
+  expect(log.estimatedStateBytes(DOCUMENT)).toBe(state.byteLength + updates[3]!.byteLength);
+});

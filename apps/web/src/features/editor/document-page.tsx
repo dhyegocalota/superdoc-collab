@@ -1,11 +1,22 @@
-import { ConnectionFailureReason, ConnectionState, DocumentRole, OPEN_PROGRESS_DELAY_MS, VersionViewerState } from '@superdoc-collab/types';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import {
+  ConnectionFailureReason,
+  ConnectionState,
+  DocumentRole,
+  OPEN_PROGRESS_DELAY_MS,
+  RoomMode,
+  VersionViewerState,
+} from '@superdoc-collab/types';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
-import { editorOpenView, type EditorLoadProgress } from '@/features/open-progress/open-progress-view';
+import { editorOpenView, preparingHereView, type EditorLoadProgress } from '@/features/open-progress/open-progress-view';
+import { scrollToFraction } from '@/features/local-preview/scroll-fraction';
 import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
 import { useOpenStartedAt } from '@/features/open-progress/use-open-started-at';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
+import { LocalPreview } from '@/features/local-preview/local-preview';
+import { useDeviceRefusal } from '@/features/local-preview/device-guard';
+import { useLocalPreview } from '@/features/local-preview/use-local-preview';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
@@ -24,11 +35,14 @@ import { EditorToolbarRow } from './editor-toolbar-row';
 import { ExitConfirmationDialog } from './exit-confirmation-dialog';
 import { OpeningDocument } from './opening-document';
 import { ReadinessAnnouncement } from './readiness-announcement';
+import { useCachedTitle } from './use-cached-title';
 import { useConnectionState, type TransportReport } from './use-connection-state';
 import { useConnectionFailureAction } from './use-connection-failure-action';
 import { useDocumentFile } from './use-document-file';
 import { useDocumentReload } from './use-document-reload';
 import { useEditorSetup } from './use-editor-setup';
+import { useHeavyRoomsRetry } from './use-heavy-rooms-retry';
+import { useRefusalProbe } from './use-refusal-probe';
 import { useMembers } from './use-members';
 import { DocumentReadiness, useOpenedDocument } from './use-opened-document';
 import { clearUnsyncedEdits, setUnsynced } from './unsynced-edits-store';
@@ -47,14 +61,23 @@ const PANEL_LAYOUT_CLASS: Record<PanelPosition, string> = {
 export function DocumentPage() {
   const documentId = useRequiredParam('documentId');
   const { user } = useSession();
-  const { data: opened, bootstrap, bootstrapAnsweredAt, readiness, retry, isFetchedAfterMount } = useOpenedDocument(documentId);
+  const {
+    data: opened,
+    error: openFailure,
+    bootstrap,
+    preparedOnDeviceOf,
+    bootstrapAnsweredAt,
+    readiness,
+    retry,
+    isFetchedAfterMount,
+  } = useOpenedDocument(documentId);
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
   const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const {
     state: connectionState,
-    failureReason,
+    failureReason: reportedFailureReason,
     reportTransport,
     resetConnection,
   } = useConnectionState({
@@ -68,7 +91,9 @@ export function DocumentPage() {
     roomMode: opened?.roomMode,
     resetConnection,
   });
+  const { failureReason, failureMessage } = useRefusalProbe({ documentId, failureReason: reportedFailureReason });
   const connectionAction = useConnectionFailureAction({ failureReason, reload });
+  useHeavyRoomsRetry({ failureReason, failureMessage, reload });
   const [superdoc, setSuperdoc] = useState<SuperDoc | null>(null);
   const [editorContainer, setEditorContainer] = useState<HTMLElement | null>(null);
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
@@ -86,6 +111,20 @@ export function DocumentPage() {
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
+  const cachedTitle = useCachedTitle(documentId);
+  const deviceGuardRefusal = useDeviceRefusal();
+  const isOpenFailing = connectionState === ConnectionState.Failed || loadProgress.hasFailed || fileError !== null;
+  const previewFile = useLocalPreview({
+    documentId,
+    readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness,
+    isLiveEditorPainted: hasPaintedParagraph || isOpenFailing,
+  });
+  const previewScrollFraction = useRef<number | null>(null);
+  useEffect(() => {
+    if (!hasPaintedParagraph || editorContainer === null || previewScrollFraction.current === null) return;
+    scrollToFraction({ element: editorContainer, fraction: previewScrollFraction.current });
+    previewScrollFraction.current = null;
+  }, [hasPaintedParagraph, editorContainer]);
   const {
     isUnsynced,
     reportEdit,
@@ -115,121 +154,167 @@ export function DocumentPage() {
     );
   }
 
-  if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
-  const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
-  if (documentReadiness !== DocumentReadiness.Ready) {
+  function renderPage(): ReactNode {
+    if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
+    const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
+    const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
+    const deviceRefusal = isDeviceJobCreatedHere ? deviceGuardRefusal : null;
+    if (deviceRefusal !== null) {
+      return withAnnouncement(
+        <WaitingForDocument
+          documentId={documentId}
+          readiness={DocumentReadiness.Waiting}
+          progress={{ bootstrap, preparedOnDeviceOf, answeredAt: bootstrapAnsweredAt, startedAt, isShown: isProgressShown }}
+          failure={null}
+          deviceRefusal={deviceRefusal}
+          onRetry={retry}
+        />,
+      );
+    }
+    if (documentReadiness !== DocumentReadiness.Ready) {
+      return withAnnouncement(
+        <WaitingForDocument
+          documentId={documentId}
+          readiness={documentReadiness}
+          progress={{ bootstrap, preparedOnDeviceOf, answeredAt: bootstrapAnsweredAt, startedAt, isShown: isProgressShown }}
+          failure={openFailure}
+          deviceRefusal={null}
+          onRetry={retry}
+        />,
+      );
+    }
+    if (!opened) return withAnnouncement(<OpeningDocument />);
+
+    const { title } = opened.document;
+    const isReader = opened.role === DocumentRole.Reader;
+    const isViewingPastVersion = timeTravel.state === VersionViewerState.Viewing;
+    const isToolbarReady = isReader || toolbarContainer !== null;
+
+    function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
+      return <UseWithAiDialog title={title} canEdit={!isReader} {...slot} />;
+    }
+
+    function summarizeAndOpenPanel(): void {
+      setIsPanelOpen(true);
+      summarize.summarize();
+    }
+
+    function downloadLiveDocument(): void {
+      if (!superdoc) return;
+      setHasExportFailed(false);
+      superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
+    }
+
+    const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
+    const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
+    const isFailed = connectionState === ConnectionState.Failed;
+    const isEditingSurfaceInert = isViewingPastVersion || isFailed;
+    const isCreatingOnDevice = opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null && superdoc === null;
+    const isOpenProgressVisible = isProgressShown && !isOpenFailing && (isCreatingOnDevice || !hasPaintedParagraph);
+    const openProgress = isOpenProgressVisible
+      ? (elapsedSeconds: number) =>
+          isCreatingOnDevice
+            ? preparingHereView({ elapsedSeconds })
+            : editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
+      : null;
+
     return withAnnouncement(
-      <WaitingForDocument
-        documentId={documentId}
-        readiness={documentReadiness}
-        progress={{ bootstrap, answeredAt: bootstrapAnsweredAt, startedAt, isShown: isProgressShown }}
-        onRetry={retry}
-      />,
-    );
-  }
-  if (!opened) return withAnnouncement(<OpeningDocument />);
-
-  const { title } = opened.document;
-  const isReader = opened.role === DocumentRole.Reader;
-  const isViewingPastVersion = timeTravel.state === VersionViewerState.Viewing;
-  const isToolbarReady = isReader || toolbarContainer !== null;
-
-  function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
-    return <UseWithAiDialog title={title} canEdit={!isReader} {...slot} />;
-  }
-
-  function summarizeAndOpenPanel(): void {
-    setIsPanelOpen(true);
-    summarize.summarize();
-  }
-
-  function downloadLiveDocument(): void {
-    if (!superdoc) return;
-    setHasExportFailed(false);
-    superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
-  }
-
-  const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
-  const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
-  const isFailed = connectionState === ConnectionState.Failed;
-  const isEditingSurfaceInert = isViewingPastVersion || isFailed;
-  const isOpenFailing = isFailed || loadProgress.hasFailed || fileError !== null;
-  const isOpenProgressVisible = isProgressShown && !hasPaintedParagraph && !isOpenFailing;
-  const openProgress = isOpenProgressVisible
-    ? (elapsedSeconds: number) => editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
-    : null;
-
-  return withAnnouncement(
-    <div className="flex h-full flex-col">
-      <EditorHeader
-        opened={opened}
-        members={members}
-        currentUserId={user ? user.id : null}
-        superdoc={superdoc}
-        editorContainer={editorContainer}
-        isPastVersion={isViewingPastVersion}
-        onDownloadDocx={downloadLiveDocument}
-        onToggleEditsPanel={() => setIsPanelOpen((isOpen) => !isOpen)}
-        onSummarize={summarizeAndOpenPanel}
-        onTitleDirtyChange={setIsTitleDirty}
-        renderUseWithAi={renderUseWithAi}
-      />
-      <EditorStatus
-        isDocumentLoading={superdoc === null}
-        hasFileError={fileError !== null}
-        hasExportFailed={hasExportFailed}
-        hasReloadFailed={hasReloadFailed}
-        isReloading={isReloading}
-        connectionState={connectionState}
-        failureReason={failureReason}
-        onConnectionAction={connectionAction}
-      />
-      <EditorToolbarRow
-        role={opened.role}
-        containerRef={setToolbarContainer}
-        isToolbarInert={isEditingSurfaceInert}
-        isRowInert={isFailed}
-        isRunning={summarize.isRunning}
-        onSummarize={summarizeAndOpenPanel}
-      />
-      {isPhoneLayout && versionBar}
-      <div className={PANEL_LAYOUT_CLASS[position]}>
-        <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && DIMMED_EDITOR_AREA_CLASS)}>
-          {!isPhoneLayout && versionBar}
-          <EditorSurface
+      <div className="flex h-full flex-col">
+        <EditorHeader
+          opened={opened}
+          members={members}
+          currentUserId={user ? user.id : null}
+          superdoc={superdoc}
+          editorContainer={editorContainer}
+          isPastVersion={isViewingPastVersion}
+          onDownloadDocx={downloadLiveDocument}
+          onToggleEditsPanel={() => setIsPanelOpen((isOpen) => !isOpen)}
+          onSummarize={summarizeAndOpenPanel}
+          onTitleDirtyChange={setIsTitleDirty}
+          renderUseWithAi={renderUseWithAi}
+        />
+        <EditorStatus
+          isDocumentLoading={superdoc === null}
+          hasFileError={fileError !== null}
+          hasExportFailed={hasExportFailed}
+          hasReloadFailed={hasReloadFailed}
+          isReloading={isReloading}
+          connectionState={connectionState}
+          failureReason={failureReason}
+          failureMessage={failureMessage}
+          onConnectionAction={connectionAction}
+        />
+        <EditorToolbarRow
+          role={opened.role}
+          containerRef={setToolbarContainer}
+          isToolbarInert={isEditingSurfaceInert}
+          isRowInert={isFailed}
+          isRunning={summarize.isRunning}
+          onSummarize={summarizeAndOpenPanel}
+        />
+        {isPhoneLayout && versionBar}
+        <div className={PANEL_LAYOUT_CLASS[position]}>
+          <div data-testid="editor-area" className={cn(EDITOR_AREA_CLASS, isFailed && DIMMED_EDITOR_AREA_CLASS)}>
+            {!isPhoneLayout && versionBar}
+            <EditorSurface
+              documentId={documentId}
+              title={title}
+              openProgress={openProgress}
+              openStartedAt={startedAt}
+              editorSetup={editorSetup}
+              editorGeneration={editorGeneration}
+              isToolbarReady={isToolbarReady}
+              toolbarContainer={toolbarContainer}
+              isInert={isEditingSurfaceInert}
+              isDimmed={isLoadingRequestedVersion}
+              timeTravel={timeTravel}
+              onSuperdocChange={setSuperdoc}
+              onContainerChange={setEditorContainer}
+              onTransportReport={handleTransportReport}
+              onEditorUpdate={markEdit}
+              onDocumentEdit={reportEdit}
+              onLoadProgress={setLoadProgress}
+            />
+          </div>
+          <TimelinePanel
             documentId={documentId}
-            title={title}
-            openProgress={openProgress}
-            openStartedAt={startedAt}
-            editorSetup={editorSetup}
-            editorGeneration={editorGeneration}
-            isToolbarReady={isToolbarReady}
-            toolbarContainer={toolbarContainer}
-            isInert={isEditingSurfaceInert}
-            isDimmed={isLoadingRequestedVersion}
-            timeTravel={timeTravel}
-            onSuperdocChange={setSuperdoc}
-            onContainerChange={setEditorContainer}
-            onTransportReport={handleTransportReport}
-            onEditorUpdate={markEdit}
-            onDocumentEdit={reportEdit}
-            onLoadProgress={setLoadProgress}
+            role={opened.role}
+            position={position}
+            isOpen={isPanelOpen}
+            onOpenChange={setIsPanelOpen}
+            summarize={summarize}
+            isLoadingVersion={isLoadingRequestedVersion}
+            lastEditAt={lastEditAt}
+            onTravel={timeTravel.travelTo}
+            onBackToLive={timeTravel.backToLive}
           />
         </div>
-        <TimelinePanel
-          documentId={documentId}
-          role={opened.role}
-          position={position}
-          isOpen={isPanelOpen}
-          onOpenChange={setIsPanelOpen}
-          summarize={summarize}
-          isLoadingVersion={isLoadingRequestedVersion}
-          lastEditAt={lastEditAt}
-          onTravel={timeTravel.travelTo}
-          onBackToLive={timeTravel.backToLive}
-        />
-      </div>
-      <ExitConfirmationDialog isUnsynced={isUnsynced} onDownload={downloadLiveDocument} />
-    </div>,
+        <ExitConfirmationDialog isUnsynced={isUnsynced} onDownload={downloadLiveDocument} />
+      </div>,
+    );
+  }
+
+  const isPreviewReplacingPage = previewFile !== null && readiness === DocumentReadiness.Waiting;
+  const previewLayer =
+    previewFile === null ? null : (
+      <LocalPreview
+        title={cachedTitle}
+        file={previewFile}
+        bootstrap={bootstrap}
+        answeredAt={bootstrapAnsweredAt}
+        startedAt={startedAt}
+        isProgressShown={isProgressShown}
+        isSwapping={!isPreviewReplacingPage}
+        onScrollFraction={(fraction) => {
+          previewScrollFraction.current = fraction;
+        }}
+      />
+    );
+
+  return (
+    <>
+      {isPreviewReplacingPage ? <ReadinessAnnouncement readiness={readiness} /> : renderPage()}
+      {previewLayer}
+    </>
   );
 }

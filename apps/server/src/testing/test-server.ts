@@ -7,6 +7,8 @@ import {
   UTC_TIME_ZONE,
   type SessionUser,
   inviteTokenOf,
+  MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { createServer, type AddressInfo } from 'node:net';
@@ -70,6 +72,9 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     projectionWorkerHeapMegabytes: null,
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes: null,
+    maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
+    roomHeapBudgetMegabytes: null,
+    heavyConversionsPerHour: MAX_HEAVY_CONVERSIONS_PER_HOUR,
   };
 }
 
@@ -97,6 +102,9 @@ export async function startTestServer({
   showcaseOnClaim = false,
   now = Date.now,
   memoryLimitMegabytes = null,
+  maxBootstrapWaitMs = MAX_BOOTSTRAP_WAIT_MS,
+  roomHeapBudgetMegabytes = null,
+  heavyConversionsPerHour = MAX_HEAVY_CONVERSIONS_PER_HOUR,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -108,6 +116,9 @@ export async function startTestServer({
   showcaseOnClaim?: boolean;
   now?: () => number;
   memoryLimitMegabytes?: number | null;
+  maxBootstrapWaitMs?: number;
+  roomHeapBudgetMegabytes?: number | null;
+  heavyConversionsPerHour?: number;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -124,6 +135,9 @@ export async function startTestServer({
     projectionWorkerHeapMegabytes: null,
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes,
+    maxBootstrapWaitMs,
+    roomHeapBudgetMegabytes,
+    heavyConversionsPerHour,
   };
   try {
     const running = await startServer({
@@ -189,6 +203,7 @@ function inviteHeaders(server: TestServer): Record<string, string> {
   return { [INVITE_TOKEN_HEADER]: inviteTokenOf(server.services.invites.create({ createdBy: server.admin.id }).url) };
 }
 
+const OCTET_VALUES = 256;
 let nextClientAddress = 0;
 
 async function postCredentials({
@@ -202,7 +217,8 @@ async function postCredentials({
   body: Record<string, string>;
   headers?: Record<string, string>;
 }): Promise<Response> {
-  const clientAddress = `10.200.0.${nextClientAddress++}`;
+  const addressIndex = nextClientAddress++;
+  const clientAddress = `10.200.${Math.floor(addressIndex / OCTET_VALUES)}.${addressIndex % OCTET_VALUES}`;
   return fetch(`${server.baseUrl}${ApiPath.Auth}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress, origin: server.baseUrl, ...headers },
@@ -279,11 +295,13 @@ export async function signedInOwner({
   languageModel,
   versionRoomPolicy,
   memoryLimitMegabytes,
+  roomHeapBudgetMegabytes,
 }: {
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   memoryLimitMegabytes?: number | null;
+  roomHeapBudgetMegabytes?: number | null;
 } = {}): Promise<{ server: TestServer; owner: TestUser }> {
-  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes });
+  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes, roomHeapBudgetMegabytes });
   return { server, owner: await signedInUser({ server, name: OWNER_NAME }) };
 }

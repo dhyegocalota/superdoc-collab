@@ -3,6 +3,9 @@ import {
   bytesProgressDetail,
   convertingDetail,
   detailLine,
+  documentsAheadDetail,
+  preparedOnDeviceDetail,
+  PREPARING_HERE_DETAIL,
   estimatedConversionDetail,
   elapsedLabel,
   LAYING_OUT_DETAIL,
@@ -58,29 +61,46 @@ function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number |
   return Math.min((elapsedSeconds * SECOND_MS) / estimatedMs, ESTIMATE_FRACTION_CAP);
 }
 
+function preparingSubjectOf({ preparedOnDeviceOf, sizeBytes }: { preparedOnDeviceOf: string | null; sizeBytes: number }): string {
+  if (preparedOnDeviceOf !== null) return preparedOnDeviceDetail(preparedOnDeviceOf);
+  if (sizeBytes > 0) return convertingDetail(sizeBytes);
+  return UNKNOWN_PREPARING_DETAIL;
+}
+
+function queuedDetailOf({ bootstrap, elapsed }: { bootstrap: BootstrapProgress; elapsed: string }): string {
+  const { queuePosition, queueWaitMs } = bootstrap;
+  if (queuePosition === null || queueWaitMs === null || queuePosition === 0) return detailLine([QUEUED_DETAIL, elapsed]);
+  return detailLine([documentsAheadDetail(queuePosition), `about ${elapsedLabel(estimatedSecondsOf(queueWaitMs))}`, elapsed]);
+}
+
 export function preparingView({
   bootstrap,
   elapsedSeconds,
   startedAt,
   answeredAt,
+  preparedOnDeviceOf,
 }: {
   bootstrap: BootstrapProgress | null;
   elapsedSeconds: number;
   startedAt: number;
   answeredAt: number;
+  preparedOnDeviceOf: string | null;
 }): OpenProgressView {
   const stage = OpenStage.Preparing;
   const elapsed = elapsedLabel(elapsedSeconds);
   if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
-  if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
+  if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: queuedDetailOf({ bootstrap, elapsed }), fraction: null };
   const { done, total, estimatedMs, preparingElapsedMs, documentXmlBytes } = bootstrap;
   const sizeBytes = documentXmlBytes;
   const preparingSeconds = preparingElapsedSeconds({ preparingElapsedMs, answeredAt, startedAt, elapsedSeconds });
   const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
   const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds: preparingSeconds });
   const isBytesAhead = bytesFraction !== null && (timeFraction === null || bytesFraction >= timeFraction);
-  if (isBytesAhead) return { stage, detail: detailLine([receivedDetail(done), elapsed]), fraction: bytesFraction };
-  const subject = sizeBytes > 0 ? convertingDetail(sizeBytes) : UNKNOWN_PREPARING_DETAIL;
+  const subject = preparingSubjectOf({ preparedOnDeviceOf, sizeBytes });
+  if (isBytesAhead) {
+    const deviceSubject = preparedOnDeviceOf === null ? [] : [subject];
+    return { stage, detail: detailLine([...deviceSubject, receivedDetail(done), elapsed]), fraction: bytesFraction };
+  }
   if (timeFraction !== null && estimatedMs !== null) {
     const estimatedSeconds = estimatedSecondsOf(estimatedMs);
     return {
@@ -90,6 +110,10 @@ export function preparingView({
     };
   }
   return { stage, detail: detailLine([subject, elapsed]), fraction: null };
+}
+
+export function preparingHereView({ elapsedSeconds }: { elapsedSeconds: number }): OpenProgressView {
+  return { stage: OpenStage.Preparing, detail: detailLine([PREPARING_HERE_DETAIL, elapsedLabel(elapsedSeconds)]), fraction: null };
 }
 
 export function downloadingView({ stateBytes, elapsedSeconds }: { stateBytes: number | null; elapsedSeconds: number }): OpenProgressView {

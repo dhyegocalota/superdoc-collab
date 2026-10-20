@@ -4,8 +4,11 @@ import {
   BOOTSTRAP_MS_PER_MEGABYTE,
   BYTES_PER_MEGABYTE,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
+  BOOTSTRAP_RATE_CLAMP_MULTIPLE,
   BootstrapLane,
+  BOOTSTRAP_MAX_RETRIES,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
+  DEVICE_JOB_LIFETIME_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
 } from '@superdoc-collab/types';
@@ -34,11 +37,17 @@ function bootstrapWithPendingRuns({
   now = () => Date.now(),
   documentXmlBytesOf = () => FILE_BYTES,
   commitBlank = () => undefined,
+  onEnded = () => undefined,
+  spendRetry = () => true,
+  isPreparableByServer = () => true,
 }: {
   ownerOf?: (documentId: string) => string | null;
   now?: () => number;
   documentXmlBytesOf?: (documentId: string) => number;
   commitBlank?: (committed: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+  onEnded?: (documentId: string) => void;
+  spendRetry?: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
+  isPreparableByServer?: (documentId: string) => boolean;
 } = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
@@ -50,6 +59,9 @@ function bootstrapWithPendingRuns({
     documentXmlBytesOf,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
     commitBlank,
+    onEnded,
+    spendRetry,
+    isPreparableByServer,
     now,
   });
   return { bootstrap, pending, issueToken };
@@ -65,6 +77,8 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
@@ -75,6 +89,8 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: 0,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
   expect({ userId, documentId }).toEqual({ userId: OWNER_ID, documentId: DOCUMENT_ID });
@@ -126,6 +142,8 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   pending[0]!.resolve();
   await Promise.resolve();
@@ -143,6 +161,8 @@ test('a commit nobody asked for is ready with nothing to process', () => {
     estimatedMs: null,
     documentXmlBytes: 0,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
 });
 
@@ -161,6 +181,8 @@ test('a failed run is reported once, stays failed within the cooldown and is not
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
@@ -420,6 +442,22 @@ test('an owner is asked to wait only while a bootstrap of theirs is queued in th
   expect(bootstrap.queueWaitMs({ ownerId: BRUNO, documentXmlBytes: LARGE_FILE_BYTES })).toBeNull();
 });
 
+test('an owner is running in a lane only while a bootstrap of theirs is the one running there', async () => {
+  const { bootstrap, pending } = bootstrapWithOwners();
+  const isAnaRunning = () => bootstrap.isRunningFor({ ownerId: ANA, documentXmlBytes: LARGE_FILE_BYTES });
+  expect(isAnaRunning()).toBe(false);
+  bootstrap.request('bruno-heavy');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.request('ana-heavy');
+  expect(isAnaRunning()).toBe(false);
+  bootstrap.ready({ documentId: 'bruno-heavy', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(isAnaRunning()).toBe(true);
+  expect(bootstrap.isRunningFor({ ownerId: ANA, documentXmlBytes: SMALL_FILE_BYTES })).toBe(false);
+  expect(bootstrap.isRunningFor({ ownerId: BRUNO, documentXmlBytes: LARGE_FILE_BYTES })).toBe(false);
+});
+
 const HEAVY_MEGABYTES = 4;
 const FIRST_RATE_MS = 2000;
 const SECOND_RATE_MS = 4000;
@@ -450,6 +488,7 @@ test('completed conversions of heavy files move the estimate of the next jobs to
   const advance = (milliseconds: number) => void (currentMs += milliseconds);
   const { bootstrap, pending } = bootstrapWithPendingRuns({
     now: () => currentMs,
+    ownerOf: (documentId) => `owner-of-${documentId}`,
     documentXmlBytesOf: () => HEAVY_MEGABYTES * BYTES_PER_MEGABYTE,
   });
   expect(bootstrap.request('document-first').estimatedMs).toBe(HEAVY_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE);
@@ -467,9 +506,9 @@ test('completed conversions of heavy files move the estimate of the next jobs to
   expect(bootstrap.request('document-third').estimatedMs).toBe(((FIRST_RATE_MS + SECOND_RATE_MS) / 2) * HEAVY_MEGABYTES);
 });
 
-test('a 9.5 MB file is estimated at the seeded rate and then at the rate its last conversion measured', async () => {
+test('a 9.5 MB file is estimated at the seeded rate until two owners have had a conversion, then at their mean', async () => {
   let currentMs = 0;
-  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs });
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, ownerOf: (documentId) => `owner-of-${documentId}` });
   const megabytes = FILE_BYTES / BYTES_PER_MEGABYTE;
   expect(bootstrap.request('document-first').estimatedMs).toBeCloseTo(megabytes * BOOTSTRAP_MS_PER_MEGABYTE);
   await vi.waitFor(() => expect(pending).toHaveLength(1));
@@ -477,7 +516,13 @@ test('a 9.5 MB file is estimated at the seeded rate and then at the rate its las
   bootstrap.ready({ documentId: 'document-first', stateBytes: STATE_BYTES });
   pending[0]!.resolve();
   await vi.waitFor(() => expect(bootstrap.progressOf('document-first')?.stage).toBe(BootstrapStage.Ready));
-  expect(bootstrap.request('document-second').estimatedMs).toBeCloseTo(50_000);
+  expect(bootstrap.request('document-second').estimatedMs).toBeCloseTo(megabytes * BOOTSTRAP_MS_PER_MEGABYTE);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  currentMs += 30_000;
+  bootstrap.ready({ documentId: 'document-second', stateBytes: STATE_BYTES });
+  pending[1]!.resolve();
+  await vi.waitFor(() => expect(bootstrap.progressOf('document-second')?.stage).toBe(BootstrapStage.Ready));
+  expect(bootstrap.request('document-third').estimatedMs).toBeCloseTo(40_000);
 });
 
 test('the conversion of a small file never moves the rate, whatever its fixed cost', async () => {
@@ -610,4 +655,417 @@ test('a blank that waited and whose commit from the state throws is prepared in 
   pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
   expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
+});
+
+const OTHER_USER_ID = 'user-bruno';
+
+function deviceBootstrap(options: Parameters<typeof bootstrapWithPendingRuns>[0] = {}) {
+  return bootstrapWithPendingRuns({ isPreparableByServer: () => false, now: () => 1_000_000, ...options });
+}
+
+test('a document the server cannot hold is prepared on the device of its owner and never queued', async () => {
+  const { bootstrap, pending } = deviceBootstrap();
+  expect(bootstrap.request(DOCUMENT_ID)).toEqual({
+    stage: BootstrapStage.Preparing,
+    done: 0,
+    total: ESTIMATED_BYTES,
+    stateBytes: null,
+    estimatedMs: ESTIMATED_MS,
+    documentXmlBytes: FILE_BYTES,
+    preparingElapsedMs: 0,
+    queuePosition: null,
+    queueWaitMs: null,
+  });
+  await Promise.resolve();
+  expect(pending).toHaveLength(0);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(true);
+});
+
+test('a document the server can hold is not a device job', () => {
+  const { bootstrap } = bootstrapWithPendingRuns();
+  bootstrap.request(DOCUMENT_ID);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+});
+
+test('the owner claims a device job and the claim is the current attempt', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null });
+  expect(attempt).not.toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: attempt! })).toBe(true);
+});
+
+test('a person who is not the owner cannot claim a device job', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID, tabId: null })).toBeNull();
+});
+
+test('a second claim while the first has a live socket is refused and the first stays current', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(true);
+});
+
+test('the bytes the claimed device sends raise the progress', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null });
+  bootstrap.received({ documentId: DOCUMENT_ID, bytes: FRAME_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.done).toBe(FRAME_BYTES);
+});
+
+test('the commit makes a device job Ready, keeps the committing attempt writing and refuses a later claim', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(true);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+});
+
+test('the claimed device closing before the commit fails the job once, and a failed job is not claimable', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(error.mock.calls[0]![0]).toContain(BOOTSTRAP_FAILED_MESSAGE);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  error.mockRestore();
+});
+
+const TAB_ID = 'tab-ana-laptop';
+const OTHER_TAB_ID = 'tab-ana-phone';
+
+test('a second socket of the claiming tab shares the attempt, and another tab is refused', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const first = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  const sameTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  const otherTab = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: OTHER_TAB_ID });
+  expect(sameTab).toBe(first);
+  expect(otherTab).toBeNull();
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt: first })).toBe(true);
+});
+
+test('the job fails only when the last socket of the claiming tab closes before the commit', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID });
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  error.mockRestore();
+});
+
+test('only the owner of a pending device job is its creator, and only its claiming tab once a tab holds the claim', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const creatorOf = (parameters: { userId: string; tabId: string | null }) =>
+    bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, ...parameters });
+  expect([creatorOf({ userId: OWNER_ID, tabId: TAB_ID }), creatorOf({ userId: OTHER_USER_ID, tabId: null })]).toEqual([true, false]);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID });
+  expect([
+    creatorOf({ userId: OWNER_ID, tabId: TAB_ID }),
+    creatorOf({ userId: OWNER_ID, tabId: OTHER_TAB_ID }),
+    creatorOf({ userId: OWNER_ID, tabId: null }),
+  ]).toEqual([true, false, false]);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(creatorOf({ userId: OWNER_ID, tabId: TAB_ID })).toBe(false);
+});
+
+test('the committing device closing after the commit leaves the job Ready', () => {
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Ready);
+});
+
+test('an owner whose claiming tab closed reopens a fresh device job at once, and nobody else does', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.deviceClosed({
+    documentId: DOCUMENT_ID,
+    attempt: bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!,
+  });
+  expect([bootstrap.progressOf(DOCUMENT_ID)!.stage, bootstrap.isDeviceJob(DOCUMENT_ID)]).toEqual([BootstrapStage.Failed, true]);
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OTHER_USER_ID });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Preparing);
+  expect(bootstrap.isDeviceCreator({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })).toBe(true);
+  error.mockRestore();
+});
+
+test('a device job that expired is registered again by a reopen only after the retry cooldown', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
+  bootstrap.request(DOCUMENT_ID);
+  bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID });
+  clock.currentMs += DEVICE_JOB_LIFETIME_MS;
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  clock.currentMs += BOOTSTRAP_RETRY_COOLDOWN_MS;
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Preparing);
+  error.mockRestore();
+});
+
+test('only a device job that has not committed is a device job for the open answer', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap } = deviceBootstrap();
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })!;
+  const states = [bootstrap.isDeviceJob(DOCUMENT_ID)];
+  bootstrap.deviceClosed({ documentId: DOCUMENT_ID, attempt });
+  states.push(bootstrap.isDeviceJob(DOCUMENT_ID));
+  bootstrap.reopenDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID });
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  states.push(bootstrap.isDeviceJob(DOCUMENT_ID));
+  expect(states).toEqual([true, true, false]);
+  error.mockRestore();
+});
+
+test('a device job nobody claimed in its lifetime fails and is no longer claimable', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
+  bootstrap.request(DOCUMENT_ID);
+  clock.currentMs += DEVICE_JOB_LIFETIME_MS;
+  expect(bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: null })).toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(bootstrap.isDevicePending(DOCUMENT_ID)).toBe(false);
+  error.mockRestore();
+});
+
+test('a claimed device job that does not commit within its lifetime fails and its attempt is no longer current', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap } = deviceBootstrap({ now: () => clock.currentMs });
+  bootstrap.request(DOCUMENT_ID);
+  const attempt = bootstrap.claimDevice({ documentId: DOCUMENT_ID, userId: OWNER_ID, tabId: TAB_ID })!;
+  clock.currentMs += DEVICE_JOB_LIFETIME_MS;
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.stage).toBe(BootstrapStage.Failed);
+  expect(bootstrap.isCurrent({ documentId: DOCUMENT_ID, attempt })).toBe(false);
+  error.mockRestore();
+});
+
+const LARGE_ESTIMATED_MS = (LARGE_FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE;
+
+function clockedBootstrapWithOwners() {
+  const clock = { currentMs: 1_000_000 };
+  const parts = bootstrapWithPendingRuns({
+    ownerOf: (documentId) => OWNERS[documentId]!,
+    documentXmlBytesOf: (documentId) => (documentId.endsWith('light') ? SMALL_FILE_BYTES : LARGE_FILE_BYTES),
+    now: () => clock.currentMs,
+  });
+  return { ...parts, clock };
+}
+
+test('a queued document reports the documents ahead of it, the running one included, and the wait they cost', async () => {
+  const { bootstrap, pending } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'bruno-heavy', 'carla-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  const running = bootstrap.progressOf('ana-heavy')!;
+  const second = bootstrap.progressOf('bruno-heavy')!;
+  const third = bootstrap.progressOf('carla-heavy')!;
+  expect([running.queuePosition, running.queueWaitMs]).toEqual([null, null]);
+  expect(second.queuePosition).toBe(1);
+  expect(second.queueWaitMs).toBeCloseTo(LARGE_ESTIMATED_MS);
+  expect(third.queuePosition).toBe(2);
+  expect(third.queueWaitMs).toBeCloseTo(2 * LARGE_ESTIMATED_MS);
+});
+
+test('the position follows the turns of the owners, so a second document of one owner waits behind the others', async () => {
+  const { bootstrap, pending } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'ana-heavy-2', 'ana-heavy-3', 'bruno-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(['ana-heavy-2', 'bruno-heavy', 'ana-heavy-3'].map((documentId) => bootstrap.progressOf(documentId)!.queuePosition)).toEqual([
+    1, 2, 3,
+  ]);
+});
+
+test('the running document counts only what is left of its estimate, and a document that is no longer queued has no position', async () => {
+  const { bootstrap, pending, clock } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'bruno-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  clock.currentMs += 4000;
+  expect(bootstrap.progressOf('bruno-heavy')!.queueWaitMs).toBeCloseTo(LARGE_ESTIMATED_MS - 4000);
+  bootstrap.ready({ documentId: 'ana-heavy', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(bootstrap.progressOf('bruno-heavy')).toMatchObject({ stage: BootstrapStage.Preparing, queuePosition: null, queueWaitMs: null });
+});
+
+test('the predicted wait of a new heavy job is what is left of the running one plus every queued one, at the measured rate', async () => {
+  const { bootstrap, pending, clock } = clockedBootstrapWithOwners();
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBe(0);
+  bootstrap.request('ana-heavy');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeCloseTo(LARGE_ESTIMATED_MS);
+  bootstrap.request('bruno-heavy');
+  clock.currentMs += 4000;
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeCloseTo(2 * LARGE_ESTIMATED_MS - 4000);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: SMALL_FILE_BYTES, ownerId: CARLA })).toBe(0);
+  bootstrap.ready({ documentId: 'ana-heavy', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeGreaterThan(0);
+});
+
+test("a requester waits only for the turns ahead of them, so another owner's backlog is not all added to their prediction", async () => {
+  const { bootstrap, pending } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'ana-heavy-2', 'ana-heavy-3', 'bruno-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: CARLA })).toBeCloseTo(3 * LARGE_ESTIMATED_MS);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES, ownerId: ANA })).toBeCloseTo(4 * LARGE_ESTIMATED_MS);
+});
+
+const OWNER_RATES_MEGABYTES = 4;
+
+function conversionsByOwner() {
+  const clock = { currentMs: 0 };
+  const parts = bootstrapWithPendingRuns({
+    now: () => clock.currentMs,
+    ownerOf: (documentId) => OWNERS_BY_PREFIX[documentId.split('-')[0]!]!,
+    documentXmlBytesOf: () => OWNER_RATES_MEGABYTES * BYTES_PER_MEGABYTE,
+  });
+  async function convert({ documentId, msPerMegabyte }: { documentId: string; msPerMegabyte: number }): Promise<number> {
+    const index = parts.pending.length;
+    const estimatedMs = parts.bootstrap.request(documentId).estimatedMs!;
+    await vi.waitFor(() => expect(parts.pending).toHaveLength(index + 1));
+    clock.currentMs += msPerMegabyte * OWNER_RATES_MEGABYTES;
+    parts.bootstrap.ready({ documentId, stateBytes: STATE_BYTES });
+    parts.pending[index]!.resolve();
+    await vi.waitFor(() => expect(parts.bootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Ready));
+    return estimatedMs;
+  }
+  return { ...parts, convert };
+}
+
+const OWNERS_BY_PREFIX: Record<string, string> = { ana: ANA, bruno: BRUNO, carla: CARLA };
+const MEGABYTES_ESTIMATED = (msPerMegabyte: number) => msPerMegabyte * OWNER_RATES_MEGABYTES;
+
+test('one owner alone never moves the rate, and from two owners it is the mean of their latest samples', async () => {
+  const { convert } = conversionsByOwner();
+  await convert({ documentId: 'ana-1', msPerMegabyte: 2000 });
+  expect(await convert({ documentId: 'ana-2', msPerMegabyte: 4000 })).toBeCloseTo(MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE));
+  expect(await convert({ documentId: 'ana-3', msPerMegabyte: 4000 })).toBeCloseTo(MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE));
+  expect(await convert({ documentId: 'bruno-1', msPerMegabyte: 2000 })).toBeCloseTo(MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE));
+  expect(await convert({ documentId: 'bruno-2', msPerMegabyte: 2000 })).toBeCloseTo(MEGABYTES_ESTIMATED(3000));
+});
+
+test('the measured rate stays within a small multiple of the seeded rate, however slow or fast the conversions were', async () => {
+  const slow = conversionsByOwner();
+  await slow.convert({ documentId: 'ana-1', msPerMegabyte: 100 * BOOTSTRAP_MS_PER_MEGABYTE });
+  await slow.convert({ documentId: 'bruno-1', msPerMegabyte: 100 * BOOTSTRAP_MS_PER_MEGABYTE });
+  expect(await slow.convert({ documentId: 'carla-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
+    MEGABYTES_ESTIMATED(BOOTSTRAP_RATE_CLAMP_MULTIPLE * BOOTSTRAP_MS_PER_MEGABYTE),
+  );
+  const fast = conversionsByOwner();
+  await fast.convert({ documentId: 'ana-1', msPerMegabyte: 0 });
+  await fast.convert({ documentId: 'bruno-1', msPerMegabyte: 0 });
+  expect(await fast.convert({ documentId: 'carla-1', msPerMegabyte: BOOTSTRAP_MS_PER_MEGABYTE })).toBeCloseTo(
+    MEGABYTES_ESTIMATED(BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE),
+  );
+});
+
+test('the end of a bootstrap is reported once, whether it committed, failed or was forgotten while waiting', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const onEnded = vi.fn();
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ onEnded, ownerOf: (documentId) => `owner-of-${documentId}` });
+  ['committed', 'failed', 'waiting'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(onEnded).not.toHaveBeenCalled();
+  bootstrap.ready({ documentId: 'committed', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(onEnded.mock.calls).toEqual([['committed']]);
+  pending[1]!.reject(new Error('not a document'));
+  await vi.waitFor(() => expect(onEnded.mock.calls).toEqual([['committed'], ['failed']]));
+  bootstrap.forget('waiting');
+  expect(onEnded.mock.calls).toEqual([['committed'], ['failed'], ['waiting']]);
+  error.mockRestore();
+});
+
+async function failedOnce({
+  bootstrap,
+  pending,
+  clock,
+}: {
+  bootstrap: RoomBootstrap;
+  pending: Pending[];
+  clock: { currentMs: number };
+}): Promise<void> {
+  const runs = pending.length;
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(runs + 1));
+  pending[runs]!.reject(new Error('not a document'));
+  await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Failed));
+  clock.currentMs += BOOTSTRAP_RETRY_COOLDOWN_MS;
+}
+
+test('a failed document is started again at most BOOTSTRAP_MAX_RETRIES times, then it stays failed until it is uploaded again', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs });
+  await failedOnce({ bootstrap, pending, clock });
+  await Array.from({ length: BOOTSTRAP_MAX_RETRIES }).reduce<Promise<void>>(
+    (previous) => previous.then(() => failedOnce({ bootstrap, pending, clock })),
+    Promise.resolve(),
+  );
+  expect(pending).toHaveLength(1 + BOOTSTRAP_MAX_RETRIES);
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  expect(pending).toHaveLength(1 + BOOTSTRAP_MAX_RETRIES);
+  bootstrap.forget(DOCUMENT_ID);
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(2 + BOOTSTRAP_MAX_RETRIES));
+  error.mockRestore();
+});
+
+test('a retry is started only when the owner may spend a heavy conversion on it, and the file asked about is the one retried', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const spendRetry = vi.fn(() => false);
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs, spendRetry });
+  await failedOnce({ bootstrap, pending, clock });
+  expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
+  expect(pending).toHaveLength(1);
+  expect(spendRetry).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID, documentXmlBytes: FILE_BYTES });
+  spendRetry.mockReturnValue(true);
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  error.mockRestore();
+});
+
+test('a document that was never started is not a retry, and one that succeeded does not count its earlier failures', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const clock = { currentMs: 1_000_000 };
+  const spendRetry = vi.fn(() => true);
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => clock.currentMs, spendRetry });
+  await failedOnce({ bootstrap, pending, clock });
+  bootstrap.request(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  pending[1]!.resolve();
+  await vi.waitFor(() => expect(bootstrap.progressOf(DOCUMENT_ID)?.stage).toBe(BootstrapStage.Ready));
+  expect(spendRetry).toHaveBeenCalledTimes(1);
+  error.mockRestore();
 });

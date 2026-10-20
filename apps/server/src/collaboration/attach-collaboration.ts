@@ -3,6 +3,10 @@ import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { constants } from 'node:zlib';
 import {
+  HEAVY_ROOMS_FULL_CLOSE_CODE,
+  HEAVY_ROOMS_FULL_REASON,
+  HEAVY_ROOMS_USER_CAP_CLOSE_CODE,
+  HEAVY_ROOMS_USER_CAP_REASON,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
   POLICY_VIOLATION_CLOSE_CODE,
@@ -20,6 +24,7 @@ import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
+import { AuthReply, authReplyOf, deniedReasonOf } from './auth-reply';
 import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
@@ -46,8 +51,14 @@ const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
 const SOCKET_INFLATED_BUDGET_LOG = 'Collaboration socket closed for inflating too many bytes';
+const SOCKET_DENIED_LOG = 'Collaboration socket closed after the server denied it';
+const SOCKET_DENIED_REASON = 'Permission denied';
 const SOCKET_AWARENESS_ENTRIES_LOG = 'Collaboration socket closed for claiming too many awareness entries in one frame';
 const MESSAGE_EVENT = 'message';
+const CLOSE_CODE_BY_HEAVY_ROOMS_REASON = new Map<string, number>([
+  [HEAVY_ROOMS_FULL_REASON, HEAVY_ROOMS_FULL_CLOSE_CODE],
+  [HEAVY_ROOMS_USER_CAP_REASON, HEAVY_ROOMS_USER_CAP_CLOSE_CODE],
+]);
 
 const UNAVAILABLE_UPGRADE_RESPONSE = [
   `HTTP/1.1 ${HttpStatus.ServiceUnavailable} Service Unavailable`,
@@ -91,11 +102,20 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
-  function markAnsweredOnFirstSend(webSocket: WebSocket): void {
+  function reactToAuthReply(webSocket: WebSocket): void {
     const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
     webSocket.send = ((...parameters: unknown[]) => {
-      messageLimit.markAnswered(webSocket);
-      return send(...parameters);
+      const reply = authReplyOf(parameters[0] as Uint8Array);
+      if (reply === AuthReply.Authenticated) messageLimit.markAuthenticated(webSocket);
+      send(...parameters);
+      if (reply === AuthReply.Other) return;
+      Reflect.deleteProperty(webSocket, 'send');
+      if (reply !== AuthReply.Denied) return;
+      console.warn(SOCKET_DENIED_LOG);
+      const deniedReason = deniedReasonOf(parameters[0] as Uint8Array);
+      const closeCode = deniedReason === null ? undefined : CLOSE_CODE_BY_HEAVY_ROOMS_REASON.get(deniedReason);
+      if (deniedReason !== null && closeCode !== undefined) return void webSocket.close(closeCode, deniedReason);
+      webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_DENIED_REASON);
     }) as WebSocket['send'];
   }
   function withholdOverclaims({ webSocket, isBootstrapSocket }: { webSocket: WebSocket; isBootstrapSocket: boolean }): void {
@@ -137,7 +157,8 @@ export function attachCollaboration({
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
-      markAnsweredOnFirstSend(webSocket);
+      reactToAuthReply(webSocket);
+      if (endpoint) messageLimit.markAuthenticated(webSocket);
       withholdOverclaims({ webSocket, isBootstrapSocket });
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);

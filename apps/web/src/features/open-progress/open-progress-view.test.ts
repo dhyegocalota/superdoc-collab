@@ -4,6 +4,7 @@ import { bootstrapAt } from '@/testing/opened-document';
 import {
   downloadingView,
   editorOpenView,
+  preparingHereView,
   preparingView,
   renderingView,
   uploadingView,
@@ -21,6 +22,7 @@ function preparing({ stage, done, total }: { stage: BootstrapStage; done: number
     elapsedSeconds: 12,
     startedAt: PAGE_STARTED_AT,
     answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: null,
   });
 }
 
@@ -51,7 +53,7 @@ function estimating({
     estimatedMs,
     preparingElapsedMs,
   };
-  return preparingView({ bootstrap, elapsedSeconds, startedAt: PAGE_STARTED_AT, answeredAt });
+  return preparingView({ bootstrap, elapsedSeconds, startedAt: PAGE_STARTED_AT, answeredAt, preparedOnDeviceOf: null });
 }
 
 test('uploading is a determinate bar of the bytes sent', () => {
@@ -142,10 +144,42 @@ test('a queued bootstrap says it waits for its turn', () => {
 });
 
 test.each([
+  [3, 240_000, '3 documents ahead · about 4 min · 12 s'],
+  [1, 45_000, '1 document ahead · about 45 s · 12 s'],
+  [2, 1_000, '2 documents ahead · about 5 s · 12 s'],
+])('a queued bootstrap with %i documents ahead and %i ms of wait reads %s', (queuePosition, queueWaitMs, detail) => {
+  const view = preparingView({
+    bootstrap: { ...bootstrapAt(BootstrapStage.Queued), queuePosition, queueWaitMs },
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: null,
+  });
+  expect(view).toEqual({ stage: OpenStage.Preparing, detail, fraction: null });
+});
+
+test('a queued bootstrap with nothing ahead of it still says it waits for its turn', () => {
+  const view = preparingView({
+    bootstrap: { ...bootstrapAt(BootstrapStage.Queued), queuePosition: 0, queueWaitMs: 0 },
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: null,
+  });
+  expect(view.detail).toBe('Waiting for its turn · 12 s');
+});
+
+test.each([
   ['a preparing bootstrap of unknown size', bootstrapAt(BootstrapStage.Preparing)],
   ['a legacy answer with no bootstrap', null],
 ])('%s still ticks the elapsed time', (_, bootstrap) => {
-  const view = preparingView({ bootstrap, elapsedSeconds: 75, startedAt: PAGE_STARTED_AT, answeredAt: PAGE_STARTED_AT });
+  const view = preparingView({
+    bootstrap,
+    elapsedSeconds: 75,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: null,
+  });
   expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Preparing the file · 1 min 15 s', fraction: null });
 });
 
@@ -186,5 +220,34 @@ describe('the view while the editor loads', () => {
     expect(
       editorOpenView({ loadProgress: { ...FRESH, isSynced: true, pageCount: 7 }, stateBytes: 36_500_000, elapsedSeconds: 12 }),
     ).toEqual(renderingView({ pageCount: 7, elapsedSeconds: 12 }));
+  });
+});
+
+test('a joiner is told whose device prepares the document, before and after bytes arrive', () => {
+  const owner = 'Ana';
+  const base = {
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: owner,
+  };
+  const silent = preparingView({
+    ...base,
+    bootstrap: { ...bootstrapAt(BootstrapStage.Preparing), total: TOTAL_BYTES, documentXmlBytes: TOTAL_BYTES },
+  });
+  expect(silent.detail).toBe("Being prepared on Ana's device · 12 s");
+  const receiving = preparingView({
+    ...base,
+    bootstrap: { ...bootstrapAt(BootstrapStage.Preparing), done: TOTAL_BYTES / 2, total: TOTAL_BYTES, documentXmlBytes: TOTAL_BYTES },
+  });
+  expect(receiving.detail).toBe("Being prepared on Ana's device · Received 4.8 MB · 12 s");
+  expect(receiving.fraction).toBe(0.5);
+});
+
+test('the creator of a device job reads that it prepares on this device, with the elapsed counter and no bar', () => {
+  expect(preparingHereView({ elapsedSeconds: 12 })).toEqual({
+    stage: OpenStage.Preparing,
+    detail: 'Preparing on this device · 12 s',
+    fraction: null,
   });
 });

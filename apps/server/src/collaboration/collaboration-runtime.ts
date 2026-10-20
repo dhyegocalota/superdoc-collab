@@ -22,7 +22,12 @@ export type DocumentRuntime = {
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   bootstrapRoom: (documentId: string) => BootstrapProgress;
   bootstrapBlankRoom: (documentId: string) => BootstrapProgress;
+  isPreparedOnDevice: (documentId: string) => boolean;
+  reopenDeviceJob: (parameters: { documentId: string; userId: string }) => boolean;
+  isDeviceCreator: (parameters: { documentId: string; userId: string; tabId: string | null }) => boolean;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
+  isBootstrapRunningFor: (parameters: { ownerUserId: string; documentXmlBytes: number }) => boolean;
+  bootstrapWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
   onlineUserIds: (documentId: string) => Set<string>;
@@ -77,7 +82,18 @@ export function createCollaborationRuntime({
   return {
     bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
+    isPreparedOnDevice: (documentId) => roomBootstrap.isDeviceJob(documentId),
+    reopenDeviceJob: (parameters) => {
+      if (!roomBootstrap.canReopenDevice(parameters)) return false;
+      const isRoomHeld = roomsOf(parameters.documentId).length > 0;
+      if (isRoomHeld) return true;
+      roomBootstrap.reopenDevice(parameters);
+      return false;
+    },
+    isDeviceCreator: (parameters) => roomBootstrap.isDeviceCreator(parameters),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
+    isBootstrapRunningFor: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.isRunningFor({ ownerId: ownerUserId, documentXmlBytes }),
+    bootstrapWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.predictedWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(
         (connection) => (connection.context as CollaborationContext).userId === userId,

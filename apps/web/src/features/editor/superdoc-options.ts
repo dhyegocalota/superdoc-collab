@@ -10,6 +10,7 @@ import { FIT_WIDTH_ZOOM } from './superdoc-zoom';
 const COMMENTS_LAYOUT_BY_WIDTH: CommentsLayout = 'auto';
 const COMMENTS_INLINE_BELOW_PX = 480;
 const PRINT_DOCUMENT_ID = 'print';
+const PREVIEW_DOCUMENT_ID = 'preview';
 
 export const TOOLBAR_EXCLUDED_ITEMS = [
   'track-changes-accept-selection',
@@ -87,6 +88,16 @@ export function superdocOptions({
         },
       }),
     },
+  };
+}
+
+export function previewSuperdocOptions({ container, file }: { container: HTMLElement; file: Blob }): Config {
+  return {
+    selector: container,
+    documentMode: DocumentMode.Viewing,
+    documents: [{ id: PREVIEW_DOCUMENT_ID, type: DOCX_MIME_TYPE, data: file }],
+    telemetry: SUPERDOC_TELEMETRY,
+    zoom: FIT_WIDTH_ZOOM,
   };
 }
 

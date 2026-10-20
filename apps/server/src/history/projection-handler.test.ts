@@ -1,4 +1,4 @@
-import { GcFreeReplays, MigrationSet, ReadModel, REPLAY_CACHE_SIZE, UpdateLog } from '@superdoc-collab/history';
+import { MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -53,7 +53,6 @@ function storesWith(
   return {
     updateLog: new UpdateLog(historySqlite),
     readModel: new ReadModel(readModelSqlite),
-    replays: new GcFreeReplays(REPLAY_CACHE_SIZE),
     importRevisions,
     fileSizeBytes,
     bootstrapRoom,
@@ -123,16 +122,16 @@ test('a file exactly at the revisions cap is imported', async () => {
   expect(importRevisions).toHaveBeenCalledWith(request);
 });
 
-test('forgetting clears the replays before the read model and answers a null cursor', async () => {
+test('forgetting clears the read model and answers a null cursor', async () => {
   const stores = storesWith(async () => null);
-  const [replays, readModel] = [vi.spyOn(stores.replays, 'forget'), vi.spyOn(stores.readModel, 'forget')];
+  const readModel = vi.spyOn(stores.readModel, 'forget');
   expect(await createProjectionHandler(stores)({ kind: ProjectionRequestKind.Forget, documentId: DOCUMENT_ID })).toEqual({
     kind: ProjectionRequestKind.Forget,
     documentId: DOCUMENT_ID,
     cursor: null,
     importError: null,
   });
-  expect(replays.mock.invocationCallOrder[0]).toBeLessThan(readModel.mock.invocationCallOrder[0]!);
+  expect(readModel).toHaveBeenCalledWith(DOCUMENT_ID);
 });
 
 test('blocks of an unprojected document are empty at sequence zero', async () => {

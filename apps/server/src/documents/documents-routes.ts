@@ -1,20 +1,35 @@
 import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  BOOTSTRAP_QUEUE_WAITING_MESSAGE,
+  bootstrapBusyMessage,
+  bootstrapLaneOf,
+  BootstrapLane,
+  BootstrapStage,
+  BYTES_PER_MEGABYTE,
   bootstrapMemoryShortMessage,
+  roomHoldShortMessage,
   DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
+  HEAVY_ROOMS_FULL_MESSAGE,
+  HEAVY_ROOMS_RETRY_AFTER_MS,
+  HEAVY_ROOMS_USER_CAP_MESSAGE,
+  HeavyRoomsRefusal,
   HttpStatus,
+  INVALID_PREPARATION_MESSAGE,
   isPreparable,
   isTabId,
+  largestHoldableMegabytes,
   largestPreparableMegabytes,
   MAX_UPLOAD_BYTES,
   MEMBER_NOT_FOUND_MESSAGE,
   NOT_A_DOCX_MESSAGE,
   OPEN_RATE_LIMITED_MESSAGE,
   OWNER_ACCESS_CANNOT_BE_REMOVED_MESSAGE,
+  PREPARATION_FIELD,
+  PreparationSource,
   RoomMode,
   secondsRoundedUp,
   TAB_QUERY_KEY,
@@ -24,6 +39,7 @@ import {
   UPLOAD_FIELD,
   UPLOAD_RATE_LIMITED_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
+  type UploadRefusal,
 } from '@superdoc-collab/types';
 import { basename } from 'node:path';
 import { Hono, type Context } from 'hono';
@@ -55,6 +71,16 @@ function titleFromFileName(fileName: string): string {
   return title;
 }
 
+function isPreparationSource(value: unknown): value is PreparationSource {
+  return Object.values(PreparationSource).some((source) => source === value);
+}
+
+function preparationSourceOf(value: unknown): PreparationSource | null {
+  if (value === undefined) return PreparationSource.Server;
+  if (isPreparationSource(value)) return value;
+  return null;
+}
+
 function contentDisposition(fileName: string): string {
   const asciiFallback = fileName.replace(UNSAFE_IN_QUOTED_FILENAME, ASCII_FALLBACK_CHARACTER);
   const encoded = encodeURIComponent(fileName).replace(
@@ -65,10 +91,14 @@ function contentDisposition(fileName: string): string {
 }
 
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
-type CreationMount = RouteMount & { memoryLimitMegabytes: number | null };
+type CreationMount = RouteMount & {
+  memoryLimitMegabytes: number | null;
+  roomHeapBudgetMegabytes: number | null;
+  maxBootstrapWaitMs: number;
+};
 
-function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount): void {
-  const { documents, storage, runtime, uploadBudget } = services;
+function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetMegabytes, maxBootstrapWaitMs }: CreationMount): void {
+  const { documents, storage, runtime, uploadBudget, heavyUploadBudget, heavyRooms } = services;
 
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
     const userId = context.var.user.id;
@@ -85,25 +115,84 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
   function refusalWhenQueueFull({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
     const waitMs = runtime.bootstrapQueueWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
     if (waitMs === null) return null;
+    const isOwnerRunning = runtime.isBootstrapRunningFor({ ownerUserId: context.var.user.id, documentXmlBytes });
     return retryLater({
       context,
-      body: { error: BOOTSTRAP_QUEUE_FULL_MESSAGE },
+      body: { error: isOwnerRunning ? BOOTSTRAP_QUEUE_FULL_MESSAGE : BOOTSTRAP_QUEUE_WAITING_MESSAGE },
       status: HttpStatus.TooManyRequests,
       retryAfterSeconds: secondsRoundedUp(waitMs),
     });
   }
 
-  function refusalWhenMemoryShort({
+  function refusalWhenBusy({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
+    const waitMs = runtime.bootstrapWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
+    if (waitMs <= maxBootstrapWaitMs) return null;
+    return retryLater({
+      context,
+      body: { error: bootstrapBusyMessage(waitMs) },
+      status: HttpStatus.ServiceUnavailable,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenHeavyBudgetSpent({
     context,
     documentXmlBytes,
   }: {
     context: Context<SignedIn>;
     documentXmlBytes: number;
   }): Response | null {
-    if (memoryLimitMegabytes === null) return null;
-    if (isPreparable({ documentXmlBytes, memoryLimitMegabytes })) return null;
-    const message = bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes));
-    return context.json({ error: message }, HttpStatus.PayloadTooLarge);
+    if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
+    const waitMs = heavyUploadBudget.waitMs(context.var.user.id);
+    if (waitMs === null) return null;
+    return retryLater({
+      context,
+      body: { error: bootstrapBusyMessage(waitMs) },
+      status: HttpStatus.TooManyRequests,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
+  function refusalWhenRoomsFull({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    if (heavyRooms.hasHeadroomFor({ documentXmlBytes })) return null;
+    return retryLater({
+      context,
+      body: { error: HEAVY_ROOMS_FULL_MESSAGE },
+      status: HttpStatus.ServiceUnavailable,
+      retryAfterSeconds: secondsRoundedUp(HEAVY_ROOMS_RETRY_AFTER_MS),
+    });
+  }
+
+  function isRefusedByMemoryGuard(documentXmlBytes: number): boolean {
+    if (memoryLimitMegabytes === null) return false;
+    return !isPreparable({ documentXmlBytes, memoryLimitMegabytes });
+  }
+
+  function refusalWhenMemoryShort({
+    context,
+    documentXmlBytes,
+    isDevicePreparation,
+  }: {
+    context: Context<SignedIn>;
+    documentXmlBytes: number;
+    isDevicePreparation: boolean;
+  }): Response | null {
+    if (memoryLimitMegabytes === null || !isRefusedByMemoryGuard(documentXmlBytes)) return null;
+    if (roomHeapBudgetMegabytes !== null) {
+      const largestHoldable = largestHoldableMegabytes(roomHeapBudgetMegabytes);
+      const isBeyondHeap = documentXmlBytes > largestHoldable * BYTES_PER_MEGABYTE;
+      const beyondHeap: UploadRefusal = { error: roomHoldShortMessage(largestHoldable), canPrepareOnDevice: false };
+      if (isBeyondHeap) return context.json(beyondHeap, HttpStatus.PayloadTooLarge);
+    }
+    const roomsRefusal = refusalWhenRoomsFull({ context, documentXmlBytes });
+    if (roomsRefusal) return roomsRefusal;
+    if (isDevicePreparation) return null;
+    const refusal: UploadRefusal = {
+      error: bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes)),
+      canPrepareOnDevice: true,
+    };
+    return context.json(refusal, HttpStatus.PayloadTooLarge);
   }
 
   async function respondWithStoredDocument({
@@ -112,18 +201,28 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     title,
     importRevisions,
     isBlank,
+    entersLane = true,
   }: {
     context: Context<SignedIn>;
     bytes: Uint8Array;
     title: string;
     importRevisions: boolean;
     isBlank: boolean;
+    entersLane?: boolean;
   }): Promise<Response> {
-    const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    const queueRefusal = entersLane ? refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
     if (queueRefusal) return queueRefusal;
+    const busyRefusal = entersLane ? refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
+    if (busyRefusal) return busyRefusal;
+    const heavyBudgetRefusal = refusalWhenHeavyBudgetSpent({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (heavyBudgetRefusal) return heavyBudgetRefusal;
+    const roomsRefusal = refusalWhenRoomsFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (roomsRefusal) return roomsRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
+    if (bootstrapLaneOf(declaredDocumentXmlBytes(bytes)) === BootstrapLane.Heavy) heavyUploadBudget.record(userId);
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
+    heavyRooms.reserveForUpload({ documentId, userId });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
 
@@ -157,25 +256,48 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
       const file = body[UPLOAD_FIELD];
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
+      const preparation = preparationSourceOf(body[PREPARATION_FIELD]);
+      if (preparation === null) return context.json({ error: INVALID_PREPARATION_MESSAGE }, HttpStatus.BadRequest);
       const bytes = new Uint8Array(await file.arrayBuffer());
       const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
       if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+      const documentXmlBytes = declaredDocumentXmlBytes(bytes);
+      const isDevicePreparation = preparation === PreparationSource.Device;
+      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes, isDevicePreparation });
       if (memoryRefusal) return memoryRefusal;
-      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true, isBlank: false });
+      const entersLane = !(isDevicePreparation && isRefusedByMemoryGuard(documentXmlBytes));
+      return respondWithStoredDocument({
+        context,
+        bytes,
+        title: titleFromFileName(file.name),
+        importRevisions: true,
+        isBlank: false,
+        entersLane,
+      });
     },
   );
 }
 
 function mountOpening({ routes, services }: RouteMount): void {
-  const { documents, runtime } = services;
+  const { documents, runtime, heavyRooms } = services;
 
   routes.get('/:documentId', (context) => {
     const documentId = context.req.param('documentId');
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
+    const isUserCapRefusal =
+      !heavyRooms.fits({ documentId, userId }) && heavyRooms.refusalOf({ documentId, userId }) === HeavyRoomsRefusal.UserCap;
+    if (isUserCapRefusal) return context.json({ error: HEAVY_ROOMS_USER_CAP_MESSAGE }, HttpStatus.ServiceUnavailable);
+    if (!heavyRooms.fits({ documentId, userId })) {
+      return retryLater({
+        context,
+        body: { error: HEAVY_ROOMS_FULL_MESSAGE },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: secondsRoundedUp(HEAVY_ROOMS_RETRY_AFTER_MS),
+      });
+    }
     const answer = runtime.roomModeFor({ documentId, userId });
     if (answer.isSpent) {
       console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);
@@ -186,11 +308,18 @@ function mountOpening({ routes, services }: RouteMount): void {
         retryAfterSeconds: secondsRoundedUp(answer.waitMs),
       });
     }
+    const isReopenWaitingForRoom = runtime.reopenDeviceJob({ documentId, userId });
+    const answeredBootstrap = runtime.bootstrapRoom(documentId);
+    const bootstrap = isReopenWaitingForRoom ? { ...answeredBootstrap, stage: BootstrapStage.Preparing } : answeredBootstrap;
+    const tab = context.req.query(TAB_QUERY_KEY);
+    const tabId = tab !== undefined && isTabId(tab) ? tab : null;
+    const isDeviceCreator = runtime.isDeviceCreator({ documentId, userId, tabId });
     return context.json({
       document: summary,
       role,
-      roomMode: RoomMode.Join,
-      bootstrap: runtime.bootstrapRoom(documentId),
+      roomMode: isDeviceCreator ? RoomMode.Create : RoomMode.Join,
+      bootstrap,
+      preparedOnDeviceOf: runtime.isPreparedOnDevice(documentId) ? summary.owner.name : null,
       colorSlot: documents.colorSlotOf({ documentId, userId }),
     });
   });
@@ -265,12 +394,16 @@ function mountReading({ routes, services }: RouteMount): void {
 export function createDocumentsRoutes({
   services,
   memoryLimitMegabytes,
+  roomHeapBudgetMegabytes,
+  maxBootstrapWaitMs,
 }: {
   services: AppServices;
   memoryLimitMegabytes: number | null;
+  roomHeapBudgetMegabytes: number | null;
+  maxBootstrapWaitMs: number;
 }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  mountCreation({ routes, services, memoryLimitMegabytes });
+  mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetMegabytes, maxBootstrapWaitMs });
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });

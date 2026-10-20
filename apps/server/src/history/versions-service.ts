@@ -1,5 +1,7 @@
 import { resolveMark, type ReadModel, type ResolvedVersion, type UpdateLog, type VersionMarkSummary } from '@superdoc-collab/history';
 import {
+  LARGE_ROOM_STATE_BYTES,
+  LARGE_VERSION_LOAD_WEIGHT,
   MINUTE_MS,
   VERSION_CACHE_MAX_BYTES,
   VERSION_CACHE_SIZE,
@@ -150,7 +152,7 @@ export class VersionsService {
     const retryAfterMs = this.throttledForMs({ key: lookup.key, userId: endpoint.userId });
     if (retryAfterMs !== null) return Promise.reject(new VersionThrottledError(retryAfterMs));
     if (this.isRefusedByScheduler(lookup)) return Promise.reject(new ProjectionBusyError());
-    this.loadBudget.record(endpoint.userId);
+    this.spendBudget(endpoint);
     return this.start({ key: lookup.key, documentId: endpoint.documentId, sequence: lookup.sequence });
   }
 
@@ -164,6 +166,13 @@ export class VersionsService {
   private isRefusedByScheduler(lookup: CachedLookup): boolean {
     if (this.loading.has(lookup.key)) return false;
     return this.scheduler.refusesVersion({ documentId: lookup.documentId, sequence: lookup.sequence });
+  }
+
+  // NB ADR 0044: a build of a document above LARGE_ROOM_STATE_BYTES spends LARGE_VERSION_LOAD_WEIGHT loads of the minute.
+  private spendBudget({ documentId, userId }: VersionLoadRequest): void {
+    const isLargeDocument = this.updateLog.estimatedStateBytes(documentId) > LARGE_ROOM_STATE_BYTES;
+    const weight = isLargeDocument ? LARGE_VERSION_LOAD_WEIGHT : 1;
+    Array.from({ length: weight }).forEach(() => this.loadBudget.record(userId));
   }
 
   // NB ADR 0044: only a build that is not cached, in flight or failed spends the user's minute budget.

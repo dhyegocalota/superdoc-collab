@@ -6,6 +6,7 @@ import {
   BOOTSTRAP_STATE_BYTES_RATIO,
   BOOTSTRAP_TIMEOUT_FLOOR_MS,
   BOOTSTRAP_TIMEOUT_MARGIN,
+  MINUTE_MS,
   SECOND_MS,
 } from './constants';
 
@@ -61,15 +62,73 @@ export const BOOTSTRAP_QUEUE_RETRY_AFTER_MS = 5 * SECOND_MS;
 export const UPLOADS_PER_MINUTE = 30;
 export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const LARGE_ROOM_STATE_BYTES = 16 * BYTES_PER_MEGABYTE;
+export const MAX_BOOTSTRAP_WAIT_MS = 5 * MINUTE_MS;
+export const HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE = 19;
+export const MAX_HEAVY_ROOMS_PER_USER = 2;
+export const MAX_HEAVY_CONVERSIONS_PER_HOUR = 6;
+export const SMALL_ROOMS_HEAP_SHARE = 0.25;
+export const BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES = 2300;
+export const SERVER_HEAP_BASELINE_MEGABYTES = 100;
+export const ROOM_LOAD_SPIKE_HEAP_MEGABYTES = 900;
+export function roomHeapMegabytesOf(stateBytes: number): number {
+  return (stateBytes * HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE) / BYTES_PER_MEGABYTE;
+}
+export function roomHeapBudgetMegabytes({
+  memoryLimitMegabytes,
+  serverHeapMegabytes,
+}: {
+  memoryLimitMegabytes: number | null;
+  serverHeapMegabytes: number | null;
+}): number | null {
+  const containerBudget =
+    memoryLimitMegabytes === null ? null : usableMegabytesOf(memoryLimitMegabytes) - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
+  const heapBudget =
+    serverHeapMegabytes === null ? null : serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - ROOM_LOAD_SPIKE_HEAP_MEGABYTES;
+  const budgets = [containerBudget, heapBudget].filter((budget): budget is number => budget !== null);
+  if (budgets.length === 0) return null;
+  return Math.max(0, Math.min(...budgets));
+}
+export function largestHoldableMegabytes(roomHeapBudgetMegabytes: number): number {
+  const heavyShareMegabytes = roomHeapBudgetMegabytes * (1 - SMALL_ROOMS_HEAP_SHARE);
+  return Math.floor(heavyShareMegabytes / (HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE * BOOTSTRAP_STATE_BYTES_RATIO));
+}
+const ROOM_HOLD_NONE_MESSAGE = 'This server has no memory to hold a document that needs a heavy room, even prepared on a device.';
+export function roomHoldShortMessage(largestMegabytes: number): string {
+  if (largestMegabytes === 0) return ROOM_HOLD_NONE_MESSAGE;
+  return `This server cannot hold a document this large at its current memory, even prepared on a device. The largest it can hold has up to ${largestMegabytes} MB of text and layout.`;
+}
+export function isHeavyRoomDocument(documentXmlBytes: number): boolean {
+  return documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO > LARGE_ROOM_STATE_BYTES;
+}
+export function bootstrapBusyMessage(waitMs: number): string {
+  return `The server is busy preparing other documents; try again in about ${Math.max(1, Math.ceil(waitMs / MINUTE_MS))} min`;
+}
+export const HEAVY_ROOMS_RETRY_AFTER_MS = MINUTE_MS;
+export const HEAVY_ROOMS_FULL_CLOSE_CODE = 4503;
+export const HEAVY_ROOMS_FULL_REASON = 'Heavy rooms full';
+export const HEAVY_ROOMS_USER_CAP_REASON = 'Heavy rooms user cap';
+export const HEAVY_ROOMS_USER_CAP_CLOSE_CODE = 4504;
+export const HEAVY_ROOMS_USER_CAP_MESSAGE = `You already have ${MAX_HEAVY_ROOMS_PER_USER} large documents open. Close one to open another.`;
+export enum HeavyRoomsRefusal {
+  Full = 'full',
+  UserCap = 'user-cap',
+}
+export const HEAVY_ROOMS_FULL_SHORT_MESSAGE = 'Too many large documents are open.';
+export const HEAVY_ROOMS_FULL_MESSAGE = 'The server is holding as many large documents as it can; try again in a few minutes';
 export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
+export const PREPARATION_FIELD = 'preparation';
+export const DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES = 4;
+export const DEVICE_JOB_LIFETIME_MS = BOOTSTRAP_HOST_TIMEOUT_MS;
 export const UPLOAD_TOO_LARGE_MESSAGE = `Files up to ${MAX_UPLOAD_MEGABYTES} MB can be uploaded.`;
 export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUMENT_XML_MEGABYTES} MB of text and layout cannot be opened.`;
+export const INVALID_PREPARATION_MESSAGE = 'The preparation source is not valid.';
 export const UPLOAD_RATE_LIMITED_MESSAGE = 'Too many uploads in a minute';
-export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'Another document of yours is still waiting to be prepared';
+export const BOOTSTRAP_QUEUE_FULL_MESSAGE = 'You already have a document being prepared and another waiting. Try again when one finishes.';
+export const BOOTSTRAP_QUEUE_WAITING_MESSAGE = 'You already have a document waiting to be prepared. Try again when it starts.';
 export const INVALID_SHARE_LINK_MESSAGE = 'This link is no longer valid.';
 export const UNTITLED_DOCUMENT_TITLE = 'Untitled document';
 export const COLLABORATION_TOKEN_PLACEHOLDER = 'session-cookie';
@@ -90,6 +149,11 @@ export enum DocumentRole {
 export enum ShareLinkRole {
   Edit = 'edit',
   Read = 'read',
+}
+
+export enum PreparationSource {
+  Server = 'server',
+  Device = 'device',
 }
 
 export enum RoomMode {
@@ -126,8 +190,10 @@ export type OpenedDocument = {
   role: DocumentRole;
   roomMode: RoomMode;
   bootstrap: BootstrapProgress;
+  preparedOnDeviceOf: string | null;
   colorSlot: AuthorColorSlot;
 };
+export type UploadRefusal = { error: string; canPrepareOnDevice: boolean };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
 export type DocumentMembers = {
   members: DocumentMember[];
@@ -161,4 +227,6 @@ export type BootstrapProgress = {
   estimatedMs: number | null;
   documentXmlBytes: number;
   preparingElapsedMs: number | null;
+  queuePosition: number | null;
+  queueWaitMs: number | null;
 };

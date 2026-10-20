@@ -54,3 +54,26 @@ test('an item without an owner is its own owner', () => {
   expect(queue.hasOwner(null)).toBe(true);
   expect(drain(queue)).toEqual(['orphan-1', 'ana-1']);
 });
+
+test('the turn order lists the items in the order they would be shifted and leaves the queue as it was', () => {
+  const queue = new OwnerRoundRobinQueue<string>();
+  ['ana-1', 'ana-2', 'ana-3'].forEach((item) => queue.push({ owner: 'ana', item }));
+  queue.push({ owner: 'bruno', item: 'bruno-1' });
+  queue.push({ owner: 'carla', item: 'carla-1' });
+  const turnOrder = queue.turnOrder();
+  expect(turnOrder).toEqual(['ana-1', 'bruno-1', 'carla-1', 'ana-2', 'ana-3']);
+  expect(drain(queue)).toEqual(turnOrder);
+});
+
+test('an empty queue has an empty turn order', () => {
+  expect(new OwnerRoundRobinQueue<string>().turnOrder()).toEqual([]);
+});
+
+test('the turn order with a hypothetical push places it where it would be served and changes nothing', () => {
+  const queue = new OwnerRoundRobinQueue<string>();
+  ['ana-1', 'ana-2', 'ana-3'].forEach((item) => queue.push({ owner: 'ana', item }));
+  queue.push({ owner: 'bruno', item: 'bruno-1' });
+  expect(queue.turnOrder({ also: { owner: 'carla', item: 'carla-1' } })).toEqual(['ana-1', 'bruno-1', 'carla-1', 'ana-2', 'ana-3']);
+  expect(queue.turnOrder({ also: { owner: 'ana', item: 'ana-4' } })).toEqual(['ana-1', 'bruno-1', 'ana-2', 'ana-3', 'ana-4']);
+  expect(queue.turnOrder()).toEqual(['ana-1', 'bruno-1', 'ana-2', 'ana-3']);
+});

@@ -21,6 +21,11 @@ const DETAIL_SEPARATOR = ' · ';
 const SECONDS_PER_MINUTE = MINUTE_MS / SECOND_MS;
 
 export const QUEUED_DETAIL = 'Waiting for its turn';
+export function documentsAheadDetail(count: number): string {
+  if (count === 1) return '1 document ahead';
+  return `${formatCount(count)} documents ahead`;
+}
+
 export const UNKNOWN_PREPARING_DETAIL = 'Preparing the file';
 export const UNKNOWN_DOWNLOAD_DETAIL = 'Receiving the document';
 export const LAYING_OUT_DETAIL = 'Laying out the pages';
@@ -39,6 +44,12 @@ export function detailLine(parts: string[]): string {
 
 export function bytesProgressDetail({ doneBytes, totalBytes }: { doneBytes: number; totalBytes: number }): string {
   return `${formatByteCount(doneBytes)} of ${formatByteCount(totalBytes)}`;
+}
+
+export const PREPARING_HERE_DETAIL = 'Preparing on this device';
+
+export function preparedOnDeviceDetail(ownerName: string): string {
+  return `Being prepared on ${ownerName}'s device`;
 }
 
 export function convertingDetail(sizeBytes: number): string {

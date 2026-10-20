@@ -30,6 +30,7 @@ Thirty a minute is one new version every two seconds sustained, above a person w
 - A busy refusal is never cached: one reader filling the cap cannot blank a version for other members.
 - A version socket rechecks its member when it connects and closes with the access revoked code, so a removal during the build wait leaves no open socket.
 - The budget lives in memory per process, like ADR 0011's caps.
+- A build of a document whose log exceeds `LARGE_ROOM_STATE_BYTES` spends `LARGE_VERSION_LOAD_WEIGHT` loads of the minute, because without a replay cache ([lighter projection](../features/lighter-projection/spec.md)) each step materializes the document; small documents spend one.
 
 ## Evidence
 

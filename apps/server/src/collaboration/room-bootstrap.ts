@@ -1,11 +1,15 @@
 import {
   BOOTSTRAP_COMMIT_GRACE_MS,
   BOOTSTRAP_INTERRUPTED_RETRIES,
+  BOOTSTRAP_MAX_RETRIES,
   BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_PROGRESS_ENTRIES,
+  BOOTSTRAP_RATE_CLAMP_MULTIPLE,
+  BOOTSTRAP_RATE_MIN_OWNERS,
   BOOTSTRAP_RATE_SAMPLES,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
+  DEVICE_JOB_LIFETIME_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapLane,
   bootstrapLaneOf,
@@ -22,9 +26,23 @@ import { describeError } from '../logging/describe-error';
 
 export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 
-type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null; startedAt: number | null };
+type DeviceClaim = { tabId: string; sockets: number };
+
+type BootstrapJob = {
+  progress: BootstrapProgress;
+  attempt: string | null;
+  failedAt: number | null;
+  startedAt: number | null;
+  isDevice: boolean;
+  isReopenable: boolean;
+  claim: DeviceClaim | null;
+};
+
+type QueueStanding = { queuePosition: number | null; queueWaitMs: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
+const PREDICTED_JOB_KEY = 'predicted-job';
+const NOT_QUEUED: QueueStanding = { queuePosition: null, queueWaitMs: null };
 const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
 
 export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
@@ -35,6 +53,8 @@ export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   estimatedMs: null,
   documentXmlBytes: NOTHING_TO_PROCESS_BYTES,
   preparingElapsedMs: null,
+  queuePosition: null,
+  queueWaitMs: null,
 };
 
 export class BootstrapOwnerMissingError extends Error {
@@ -49,15 +69,28 @@ export class BootstrapUncommittedError extends Error {
   }
 }
 
+export class DeviceExpiredError extends Error {
+  constructor() {
+    super('The device did not commit the room within the lifetime of a device job.');
+  }
+}
+
+export class DeviceClosedError extends Error {
+  constructor() {
+    super('The device preparing the room closed before the commit.');
+  }
+}
+
 export class RoomBootstrap {
   private readonly jobs = new LruMap<BootstrapJob>({ isOverBudget: (entries) => entries.size > BOOTSTRAP_PROGRESS_ENTRIES });
   private readonly queues: Record<BootstrapLane, OwnerRoundRobinQueue<string>> = {
     [BootstrapLane.Light]: new OwnerRoundRobinQueue(),
     [BootstrapLane.Heavy]: new OwnerRoundRobinQueue(),
   };
-  private readonly running: Record<BootstrapLane, boolean> = { [BootstrapLane.Light]: false, [BootstrapLane.Heavy]: false };
-  private readonly conversionRates: number[] = [];
+  private readonly running: Record<BootstrapLane, string | null> = { [BootstrapLane.Light]: null, [BootstrapLane.Heavy]: null };
+  private readonly conversionRates = new Map<string | null, number>();
   private readonly commitWaiters = new Map<string, () => void>();
+  private readonly retries = new Map<string, number>();
   private blankState: Uint8Array | null = null;
   private blankConverting: string | null = null;
   private blankWaiting: string[] = [];
@@ -68,7 +101,10 @@ export class RoomBootstrap {
   private readonly documentXmlBytesOf: (documentId: string) => number;
   private readonly filePathOf: (documentId: string) => string;
   private readonly commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+  private readonly isPreparableByServer: (documentId: string) => boolean;
   private readonly now: () => number;
+  private readonly onEnded: (documentId: string) => void;
+  private readonly spendRetry: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
 
   constructor({
     run,
@@ -78,6 +114,9 @@ export class RoomBootstrap {
     documentXmlBytesOf,
     filePathOf,
     commitBlank,
+    onEnded,
+    spendRetry,
+    isPreparableByServer,
     now = () => Date.now(),
   }: {
     run: BootstrapRun;
@@ -87,6 +126,9 @@ export class RoomBootstrap {
     documentXmlBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
     commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+    onEnded: (documentId: string) => void;
+    spendRetry: (parameters: { ownerId: string | null; documentXmlBytes: number }) => boolean;
+    isPreparableByServer: (documentId: string) => boolean;
     now?: () => number;
   }) {
     this.run = run;
@@ -96,13 +138,77 @@ export class RoomBootstrap {
     this.documentXmlBytesOf = documentXmlBytesOf;
     this.filePathOf = filePathOf;
     this.commitBlank = commitBlank;
+    this.isPreparableByServer = isPreparableByServer;
     this.now = now;
+    this.onEnded = onEnded;
+    this.spendRetry = spendRetry;
+  }
+
+  isDevicePending(documentId: string): boolean {
+    this.expireDevice(documentId);
+    const job = this.jobs.peek(documentId);
+    if (job === null) return false;
+    return job.isDevice && job.progress.stage === BootstrapStage.Preparing;
+  }
+
+  isDeviceJob(documentId: string): boolean {
+    this.expireDevice(documentId);
+    const job = this.jobs.peek(documentId);
+    if (job === null) return false;
+    return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
+  }
+
+  canReopenDevice({ documentId, userId }: { documentId: string; userId: string }): boolean {
+    const job = this.jobs.peek(documentId);
+    return job !== null && job.isReopenable && this.ownerOf(documentId) === userId;
+  }
+
+  reopenDevice({ documentId, userId }: { documentId: string; userId: string }): void {
+    if (!this.canReopenDevice({ documentId, userId })) return;
+    this.registerDevice(documentId);
+  }
+
+  isDeviceCreator({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): boolean {
+    const isOwnerOfPendingJob = this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
+    if (!isOwnerOfPendingJob) return false;
+    const job = this.jobs.peek(documentId);
+    if (job === null || job.attempt === null) return true;
+    return job.claim !== null && job.claim.tabId === tabId;
+  }
+
+  claimDevice({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): string | null {
+    const job = this.jobs.peek(documentId);
+    if (job === null || !this.isDeviceCreator({ documentId, userId, tabId })) return null;
+    const { claim, attempt: claimedAttempt } = job;
+    const isClaimedByTab = claim !== null && claimedAttempt !== null;
+    if (isClaimedByTab) {
+      this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets + 1 } } });
+      return claimedAttempt;
+    }
+    const attempt = randomUUID();
+    const progress = { ...job.progress, stage: BootstrapStage.Preparing, done: 0, preparingElapsedMs: null };
+    const newClaim = tabId === null ? null : { tabId, sockets: 1 };
+    this.jobs.set({ key: documentId, value: { ...job, progress, attempt, failedAt: null, startedAt: this.now(), claim: newClaim } });
+    return attempt;
+  }
+
+  deviceClosed({ documentId, attempt }: { documentId: string; attempt: string }): void {
+    const job = this.jobs.peek(documentId);
+    const isClaimedDevice = job !== null && job.isDevice && job.progress.stage === BootstrapStage.Preparing;
+    if (!isClaimedDevice || !this.isCurrent({ documentId, attempt })) return;
+    const { claim } = job;
+    if (claim !== null && claim.sockets > 1) {
+      this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets - 1 } } });
+      return;
+    }
+    this.fail({ documentId, error: new DeviceClosedError(), isReopenable: true });
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
+    this.expireDevice(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return null;
-    return this.answerOf(job);
+    return this.answerOf({ documentId, job });
   }
 
   isInFlight(documentId: string): boolean {
@@ -116,17 +222,31 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
+  isRunningFor({ ownerId, documentXmlBytes }: { ownerId: string; documentXmlBytes: number }): boolean {
+    const runningDocumentId = this.running[bootstrapLaneOf(documentXmlBytes)];
+    return runningDocumentId !== null && this.ownerOf(runningDocumentId) === ownerId;
+  }
+
+  predictedWaitMs({ documentXmlBytes, ownerId }: { documentXmlBytes: number; ownerId: string }): number {
+    const lane = bootstrapLaneOf(documentXmlBytes);
+    const turnOrder = this.queues[lane].turnOrder({ also: { owner: ownerId, item: PREDICTED_JOB_KEY } });
+    const jobsAhead = turnOrder.slice(0, turnOrder.indexOf(PREDICTED_JOB_KEY));
+    return this.runningRemainingMs(lane) + this.estimatedMsOfJobs(jobsAhead);
+  }
+
   request(documentId: string): BootstrapProgress {
-    const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
+    this.expireDevice(documentId);
+    const answered = this.answerWithoutStarting(documentId);
+    if (answered !== null) return answered;
+    if (!this.isPreparableByServer(documentId)) return this.registerDevice(documentId);
     const progress = this.register(documentId);
     this.enqueue(documentId);
     return progress;
   }
 
   requestBlank(documentId: string): BootstrapProgress {
-    const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
+    const answered = this.answerWithoutStarting(documentId);
+    if (answered !== null) return answered;
     const ownerId = this.ownerOf(documentId);
     if (this.blankState !== null && ownerId !== null) return this.commitFromState({ documentId, ownerId, state: this.blankState });
     if (this.blankConverting === null) {
@@ -161,10 +281,15 @@ export class RoomBootstrap {
           estimatedMs: this.estimatedMsOf(documentId),
           documentXmlBytes: this.documentXmlBytesOfJob(documentId),
           preparingElapsedMs: null,
+          queuePosition: null,
+          queueWaitMs: null,
         },
         attempt,
         failedAt: null,
         startedAt,
+        isDevice: false,
+        isReopenable: false,
+        claim: null,
       },
     });
     return this.issueToken({ userId: owner, documentId, attempt });
@@ -189,6 +314,7 @@ export class RoomBootstrap {
     const total = this.totalOf(documentId);
     const attempt = job === null ? null : job.attempt;
     this.recordConversion(documentId);
+    this.retries.delete(documentId);
     this.jobs.set({
       key: documentId,
       value: {
@@ -200,10 +326,15 @@ export class RoomBootstrap {
           estimatedMs: this.estimatedMsOf(documentId),
           documentXmlBytes: this.documentXmlBytesOfJob(documentId),
           preparingElapsedMs: null,
+          queuePosition: null,
+          queueWaitMs: null,
         },
         attempt,
         failedAt: null,
         startedAt: null,
+        isDevice: job !== null && job.isDevice,
+        isReopenable: false,
+        claim: null,
       },
     });
     const commitWaiter = this.commitWaiters.get(documentId);
@@ -211,16 +342,35 @@ export class RoomBootstrap {
   }
 
   forget(documentId: string): void {
+    this.onEnded(documentId);
+    this.retries.delete(documentId);
     this.blankWaiting = this.blankWaiting.filter((waitingId) => waitingId !== documentId);
     if (this.blankConverting === documentId) this.releaseBlankWaiters();
     this.jobs.delete(documentId);
     Object.values(this.queues).forEach((queue) => queue.remove(documentId));
   }
 
+  private answerWithoutStarting(documentId: string): BootstrapProgress | null {
+    const existing = this.jobs.peek(documentId);
+    if (existing === null) return null;
+    if (this.isRetryable(existing) && this.spendRetryOf({ documentId, job: existing })) return null;
+    return this.answerOf({ documentId, job: existing });
+  }
+
+  private spendRetryOf({ documentId, job }: { documentId: string; job: BootstrapJob }): boolean {
+    const attempts = this.retries.get(documentId);
+    const retried = attempts === undefined ? 0 : attempts;
+    if (retried >= BOOTSTRAP_MAX_RETRIES) return false;
+    const isAllowed = this.spendRetry({ ownerId: this.ownerOf(documentId), documentXmlBytes: job.progress.documentXmlBytes });
+    if (!isAllowed) return false;
+    this.retries.set(documentId, retried + 1);
+    return true;
+  }
+
   private register(documentId: string): BootstrapProgress {
     const documentXmlBytes = this.documentXmlBytesOf(documentId);
     const total = documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO;
-    const estimatedMs = (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+    const estimatedMs = this.estimatedMsOfBytes(documentXmlBytes);
     const progress = {
       stage: BootstrapStage.Queued,
       done: 0,
@@ -229,9 +379,29 @@ export class RoomBootstrap {
       estimatedMs,
       documentXmlBytes,
       preparingElapsedMs: null,
+      queuePosition: null,
+      queueWaitMs: null,
     };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
+    this.jobs.set({
+      key: documentId,
+      value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false, isReopenable: false, claim: null },
+    });
     return progress;
+  }
+
+  private registerDevice(documentId: string): BootstrapProgress {
+    const queued = this.register(documentId);
+    const job = {
+      progress: { ...queued, stage: BootstrapStage.Preparing },
+      attempt: null,
+      failedAt: null,
+      startedAt: this.now(),
+      isDevice: true,
+      isReopenable: false,
+      claim: null,
+    };
+    this.jobs.set({ key: documentId, value: job });
+    return this.answerOf({ documentId, job });
   }
 
   private enqueue(documentId: string): void {
@@ -265,7 +435,8 @@ export class RoomBootstrap {
     this.blankWaiting.splice(0).forEach((waitingId) => this.enqueue(waitingId));
   }
 
-  private answerOf(job: BootstrapJob): BootstrapProgress {
+  private answerOf({ documentId, job }: { documentId: string; job: BootstrapJob }): BootstrapProgress {
+    if (job.progress.stage === BootstrapStage.Queued) return { ...job.progress, ...this.queueStandingOf({ documentId, job }) };
     if (job.progress.stage !== BootstrapStage.Preparing || job.startedAt === null) return job.progress;
     return { ...job.progress, preparingElapsedMs: this.now() - job.startedAt };
   }
@@ -292,9 +463,46 @@ export class RoomBootstrap {
     return progress.documentXmlBytes;
   }
 
+  private queueStandingOf({ documentId, job }: { documentId: string; job: BootstrapJob }): QueueStanding {
+    const lane = bootstrapLaneOf(job.progress.documentXmlBytes);
+    const turnOrder = this.queues[lane].turnOrder();
+    const turn = turnOrder.indexOf(documentId);
+    if (turn === -1) return NOT_QUEUED;
+    const runningAhead = this.running[lane] === null ? 0 : 1;
+    return {
+      queuePosition: runningAhead + turn,
+      queueWaitMs: this.runningRemainingMs(lane) + this.estimatedMsOfJobs(turnOrder.slice(0, turn)),
+    };
+  }
+
+  private runningRemainingMs(lane: BootstrapLane): number {
+    const documentId = this.running[lane];
+    if (documentId === null) return 0;
+    const job = this.jobs.peek(documentId);
+    if (job === null || job.startedAt === null) return 0;
+    return Math.max(0, this.estimatedMsOfBytes(job.progress.documentXmlBytes) - (this.now() - job.startedAt));
+  }
+
+  private estimatedMsOfJobs(documentIds: string[]): number {
+    return documentIds.reduce((total, documentId) => {
+      const job = this.jobs.peek(documentId);
+      if (job === null) return total;
+      return total + this.estimatedMsOfBytes(job.progress.documentXmlBytes);
+    }, 0);
+  }
+
+  private estimatedMsOfBytes(documentXmlBytes: number): number {
+    return (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+  }
+
   private rateMsPerMegabyte(): number {
-    if (this.conversionRates.length === 0) return BOOTSTRAP_MS_PER_MEGABYTE;
-    return this.conversionRates.reduce((sum, rate) => sum + rate, 0) / this.conversionRates.length;
+    if (this.conversionRates.size < BOOTSTRAP_RATE_MIN_OWNERS) return BOOTSTRAP_MS_PER_MEGABYTE;
+    const rates = [...this.conversionRates.values()];
+    const measured = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+    return Math.min(
+      BOOTSTRAP_MS_PER_MEGABYTE * BOOTSTRAP_RATE_CLAMP_MULTIPLE,
+      Math.max(BOOTSTRAP_MS_PER_MEGABYTE / BOOTSTRAP_RATE_CLAMP_MULTIPLE, measured),
+    );
   }
 
   private recordConversion(documentId: string): void {
@@ -302,8 +510,11 @@ export class RoomBootstrap {
     if (job === null || job.startedAt === null) return;
     if (bootstrapLaneOf(job.progress.documentXmlBytes) !== BootstrapLane.Heavy) return;
     const megabytes = job.progress.documentXmlBytes / BYTES_PER_MEGABYTE;
-    this.conversionRates.push((this.now() - job.startedAt) / megabytes);
-    if (this.conversionRates.length > BOOTSTRAP_RATE_SAMPLES) this.conversionRates.shift();
+    const ownerId = this.ownerOf(documentId);
+    this.conversionRates.delete(ownerId);
+    this.conversionRates.set(ownerId, (this.now() - job.startedAt) / megabytes);
+    const [oldestOwner] = this.conversionRates.keys();
+    if (this.conversionRates.size > BOOTSTRAP_RATE_SAMPLES) this.conversionRates.delete(oldestOwner!);
   }
 
   private totalOf(documentId: string): number {
@@ -313,12 +524,12 @@ export class RoomBootstrap {
   }
 
   private pump(lane: BootstrapLane): void {
-    if (this.running[lane]) return;
+    if (this.running[lane] !== null) return;
     const next = this.queues[lane].shift();
     if (next === undefined) return;
-    this.running[lane] = true;
+    this.running[lane] = next;
     void this.runJob({ documentId: next, lane, retries: BOOTSTRAP_INTERRUPTED_RETRIES }).finally(() => {
-      this.running[lane] = false;
+      this.running[lane] = null;
       this.pump(lane);
     });
   }
@@ -344,6 +555,7 @@ export class RoomBootstrap {
   }
 
   private endAttempt(documentId: string): void {
+    this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({ key: documentId, value: { ...job, attempt: null } });
@@ -361,7 +573,15 @@ export class RoomBootstrap {
     throw new BootstrapUncommittedError();
   }
 
-  private fail({ documentId, error }: { documentId: string; error: unknown }): void {
+  private expireDevice(documentId: string): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null || !job.isDevice || job.progress.stage !== BootstrapStage.Preparing || job.startedAt === null) return;
+    if (this.now() - job.startedAt < DEVICE_JOB_LIFETIME_MS) return;
+    this.fail({ documentId, error: new DeviceExpiredError() });
+  }
+
+  private fail({ documentId, error, isReopenable = false }: { documentId: string; error: unknown; isReopenable?: boolean }): void {
+    this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({
@@ -371,6 +591,9 @@ export class RoomBootstrap {
         attempt: null,
         failedAt: this.now(),
         startedAt: null,
+        isDevice: job.isDevice,
+        isReopenable,
+        claim: null,
       },
     });
     console.error(`${BOOTSTRAP_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);

@@ -13,6 +13,8 @@ import {
   DocumentResource,
   DocumentRole,
   HttpMethod,
+  HEAVY_ROOMS_FULL_MESSAGE,
+  HEAVY_ROOMS_USER_CAP_MESSAGE,
   HttpStatus,
   MEMBERS_REFRESH_MS,
   RoomMode,
@@ -62,6 +64,12 @@ import {
   STAY_LABEL,
   TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
+import { discardLocalFile, keepLocalFile, localFileOf } from '@/features/local-preview/local-file-store';
+import { DEVICE_REFUSAL_COPY, PREVIEW_BADGE_MESSAGE, PREVIEW_OPENING_SHARED_MESSAGE } from '@/features/local-preview/local-preview-copy';
+import { DeviceRefusal } from '@/features/local-preview/device-guard';
+import { superdocStub } from '@/testing/superdoc-stub';
+import { PREPARING_HERE_DETAIL } from '@/features/open-progress/open-progress-copy';
+import { PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
@@ -95,7 +103,7 @@ type SuperDocConfig = {
   onCollaborationReady: () => void;
   zoom: { mode: string };
   ui: { toolbar?: { container: HTMLElement } };
-  onReady: (payload: { superdoc: unknown }) => void;
+  onReady?: (payload: { superdoc: unknown }) => void;
   onEditorUpdate: () => void;
   onPaginationUpdate: (payload: { totalPages: number }) => void;
 };
@@ -108,7 +116,7 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
     superDocExport,
     SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
       const instance = { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
-      config.onReady({ superdoc: instance });
+      config.onReady?.({ superdoc: instance });
       return instance;
     }),
   };
@@ -118,6 +126,7 @@ vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
 
 const DOCUMENT_PATH = documentApiPath({ documentId: DOCUMENT_ID });
+const OPEN_PATH = `${DOCUMENT_PATH}?${TAB_QUERY_KEY}=${tabId()}`;
 const DOWNLOAD_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Download });
 const MEMBERS_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members });
 const TIMELINE_PATH = documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline });
@@ -199,14 +208,18 @@ function mockDocumentApi({
       current = { ...current, document: { ...current.document, title: renamedTitle } };
       return new Response(null, { status: HttpStatus.NoContent });
     }
-    if (input === DOCUMENT_PATH) {
+    if (input === DOCUMENT_PATH && init?.method === HttpMethod.Delete) return new Response(null, { status: HttpStatus.NoContent });
+    if (input === OPEN_PATH) {
       const status = currentOpenStatus();
       openRequests += 1;
       const isReload = openRequests > 1;
       const reloadedBody = isReload && openedAfterReload ? openedAfterReload : current;
       if (isReload) await reloadGate;
       if (isReload && isReloadUnreachable) throw new TypeError('Failed to fetch');
-      const answered = status === HttpStatus.Ok ? { ...reloadedBody, bootstrap: bootstrapAt(bootstrapStage()) } : openBody;
+      const answeredStage = bootstrapStage();
+      const answeredRoomMode = answeredStage === BootstrapStage.Ready ? reloadedBody.roomMode : RoomMode.Join;
+      const answered =
+        status === HttpStatus.Ok ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: bootstrapAt(answeredStage) } : openBody;
       return jsonResponse({ body: answered, status });
     }
     throw new Error(`unexpected request ${String(input)}`);
@@ -246,6 +259,7 @@ async function reloadAfterFailure(): Promise<SuperDocConfig> {
 
 beforeEach(() => {
   localStorage.clear();
+  discardLocalFile(DOCUMENT_ID);
   SuperDoc.mockClear();
   installAuthorPalette();
 });
@@ -280,7 +294,7 @@ test('a title rename never opens the document again, so the creator ticket stays
   await userEvent.click(await screen.findByRole('button', { name: renameTitleLabel(DOCUMENT_TITLE) }));
   await userEvent.keyboard(`${RENAMED_TITLE}{Enter}`);
   await screen.findByRole('button', { name: renameTitleLabel(RENAMED_TITLE) });
-  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === DOCUMENT_PATH && init?.method !== HttpMethod.Patch);
+  const openRequests = fetchSpy.mock.calls.filter(([input, init]) => input === OPEN_PATH);
   expect(openRequests).toHaveLength(1);
 });
 
@@ -632,18 +646,59 @@ test('a connection exception fails the connection with its reason and not the ed
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
   act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onException(payload));
-  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
+  const banner = await screen.findByRole('alert');
+  await waitFor(() => expect(banner).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]));
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 
-test('an access-denied exception before the editor is ready shows the editor failure notice and no banner', async () => {
+test('an access-denied exception while the server refuses the open with a sentence shows that sentence, and a 403 keeps the removed access line', async () => {
+  const answer = { status: HttpStatus.Ok as HttpStatus };
+  mockDocumentApi({
+    opened: openedAs(DocumentRole.Owner),
+    currentOpenStatus: () => answer.status,
+    openBody: { error: HEAVY_ROOMS_USER_CAP_MESSAGE },
+  });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+  act(() => constructedConfig().onCollaborationReady());
+  answer.status = HttpStatus.ServiceUnavailable;
+  act(() => constructedConfig().onException(payload));
+  const banner = await screen.findByRole('alert');
+  await waitFor(() => expect(banner).toHaveTextContent(HEAVY_ROOMS_USER_CAP_MESSAGE));
+  expect(banner).not.toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
+});
+
+test.each([HEAVY_ROOMS_FULL_MESSAGE, HEAVY_ROOMS_USER_CAP_MESSAGE])(
+  'an access denial before the first sync, as the provider reports it, asks the server once and shows its sentence in the banner',
+  async (sentence) => {
+    const answer = { status: HttpStatus.Ok as HttpStatus };
+    const fetchSpy = mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner),
+      currentOpenStatus: () => answer.status,
+      openBody: { error: sentence },
+    });
+    const openRequestCount = () => fetchSpy.mock.calls.filter(([input]) => input === OPEN_PATH).length;
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+    const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
+    answer.status = HttpStatus.ServiceUnavailable;
+    const requestsBefore = openRequestCount();
+    act(() => constructedConfig().onException(payload));
+    const banner = await screen.findByTestId('connection-banner');
+    await waitFor(() => expect(banner).toHaveTextContent(sentence));
+    expect(openRequestCount() - requestsBefore).toBe(1);
+  },
+);
+
+test('an access-denied exception before the editor is ready shows the editor failure notice, and the removed access line once the server confirms no refusal', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
   act(() => constructedConfig().onException(payload));
   expect(await screen.findByText(EDITOR_FAILED_MESSAGE)).toBeInTheDocument();
-  expect(screen.queryByTestId('connection-banner')).not.toBeInTheDocument();
+  expect(await screen.findByTestId('connection-banner')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
 });
 
 test('a refused upgrade reported as an exception before the editor is ready shows the editor failure notice', async () => {
@@ -1026,5 +1081,131 @@ test('a failed connection hides the panel so the banner is not covered', async (
   await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   act(() => constructedConfig().onCollaborationConnectionChange(SYNCED_CALLBACK));
   act(() => constructedConfig().onCollaborationConnectionChange(FAILED_CALLBACK));
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+type OpenedConfig = { documentMode: string; documents: { data: Blob; v2Collaboration?: unknown }[] };
+
+function configOfCall(index: number): OpenedConfig {
+  return SuperDoc.mock.calls[index]![0] as unknown as OpenedConfig;
+}
+
+test('while the shared copy is being prepared the uploader reads the kept file as a read-only preview', async () => {
+  const file = new File([new Uint8Array([1, 2, 3])], 'plan.docx');
+  keepLocalFile({ documentId: DOCUMENT_ID, file });
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByText(PREVIEW_BADGE_MESSAGE)).toBeInTheDocument();
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const preview = configOfCall(0);
+  expect([preview.documentMode, preview.documents[0]!.data, preview.documents[0]!.v2Collaboration]).toEqual([
+    DocumentMode.Viewing,
+    file,
+    undefined,
+  ]);
+});
+
+test(
+  'when the answer turns Ready the live editor replaces the preview in place and the kept file is dropped',
+  async () => {
+    let isBootstrapped = false;
+    keepLocalFile({ documentId: DOCUMENT_ID, file: new File([new Uint8Array([1, 2, 3])], 'plan.docx') });
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Join),
+      bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Preparing),
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    await screen.findByText(PREVIEW_BADGE_MESSAGE);
+    isBootstrapped = true;
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
+    expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
+    expect(superDocDestroy).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('local-preview')).toBeInTheDocument();
+    expect(screen.getByText(PREVIEW_OPENING_SHARED_MESSAGE)).toBeInTheDocument();
+    paintFirstParagraph();
+    await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+    expect(superDocDestroy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(PREVIEW_OPENING_SHARED_MESSAGE)).not.toBeInTheDocument();
+    expect(localFileOf(DOCUMENT_ID)).toBeNull();
+  },
+  TEST_TIMEOUT_MS,
+);
+
+test('a document with no kept file waits without a preview', async () => {
+  mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId('waiting-title-skeleton');
+  expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+const DEVICE_OWNER_NAME = 'Ada';
+
+function openedOnDevice(): OpenedDocument {
+  return { ...openedAs(DocumentRole.Owner, RoomMode.Create), preparedOnDeviceOf: DEVICE_OWNER_NAME };
+}
+
+test('a phone opened on a device job as its creator is refused with the reason and Back, and converts nothing', async () => {
+  stubViewportWidth(PHONE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByText(DEVICE_REFUSAL_COPY[DeviceRefusal.NarrowViewport])).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('pin: a wide screen opened on a device job as its creator mounts the editor to convert', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByText(DEVICE_REFUSAL_COPY[DeviceRefusal.NarrowViewport])).not.toBeInTheDocument();
+});
+
+function giveScroll({ element, scrollHeight, scrollTop }: { element: HTMLElement; scrollHeight: number; scrollTop: number }): void {
+  Object.defineProperty(element, 'scrollHeight', { value: scrollHeight, configurable: true });
+  Object.defineProperty(element, 'clientHeight', { value: SCROLL_VIEWPORT_HEIGHT, configurable: true });
+  element.scrollTop = scrollTop;
+}
+
+const SCROLL_VIEWPORT_HEIGHT = 500;
+
+test(
+  'the live editor opens where the preview was scrolled to, as a fraction of the document',
+  async () => {
+    keepLocalFile({ documentId: DOCUMENT_ID, file: new File([new Uint8Array([1, 2, 3])], 'plan.docx') });
+    let isBootstrapped = false;
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Join),
+      bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Preparing),
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    const preview = await screen.findByTestId('local-preview');
+    giveScroll({ element: preview, scrollHeight: 2000, scrollTop: 750 });
+    fireEvent.scroll(preview);
+    isBootstrapped = true;
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
+    const live = screen.getByTestId('document-editor');
+    giveScroll({ element: live, scrollHeight: 3000, scrollTop: 0 });
+    paintFirstParagraph();
+    await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+    expect(live.scrollTop).toBe(1250);
+  },
+  TEST_TIMEOUT_MS,
+);
+
+test('the creator of a device job reads Preparing on this device with the counter until the editor is ready, painted or not', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  SuperDoc.mockImplementationOnce(function UnreadySuperDoc() {
+    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
+  } as unknown as typeof SuperDoc);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(panel).toHaveTextContent(PREPARING_HERE_DETAIL);
+  paintFirstParagraph();
+  await new Promise((resolve) => setTimeout(resolve, PAINT_MARGIN_MS));
+  expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
+  act(() => constructedConfig().onReady?.({ superdoc: superdocStub() }));
   await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
 });

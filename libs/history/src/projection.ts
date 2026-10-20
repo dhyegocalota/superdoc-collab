@@ -17,14 +17,24 @@ class MissingBootstrapUpdateError extends Error {
 
 type Projection = { log: UpdateLog; readModel: ReadModel; documentName: string; batchSize: number };
 
-function bootstrapMark({ log, documentName, sequence }: { log: UpdateLog; documentName: string; sequence: number }): VersionMark {
+function bootstrapMark({
+  log,
+  documentName,
+  sequence,
+  document,
+}: {
+  log: UpdateLog;
+  documentName: string;
+  sequence: number;
+  document: Y.Doc;
+}): VersionMark {
   const [update] = log.readRange({ documentName, afterSequence: sequence - 1, untilSequence: sequence });
   if (!update) throw new MissingBootstrapUpdateError(sequence);
-  return markOf({ update, document: materialize({ log, documentName, untilSequence: sequence }), isBootstrap: true });
+  return markOf({ update, document, isBootstrap: true });
 }
 
-function previewAt({ log, documentName, sequence }: { log: UpdateLog; documentName: string; sequence: number }): string {
-  return readMainStoryBlocks(materialize({ log, documentName, untilSequence: sequence }))
+function previewOf(document: Y.Doc): string {
+  return readMainStoryBlocks(document)
     .filter((block) => block.mergedIntoBlockId === null)
     .map((block) => block.text)
     .join('\n')
@@ -37,34 +47,39 @@ function findBootstrapStart({ log, documentName }: { log: UpdateLog; documentNam
   return findBootstrapSequence({ updates: log.read({ documentName, untilSequence: Number.MAX_SAFE_INTEGER }) });
 }
 
-function backfillPreview({ projection, cursor }: { projection: Projection; cursor: number }): number {
-  const { log, readModel, documentName } = projection;
+function documentAt({ projection, cursor, document }: { projection: Projection; cursor: number; document: Y.Doc | null }): Y.Doc {
+  if (document) return document;
+  return materialize({ log: projection.log, documentName: projection.documentName, untilSequence: cursor });
+}
+
+function backfillPreview({ projection, cursor, document }: { projection: Projection; cursor: number; document: Y.Doc | null }): number {
+  const { readModel, documentName } = projection;
   if (readModel.previews([documentName]).has(documentName)) return cursor;
   readModel.commit({
     documentName,
     events: [],
     marks: [],
     lastSequence: cursor,
-    preview: previewAt({ log, documentName, sequence: cursor }),
+    preview: previewOf(documentAt({ projection, cursor, document })),
   });
   return cursor;
 }
 
-function continueProjection({ projection, cursor }: { projection: Projection; cursor: number }): number {
+function continueProjection({ projection, cursor, document }: { projection: Projection; cursor: number; document: Y.Doc | null }): number {
   const { log, readModel, documentName, batchSize } = projection;
   const batch = log.readBatch({ documentName, afterSequence: cursor, limit: batchSize });
   const last = batch.at(-1);
-  if (!last) return backfillPreview({ projection, cursor });
-  const baselineState = Y.encodeStateAsUpdate(materialize({ log, documentName, untilSequence: cursor }));
-  const { events, marks } = projectEditEvents({ baselineState, updates: batch });
+  if (!last) return backfillPreview({ projection, cursor, document });
+  const projected = documentAt({ projection, cursor, document });
+  const { events, marks } = projectEditEvents({ document: projected, updates: batch });
   readModel.commit({
     documentName,
     events,
     marks,
     lastSequence: last.sequence,
-    preview: previewAt({ log, documentName, sequence: last.sequence }),
+    preview: previewOf(projected),
   });
-  return continueProjection({ projection, cursor: last.sequence });
+  return continueProjection({ projection, cursor: last.sequence, document: projected });
 }
 
 export function projectPending({
@@ -80,15 +95,16 @@ export function projectPending({
 }): number | null {
   const projection = { log, readModel, documentName, batchSize };
   const cursor = readModel.cursor(documentName);
-  if (cursor !== null) return continueProjection({ projection, cursor });
+  if (cursor !== null) return continueProjection({ projection, cursor, document: null });
   const bootstrapSequence = findBootstrapStart({ log, documentName });
   if (bootstrapSequence === null) return null;
+  const document = materialize({ log, documentName, untilSequence: bootstrapSequence });
   readModel.commit({
     documentName,
     events: [],
-    marks: [bootstrapMark({ log, documentName, sequence: bootstrapSequence })],
+    marks: [bootstrapMark({ log, documentName, sequence: bootstrapSequence, document })],
     lastSequence: bootstrapSequence,
-    preview: previewAt({ log, documentName, sequence: bootstrapSequence }),
+    preview: previewOf(document),
   });
-  return continueProjection({ projection, cursor: bootstrapSequence });
+  return continueProjection({ projection, cursor: bootstrapSequence, document });
 }

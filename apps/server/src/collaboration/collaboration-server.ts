@@ -2,6 +2,7 @@ import { Hocuspocus } from '@hocuspocus/server';
 import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
 import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
+  HeavyRoomsRefusal,
   ClientActor,
   DocumentRole,
   isTabId,
@@ -35,6 +36,8 @@ import { awarenessEntriesOf, silenceAwarenessEntries } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
+import type { HeavyRoomAdmission } from './heavy-room-admission';
+import { heavyRoomsErrorOf } from './heavy-rooms-full-error';
 import { createProcessRoomMemoryRelease, type RoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade, isBootstrapUpgrade } from './upgrade-path';
@@ -55,6 +58,7 @@ export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too ma
 const REFUSED_UPDATE_LOG = 'Dropped an update from a socket that may not write to the room of';
 const REVOKED_CLOSE_LOG = 'Closed a socket admitted just before its member was removed from';
 const STALE_BOOTSTRAP_CLOSE_LOG = 'Closed a bootstrap socket whose attempt is no longer the current one of';
+export const HEAVY_ROOMS_REFUSAL_LOG = 'Refused a socket because the server holds as many heavy rooms as it can, for';
 export const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket that is not the bootstrap on an uncommitted room';
 
 class MalformedAwarenessError extends Error {
@@ -139,7 +143,8 @@ export function createCollaborationServer({
   roomModes,
   onLogged,
   onStored,
-  roomMemory = createProcessRoomMemoryRelease(),
+  roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, measureRoom: () => null }),
+  heavyRooms = { admits: () => true, admitsDevice: () => true, refusalOf: () => HeavyRoomsRefusal.Full },
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -150,6 +155,7 @@ export function createCollaborationServer({
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
   roomMemory?: RoomMemoryRelease;
+  heavyRooms?: Pick<HeavyRoomAdmission, 'admits' | 'admitsDevice' | 'refusalOf'>;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
@@ -159,12 +165,12 @@ export function createCollaborationServer({
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   const admitters: Record<
     SocketKind,
-    (parameters: { requestHeaders: IncomingHttpHeaders; token: string; documentId: string }) => Promise<Admission>
+    (parameters: { requestHeaders: IncomingHttpHeaders; token: string; documentId: string; tabId: string | null }) => Promise<Admission>
   > = {
-    [SocketKind.Member]: async ({ requestHeaders, documentId }) => ({
-      ...(await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId })),
-      bootstrapAttempt: null,
-    }),
+    [SocketKind.Member]: async ({ requestHeaders, documentId, tabId }) => {
+      const member = await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
+      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId, tabId }) };
+    },
     [SocketKind.Agent]: async ({ token, documentId }) => ({
       ...(await authenticateAgent({ auth, documents, token, documentId })),
       impersonationEndsAt: null,
@@ -175,7 +181,17 @@ export function createCollaborationServer({
       impersonationEndsAt: null,
     }),
   };
+  function admitDeviceClaim({ documentId, userId, attempt }: { documentId: string; userId: string; attempt: string }): void {
+    if (heavyRooms.admitsDevice({ documentId, userId })) return;
+    console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
+    roomBootstrap.deviceClosed({ documentId, attempt });
+    throw heavyRoomsErrorOf(heavyRooms.refusalOf({ documentId, userId }));
+  }
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
+    if (!heavyRooms.admits({ documentId, userId })) {
+      console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
+      throw heavyRoomsErrorOf(heavyRooms.refusalOf({ documentId, userId }));
+    }
     const answer = roomModes.resolve({ documentId, userId });
     if (answer.isSpent) {
       console.warn(`${OPEN_BUDGET_LOG} ${documentId}`);
@@ -198,15 +214,24 @@ export function createCollaborationServer({
     async onAuthenticate({ requestHeaders, requestParameters, request, token, documentName, connection }): Promise<CollaborationContext> {
       const documentId = requireDocumentId(documentName);
       const socketKind = socketKindOf(request);
-      const { userId, role, impersonationEndsAt, bootstrapAttempt } = await admitters[socketKind]({ requestHeaders, token, documentId });
+      const tabId = tabIdOf(requestParameters);
+      const { userId, role, impersonationEndsAt, bootstrapAttempt } = await admitters[socketKind]({
+        requestHeaders,
+        token,
+        documentId,
+        tabId,
+      });
       if (role === DocumentRole.Reader) connection.readOnly = true;
+      const isDeviceClaim = socketKind === SocketKind.Member && bootstrapAttempt !== null;
       if (bootstrapAttempt === null) admitToCommittedRoom({ documentId, userId });
+      if (isDeviceClaim) admitDeviceClaim({ documentId, userId, attempt: bootstrapAttempt });
       return {
         userId,
         documentId,
         actor: ACTOR_BY_SOCKET_KIND[socketKind],
         bootstrapAttempt,
-        tabId: tabIdOf(requestParameters),
+        holdsRoomPlace: bootstrapAttempt === null || isDeviceClaim,
+        tabId,
         impersonationEndsAt,
       };
     },
@@ -235,15 +260,17 @@ export function createCollaborationServer({
       if (!bootstrap.isCommitted(documentId)) return;
       const restored = materialize({ log: updateLog, documentName: documentId, untilSequence: Number.MAX_SAFE_INTEGER });
       const restoredState = Y.encodeStateAsUpdate(restored);
-      roomMemory.grew({ documentName, bytes: restoredState.byteLength });
+      roomMemory.loaded({ documentName, bytes: restoredState.byteLength });
       Y.applyUpdate(document, restoredState, LOADING_ORIGIN);
     },
     async afterLoadDocument({ document, documentName }) {
       awarenessOwners.seed({ documentName, bindings: updateLog.clientIdentities(requireDocumentId(documentName)) });
       trackAwarenessOwners({ document, owners: awarenessOwners });
     },
-    async beforeHandleMessage({ update, context, document, socketId }) {
-      const { userId } = context as CollaborationContext;
+    async beforeHandleMessage({ update, context, document, socketId, connection }) {
+      const { userId, documentId, bootstrapAttempt } = context as CollaborationContext;
+      const isStaleAttempt = bootstrapAttempt !== null && !roomBootstrap.isCurrent({ documentId, attempt: bootstrapAttempt });
+      if (isStaleAttempt) connection.readOnly = true;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
       const entries = awarenessEntriesOf(frame);
       if (entries === null) {
@@ -272,9 +299,12 @@ export function createCollaborationServer({
       if (bootstrapAttempt !== null) roomBootstrap.received({ documentId, bytes: update.byteLength });
       onLogged(documentId);
     },
-    async onDisconnect({ socketId }) {
+    async onDisconnect({ socketId, documentName, context }) {
+      const { documentId, userId, bootstrapAttempt, holdsRoomPlace } = context as CollaborationContext;
+      if (holdsRoomPlace) roomMemory.released({ documentName, userId });
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
+      if (bootstrapAttempt !== null) roomBootstrap.deviceClosed({ documentId, attempt: bootstrapAttempt });
     },
     async onStoreDocument({ documentName }) {
       onStored(requireDocumentId(documentName));

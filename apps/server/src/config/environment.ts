@@ -1,4 +1,11 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import {
+  MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
+  roomHeapBudgetMegabytes,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  presentOrNull,
+  UPLOADS_PER_MINUTE,
+} from '@superdoc-collab/types';
 import { z } from 'zod';
 
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
@@ -70,6 +77,9 @@ export type Environment = {
   projectionWorkerHeapMegabytes: number | null;
   bootstrapHostHeapMegabytes: number | null;
   memoryLimitMegabytes: number | null;
+  maxBootstrapWaitMs: number;
+  roomHeapBudgetMegabytes: number | null;
+  heavyConversionsPerHour: number;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -83,6 +93,19 @@ function limitFrom({ name, value, fallback }: { name: string; value: string | un
   const limit = optionalLimitFrom({ name, value });
   if (limit === null) return fallback;
   return limit;
+}
+
+function roomHeapBudgetFrom({
+  explicit,
+  memoryLimitMegabytes,
+  serverHeapMegabytes,
+}: {
+  explicit: number | null;
+  memoryLimitMegabytes: number | null;
+  serverHeapMegabytes: number | null;
+}): number | null {
+  if (explicit !== null) return explicit;
+  return roomHeapBudgetMegabytes({ memoryLimitMegabytes, serverHeapMegabytes });
 }
 
 export function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
@@ -106,6 +129,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
   const parsed = schema.parse(source);
   if (new URL(parsed.APP_ORIGIN).origin !== parsed.APP_ORIGIN)
     throw new InvalidOriginError({ name: 'APP_ORIGIN', value: parsed.APP_ORIGIN });
+  const memoryLimitMegabytes = optionalLimitFrom({ name: 'MEMORY_LIMIT_MEGABYTES', value: source.MEMORY_LIMIT_MEGABYTES });
   return {
     port: parsed.PORT,
     host: presentOrNull(source.HOST),
@@ -129,6 +153,21 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'BOOTSTRAP_HOST_HEAP_MEGABYTES',
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
-    memoryLimitMegabytes: optionalLimitFrom({ name: 'MEMORY_LIMIT_MEGABYTES', value: source.MEMORY_LIMIT_MEGABYTES }),
+    memoryLimitMegabytes,
+    heavyConversionsPerHour: limitFrom({
+      name: 'MAX_HEAVY_CONVERSIONS_PER_HOUR',
+      value: source.MAX_HEAVY_CONVERSIONS_PER_HOUR,
+      fallback: MAX_HEAVY_CONVERSIONS_PER_HOUR,
+    }),
+    maxBootstrapWaitMs: limitFrom({
+      name: 'MAX_BOOTSTRAP_WAIT_MS',
+      value: source.MAX_BOOTSTRAP_WAIT_MS,
+      fallback: MAX_BOOTSTRAP_WAIT_MS,
+    }),
+    roomHeapBudgetMegabytes: roomHeapBudgetFrom({
+      explicit: optionalLimitFrom({ name: 'ROOM_HEAP_BUDGET_MEGABYTES', value: source.ROOM_HEAP_BUDGET_MEGABYTES }),
+      memoryLimitMegabytes,
+      serverHeapMegabytes: optionalLimitFrom({ name: 'SERVER_HEAP_MEGABYTES', value: source.SERVER_HEAP_MEGABYTES }),
+    }),
   };
 }

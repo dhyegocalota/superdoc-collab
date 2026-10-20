@@ -36,6 +36,8 @@ export const READY_BOOTSTRAP: BootstrapProgress = {
   estimatedMs: null,
   documentXmlBytes: 0,
   preparingElapsedMs: null,
+  queuePosition: null,
+  queueWaitMs: null,
 };
 
 export function bootstrapAt(stage: BootstrapStage): BootstrapProgress {
@@ -49,5 +51,6 @@ export function openedAs(role: DocumentRole, roomMode = RoomMode.Create): Opened
     roomMode,
     colorSlot: EDITOR_COLOR_SLOT,
     bootstrap: READY_BOOTSTRAP,
+    preparedOnDeviceOf: null,
   };
 }

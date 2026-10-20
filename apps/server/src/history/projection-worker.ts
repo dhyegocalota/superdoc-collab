@@ -1,12 +1,5 @@
 import { SuperDocClient } from '@superdoc/sdk';
-import {
-  GcFreeReplays,
-  ReadModel,
-  REPLAY_CACHE_SIZE,
-  toImportedRevisions,
-  UpdateLog,
-  type ListedTrackedChange,
-} from '@superdoc-collab/history';
+import { ReadModel, toImportedRevisions, UpdateLog, type ListedTrackedChange } from '@superdoc-collab/history';
 import { BOOTSTRAP_HOST_TIMEOUT_MS, bootstrapTimeoutMsOf, BootstrapLane, RoomMode, SECOND_MS } from '@superdoc-collab/types';
 import { statSync } from 'node:fs';
 import v8 from 'node:v8';
@@ -55,7 +48,6 @@ const historySqlite = openSqliteFile({ directory: databaseDirectory, fileName: H
 const readModelSqlite = openSqliteFile({ directory: databaseDirectory, fileName: READ_MODEL_DATABASE_FILE });
 const updateLog = new UpdateLog(historySqlite);
 const readModel = new ReadModel(readModelSqlite);
-const replays = new GcFreeReplays(REPLAY_CACHE_SIZE);
 
 type SuperdocClientOptions = ConstructorParameters<typeof SuperDocClient>[0];
 
@@ -148,7 +140,6 @@ async function bootstrapRoom({ documentId, filePath, url, token, lane }: Bootstr
 const handle = createProjectionHandler({
   updateLog,
   readModel,
-  replays,
   importRevisions,
   fileSizeBytes: (filePath) => statSync(filePath).size,
   bootstrapRoom,

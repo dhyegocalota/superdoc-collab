@@ -50,7 +50,7 @@ let origin: string;
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  origin = await startRestartableStack(RestartablePort.ConnectionState);
+  origin = await startRestartableStack({ port: RestartablePort.ConnectionState });
 });
 
 test.afterEach(async () => {

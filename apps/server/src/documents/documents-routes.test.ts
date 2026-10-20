@@ -4,6 +4,8 @@ import {
   ApiPath,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   bootstrapMemoryShortMessage,
+  largestHoldableMegabytes,
+  roomHoldShortMessage,
   largestPreparableMegabytes,
   BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_STATE_BYTES_RATIO,
@@ -13,7 +15,6 @@ import {
   UPLOADS_PER_MINUTE,
   BootstrapStage,
   ClientActor,
-  DOCX_MIME_TYPE,
   DocumentResource,
   DocumentRole,
   HttpMethod,
@@ -25,7 +26,8 @@ import {
   RoomMode,
   AUTHOR_COLOR_SLOT_COUNT,
   authorColorSlot,
-  UPLOAD_FIELD,
+  PreparationSource,
+  INVALID_PREPARATION_MESSAGE,
   type DocumentMembers,
   type DocumentsList,
   type DocumentSummary,
@@ -41,6 +43,7 @@ import { connectToDocument, documentWithOwner, memberWithRole, beginOwnerBootstr
 import { commitBootstrap as commitRoom } from '../testing/committed-room';
 import { openedBy, pathOf, request } from '../testing/documents-client';
 import { readEvents } from '../testing/events-client';
+import { docxWithXmlBytes, createBlank, listOf, upload } from '../testing/document-uploads';
 import { signedInOwner, signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
 import { verifyBootstrapToken } from '../agent/room-tokens';
 import { COMMITTED_WITHOUT_BOOTSTRAP } from '../collaboration/room-bootstrap';
@@ -56,47 +59,6 @@ const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
 const LONG_LOG_EXTRA_UPDATES = 20;
-const JSON_HEADERS = { 'content-type': 'application/json' };
-
-async function upload({
-  server,
-  cookie,
-  bytes,
-  type = DOCX_MIME_TYPE,
-  fileName = 'Plan.docx',
-}: {
-  server: TestServer;
-  cookie: string;
-  bytes: Uint8Array;
-  type?: string;
-  fileName?: string;
-}): Promise<Response> {
-  const form = new FormData();
-  form.set(UPLOAD_FIELD, new File([new Uint8Array(bytes)], fileName, { type }));
-  return fetch(`${server.baseUrl}${ApiPath.Documents}`, {
-    method: HttpMethod.Post,
-    headers: { cookie, origin: server.baseUrl },
-    body: form,
-  });
-}
-
-async function listOf({ server, cookie }: { server: TestServer; cookie: string }): Promise<DocumentsList> {
-  return (await fetch(`${server.baseUrl}${ApiPath.Documents}`, { headers: { cookie } })).json();
-}
-
-async function createBlank({ server, cookie, title }: { server: TestServer; cookie: string; title: string }): Promise<Response> {
-  return fetch(`${server.baseUrl}${ApiPath.Documents}`, {
-    method: HttpMethod.Post,
-    headers: { cookie, ...JSON_HEADERS },
-    body: JSON.stringify({ title }),
-  });
-}
-
-async function docxWithXmlBytes(xmlBytes: number): Promise<Uint8Array> {
-  const zip = new JSZip();
-  zip.file('word/document.xml', new Uint8Array(xmlBytes), { compression: 'DEFLATE' });
-  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
-}
 
 async function docxBytes(text: string): Promise<Buffer> {
   return buildSeedDocx([{ text, trackedChanges: [] }]);
@@ -239,8 +201,105 @@ test('a document too large for the memory of the server to prepare is 413 with t
   const response = await upload({ server, cookie: owner.cookie, bytes });
   expect([response.status, await response.json()]).toEqual([
     HttpStatus.PayloadTooLarge,
-    { error: bootstrapMemoryShortMessage(largestPreparableMegabytes(FOUR_GIGABYTES)) },
+    { error: bootstrapMemoryShortMessage(largestPreparableMegabytes(FOUR_GIGABYTES)), canPrepareOnDevice: true },
   ]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
+  await server.stop();
+});
+
+test('a refused document sent again for the device is stored, not converted, and its owner is answered Create', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const response = await upload({
+    server,
+    cookie: owner.cookie,
+    bytes: await docxWithXmlBytes(HEAVY_XML_BYTES),
+    preparation: PreparationSource.Device,
+  });
+  const created: DocumentSummary = await response.json();
+  expect(response.status).toBe(HttpStatus.Created);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(1);
+  const opened = await openedBy({ server, user: owner, documentId: created.id });
+  expect([opened.roomMode, opened.bootstrap.stage, opened.preparedOnDeviceOf]).toEqual([
+    RoomMode.Create,
+    BootstrapStage.Preparing,
+    created.owner.name,
+  ]);
+  expect(bootstrapRun).not.toHaveBeenCalled();
+  await server.stop();
+});
+
+test('everyone but the owner joins a document prepared on the device and is told whose device it is', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const editor = await memberWithRole({ server, documentId: created.id, role: DocumentRole.Editor });
+  const opened = await openedBy({ server, user: editor, documentId: created.id });
+  expect([opened.roomMode, opened.bootstrap.stage, opened.preparedOnDeviceOf]).toEqual([
+    RoomMode.Join,
+    BootstrapStage.Preparing,
+    created.owner.name,
+  ]);
+  await server.stop();
+});
+
+test('while a tab of the owner holds the device claim only that tab is answered Create', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const claimingTab = randomUUID();
+  const unclaimed = await openedBy({ server, user: owner, documentId: created.id, tabId: randomUUID() });
+  server.services.roomBootstrap.claimDevice({ documentId: created.id, userId: owner.id, tabId: claimingTab });
+  const answers = await Promise.all(
+    [claimingTab, randomUUID(), undefined].map((tabId) => openedBy({ server, user: owner, documentId: created.id, tabId })),
+  );
+  expect([unclaimed.roomMode, ...answers.map((opened) => opened.roomMode)]).toEqual([
+    RoomMode.Create,
+    RoomMode.Create,
+    RoomMode.Join,
+    RoomMode.Join,
+  ]);
+  await server.stop();
+});
+
+test('after the claiming tab closed, a joiner sees the stopped device job and the owner reopens it as Create at once', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const attempt = server.services.roomBootstrap.claimDevice({ documentId: created.id, userId: owner.id, tabId: randomUUID() })!;
+  server.services.roomBootstrap.deviceClosed({ documentId: created.id, attempt });
+  const editor = await memberWithRole({ server, documentId: created.id, role: DocumentRole.Editor });
+  const joiner = await openedBy({ server, user: editor, documentId: created.id });
+  const reopened = await openedBy({ server, user: owner, documentId: created.id, tabId: randomUUID() });
+  expect([joiner.bootstrap.stage, joiner.preparedOnDeviceOf, reopened.roomMode, reopened.bootstrap.stage]).toEqual([
+    BootstrapStage.Failed,
+    created.owner.name,
+    RoomMode.Create,
+    BootstrapStage.Preparing,
+  ]);
+  await server.stop();
+});
+
+test('a document the server can hold is prepared by the server even when the device is asked for', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const opened = await openedBy({ server, user: owner, documentId: created.id });
+  expect([opened.roomMode, opened.preparedOnDeviceOf]).toEqual([RoomMode.Join, null]);
+  await vi.waitFor(() => expect(bootstrapRun).toHaveBeenCalledTimes(1));
+  await server.stop();
+});
+
+test('a preparation source outside the enum is 400 and nothing is stored', async () => {
+  const { server, owner } = await signedInOwner();
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan'), preparation: 'cloud' });
+  expect([response.status, await response.json()]).toEqual([HttpStatus.BadRequest, { error: INVALID_PREPARATION_MESSAGE }]);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
   await server.stop();
 });
@@ -800,5 +859,59 @@ test('refused uploads spend nothing of the minute, and a good upload after them 
   );
   expect(new Set(refusals.map((response) => response.status))).toEqual(new Set([HttpStatus.UnsupportedMediaType]));
   expect((await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan') })).status).toBe(HttpStatus.Created);
+  await server.stop();
+});
+
+const FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES = 638;
+const SIX_GIGABYTE_ROOM_HEAP_MEGABYTES = 1457;
+const SIX_GIGABYTES = 6144;
+const BUSY_WAIT_MS = 600_000;
+
+test('at four gigabytes the heap holds no room for the heavy file, so the 413 offers no device and names the largest size', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: FOUR_GIGABYTES,
+    roomHeapBudgetMegabytes: FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const refused = await upload({ server, cookie: owner.cookie, bytes });
+  const forced = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  const expected = {
+    error: roomHoldShortMessage(largestHoldableMegabytes(FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES)),
+    canPrepareOnDevice: false,
+  };
+  expect([refused.status, await refused.json(), forced.status, await forced.json()]).toEqual([
+    HttpStatus.PayloadTooLarge,
+    expected,
+    HttpStatus.PayloadTooLarge,
+    expected,
+  ]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
+  await server.stop();
+});
+
+test('at six gigabytes the heap holds the heavy file, so the device is offered and its upload is stored', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: SIX_GIGABYTES,
+    roomHeapBudgetMegabytes: SIX_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const refused = await upload({ server, cookie: owner.cookie, bytes });
+  const accepted = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  expect([refused.status, (await refused.json()).canPrepareOnDevice, accepted.status]).toEqual([
+    HttpStatus.PayloadTooLarge,
+    true,
+    HttpStatus.Created,
+  ]);
+  await server.stop();
+});
+
+test('a device upload never enters the lane, so a full queue or a long wait does not refuse it', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  vi.spyOn(server.services.runtime, 'bootstrapQueueWaitMs').mockReturnValue(BUSY_WAIT_MS);
+  vi.spyOn(server.services.runtime, 'bootstrapWaitMs').mockReturnValue(BUSY_WAIT_MS);
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const device = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  const lane = await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
+  expect([device.status, lane.status]).toEqual([HttpStatus.Created, HttpStatus.TooManyRequests]);
   await server.stop();
 });

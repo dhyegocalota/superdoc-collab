@@ -4,7 +4,7 @@ import {
   projectPending,
   readMainStoryBlocks,
   readMainStoryText,
-  type GcFreeReplays,
+  versionAt,
   type ReadModel,
   type UpdateLog,
 } from '@superdoc-collab/history';
@@ -34,7 +34,6 @@ type Handlers = { [Kind in AnsweredRequestKind]: (request: ProjectionRequestsByK
 type ProjectionStores = {
   updateLog: UpdateLog;
   readModel: ReadModel;
-  replays: GcFreeReplays;
   importRevisions: (request: { documentId: string; filePath: string }) => Promise<string | null>;
   fileSizeBytes: (filePath: string) => number;
   bootstrapRoom: (request: BootstrapRequest) => Promise<void>;
@@ -45,7 +44,6 @@ type ProjectionStores = {
 export function createProjectionHandler({
   updateLog,
   readModel,
-  replays,
   importRevisions,
   fileSizeBytes,
   bootstrapRoom,
@@ -79,7 +77,6 @@ export function createProjectionHandler({
   }
 
   function handleForget(documentId: string): ProjectionDoneReply {
-    replays.forget(documentId);
     readModel.forget(documentId);
     return { kind: ProjectionRequestKind.Forget, documentId, cursor: readModel.cursor(documentId), importError: null };
   }
@@ -87,7 +84,7 @@ export function createProjectionHandler({
   function versionReply({ documentId, sequence }: { documentId: string; sequence: number }): VersionReply {
     const serverTime = updateLog.serverTimeOf({ documentName: documentId, sequence });
     if (serverTime === null) throw new MissingVersionMarkError({ documentId, sequence });
-    const version = replays.versionAt({ log: updateLog, documentName: documentId, sequence });
+    const version = versionAt({ log: updateLog, documentName: documentId, sequence });
     return {
       kind: ProjectionRequestKind.Version,
       documentId,

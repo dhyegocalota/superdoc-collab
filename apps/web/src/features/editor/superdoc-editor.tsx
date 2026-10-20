@@ -1,4 +1,11 @@
-import { ApiPath, type AuthorColorSlot, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  type AuthorColorSlot,
+  ConnectionFailureReason,
+  DocumentRole,
+  type RoomMode,
+  type SessionUser,
+} from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -17,6 +24,8 @@ import { TransportReading, transportReportOf, type TransportReport } from './use
 const EDITING_SURFACE_SELECTOR = 'textarea, [contenteditable="true"], [role="document"]';
 
 export const HIDDEN_LOADING_OVERLAY_CLASS = '[&_.v2-document-loading-overlay]:hidden';
+export const DOCUMENT_SURFACE_CLASS =
+  'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted pt-3 [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm';
 
 type SuperDocEditorProps = {
   onSuperdocChange: (superdoc: SuperDoc | null) => void;
@@ -73,7 +82,10 @@ export function SuperDocEditor({
     function reportTransport(report: TransportReport): void {
       isReady = isReady || report.hasSynced;
       if (isReady) return onTransportReport(report);
-      if (report.reading === TransportReading.Failed) setHasFailed(true);
+      if (report.reading !== TransportReading.Failed) return;
+      setHasFailed(true);
+      const isDenied = report.failureReason === ConnectionFailureReason.AccessDenied;
+      if (isDenied) onTransportReport(report);
     }
     const exceptionHandlers: Record<ExceptionOutcome, (payload: SuperDocExceptionPayload) => void> = {
       [ExceptionOutcome.Logged]: (payload) => {
@@ -164,15 +176,7 @@ export function SuperDocEditor({
         </p>
       )}
       <p className="sr-only">{EDITOR_ESCAPE_HINT}</p>
-      <div
-        ref={attachContainer}
-        data-testid="document-editor"
-        inert={isInert}
-        className={cn(
-          'min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto bg-muted pt-3 [&_.superdoc-page]:bg-paper [&_.superdoc-page]:shadow-sm',
-          FITTED_PAGE_CLASS,
-        )}
-      />
+      <div ref={attachContainer} data-testid="document-editor" inert={isInert} className={cn(DOCUMENT_SURFACE_CLASS, FITTED_PAGE_CLASS)} />
       <p ref={exitRef} tabIndex={-1} className="sr-only focus:not-sr-only focus:px-4 focus:py-1 focus:text-xs focus:text-muted-foreground">
         {EDITOR_EXIT_LABEL}
       </p>

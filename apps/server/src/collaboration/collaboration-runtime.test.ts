@@ -24,10 +24,26 @@ const QUEUED: BootstrapProgress = {
   estimatedMs: null,
   documentXmlBytes: 0,
   preparingElapsedMs: null,
+  queuePosition: null,
+  queueWaitMs: null,
 };
 
-function fakeRoomBootstrap({ progress = null, isInFlight = false }: { progress?: BootstrapProgress | null; isInFlight?: boolean } = {}) {
-  return { progressOf: vi.fn(() => progress), request: vi.fn(() => QUEUED), forget: vi.fn(), isInFlight: vi.fn(() => isInFlight) };
+function fakeRoomBootstrap({
+  progress = null,
+  isInFlight = false,
+  isDeviceJob = false,
+  deviceCreatorId = null,
+}: { progress?: BootstrapProgress | null; isInFlight?: boolean; isDeviceJob?: boolean; deviceCreatorId?: string | null } = {}) {
+  return {
+    progressOf: vi.fn(() => progress),
+    request: vi.fn(() => QUEUED),
+    forget: vi.fn(),
+    isInFlight: vi.fn(() => isInFlight),
+    isDeviceJob: vi.fn(() => isDeviceJob),
+    reopenDevice: vi.fn(),
+    canReopenDevice: vi.fn(() => true),
+    isDeviceCreator: vi.fn(({ userId }: { userId: string }) => userId === deviceCreatorId),
+  };
 }
 
 function runtimeWith({
@@ -112,6 +128,8 @@ test('the bootstrap of a document with a job is the progress of that job', () =>
     estimatedMs: null,
     documentXmlBytes: 0,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   };
   const roomBootstrap = fakeRoomBootstrap({ progress });
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });
@@ -142,6 +160,8 @@ test('a failed job is requested again so the registry may retry it after its coo
     estimatedMs: null,
     documentXmlBytes: 0,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   };
   const roomBootstrap = fakeRoomBootstrap({ progress: failed });
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });
@@ -179,4 +199,32 @@ test('forgetting a document forgets its bootstrap', async () => {
   } as unknown as Parameters<typeof createCollaborationRuntime>[0]);
   await runtime.forget(DOCUMENT_ID);
   expect(roomBootstrap.forget).toHaveBeenCalledExactlyOnceWith(DOCUMENT_ID);
+});
+
+test('the runtime reports a device preparation and its creator from the registry', () => {
+  const runtime = runtimeWith({ rooms: {}, roomBootstrap: fakeRoomBootstrap({ isDeviceJob: true, deviceCreatorId: FIRST_EDITOR }) });
+  expect(runtime.isPreparedOnDevice(DOCUMENT_ID)).toBe(true);
+  expect([
+    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: FIRST_EDITOR, tabId: null }),
+    runtime.isDeviceCreator({ documentId: DOCUMENT_ID, userId: SECOND_EDITOR, tabId: null }),
+  ]).toEqual([true, false]);
+});
+
+test('a device job is reopened only once the collaboration server no longer holds its room', () => {
+  const held = fakeRoomBootstrap();
+  const isHeld = runtimeWith({ rooms: { [DOCUMENT_ID]: [] }, roomBootstrap: held }).reopenDeviceJob({
+    documentId: DOCUMENT_ID,
+    userId: FIRST_EDITOR,
+  });
+  const released = fakeRoomBootstrap();
+  const isReleasedHeld = runtimeWith({ rooms: {}, roomBootstrap: released }).reopenDeviceJob({
+    documentId: DOCUMENT_ID,
+    userId: FIRST_EDITOR,
+  });
+  expect([isHeld, held.reopenDevice.mock.calls.length, isReleasedHeld, released.reopenDevice.mock.calls.length]).toEqual([
+    true,
+    0,
+    false,
+    1,
+  ]);
 });

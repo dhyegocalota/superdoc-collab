@@ -110,6 +110,14 @@ describe('docker entrypoint', () => {
     );
   });
 
+  test('hands the limit in megabytes to the server, and nothing when the limit is unknown', () => {
+    const limitFile = join(workingDirectory, 'memory.max');
+    writeFileSync(limitFile, '4294967296\n');
+    writeStub({ name: 'main.js', source: 'process.stdout.write("limit=" + process.env.MEMORY_LIMIT_MEGABYTES);' });
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false', CGROUP_V2_LIMIT_FILE: limitFile }).stdout).toContain('limit=4096');
+    expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('limit=undefined');
+  });
+
   test('exposes the collector with no memory limit too', () => {
     writeStub({ name: 'main.js', source: 'process.stdout.write(process.execArgv.join(" "));' });
     expect(runEntrypoint({ SEED_DEMO_USERS: 'false' }).stdout).toContain('--expose-gc');

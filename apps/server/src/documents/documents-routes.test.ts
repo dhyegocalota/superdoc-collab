@@ -721,3 +721,16 @@ test('a chunked upload over the limit is 413 while streaming', async () => {
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
   await server.stop();
 });
+
+test('refused uploads spend nothing of the minute, and a good upload after them is still admitted', async () => {
+  const { server, owner } = await signedInOwner();
+  vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const refusals = await Promise.all(
+    Array.from({ length: UPLOADS_PER_MINUTE }, () =>
+      upload({ server, cookie: owner.cookie, bytes: new Uint8Array(8), type: 'text/plain' }),
+    ),
+  );
+  expect(new Set(refusals.map((response) => response.status))).toEqual(new Set([HttpStatus.UnsupportedMediaType]));
+  expect((await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Plan') })).status).toBe(HttpStatus.Created);
+  await server.stop();
+});

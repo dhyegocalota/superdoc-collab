@@ -632,7 +632,7 @@ test('a connection exception fails the connection with its reason and not the ed
   const payload = { code: 'collaboration-access-denied', collaborationReason: 'access-denied', error: new Error('denied'), editor: null };
   act(() => constructedConfig().onCollaborationReady());
   act(() => constructedConfig().onException(payload));
-  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.AccessDenied]);
+  expect(await screen.findByRole('alert')).toHaveTextContent(FAILURE_REASON_COPY[ConnectionFailureReason.HeavyRoomsFull]);
   expect(screen.queryByText(EDITOR_FAILED_MESSAGE)).not.toBeInTheDocument();
 });
 

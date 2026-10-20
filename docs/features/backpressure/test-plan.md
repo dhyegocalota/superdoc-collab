@@ -11,6 +11,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [x] Confirmed the third round fails for the right reason (a271a016): `roomsHeapBytes is not implemented`, `expected true to be false` for the small rooms share and the upload reservation, `expected "vi.fn()" to be called exactly once, but got 0 times` for `released` and `reserveForUpload`, `expected 1000 to be 4503` style close code failures, `deniedReasonOf` returning null instead of the reason, and the snapshot estimate summing the whole log.
 
+- [x] Confirmed the fourth round fails for the right reason (0a27cffd): the upload reservation tests failed on `expected true to be false`, `onEnded` was never called, the re-measure was called five times, and the web resolved `access-denied` instead of `heavy-rooms-full`.
+
 ## Unit
 
 - [ ] `owner-round-robin-queue.test.ts::the turn order lists the items in the order they would be shifted and leaves the queue as it was` — input: three owners; expected: `['ana-1','bruno-1','carla-1','ana-2','ana-3']`, then the drain equals it
@@ -42,6 +44,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `room-memory-release.test.ts::a reservation made for an upload outlives a socket reservation` and `::the last socket of a user on a room gives their place back` — input: an upload reservation past the socket TTL; two sockets of one user then both closed; expected: held until its own limit; the place given back only by the last socket
 - [ ] `attach-collaboration.test.ts` — input: a denial with the heavy rooms reason; expected: close 4503 with the reason; the wrapped send is dropped after the first authenticated or denied reply and kept after any other
 - [ ] `update-log.test.ts::the estimated state bytes are the latest snapshot plus only the updates after it` — input: snapshots at 2 and 3 of 4 updates; expected: the latest snapshot's length plus the fourth update
+- [ ] `room-memory-release.test.ts::one owner holds at most one reservation made for an upload` and `::releasing a reservation frees its heap` — input: two upload reservations of one owner, a load, a release; expected: the second refused, allowed again after the load or the release, a loaded room untouched
+- [ ] `room-bootstrap.test.ts::the end of a bootstrap is reported once` — input: a committed, a failed and a forgotten job; expected: `onEnded` for each
+- [ ] `room-memory-release.test.ts::rooms are measured again at most once per cooldown` — input: five short admissions, then the cooldown; expected: one measure, then one more
+- [ ] `use-connection-state.test.ts` — input: access denied while the member keeps access, with the session ended, with the document unavailable; expected: the heavy rooms reason, access denied, access denied
 - [ ] Edge: `documents.test.ts` — the budget is the smaller of the container and the heap formulas, null with neither; a document is heavy above 4 MB of XML
 - [ ] `tools/repository-shape/src/entrypoint.test.ts` — input: an 8 GB limit; expected: the server sees `SERVER_HEAP_MEGABYTES=3276`
 

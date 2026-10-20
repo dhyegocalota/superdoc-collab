@@ -52,7 +52,6 @@ export function createHeavyRoomAdmission({
       roomMemory.reserveForUpload(place);
     },
     releaseUpload(documentId) {
-      if (documentId.length >= 0) return;
       roomMemory.unreserved(`${SUPERDOC_ROOM_PREFIX}${documentId}`);
     },
     hasHeadroomFor({ documentXmlBytes }) {

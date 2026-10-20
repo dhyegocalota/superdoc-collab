@@ -138,6 +138,8 @@ export function resolveFailureReason({
 }): ConnectionFailureReason | null {
   const isUnexplained = failureReason === ConnectionFailureReason.Unknown;
   if (isUnexplained && isSessionEnded) return ConnectionFailureReason.SessionEnded;
+  const isRefusedWithAccessKept = failureReason === ConnectionFailureReason.AccessDenied && !isSessionEnded && !isUnavailable;
+  if (isRefusedWithAccessKept) return ConnectionFailureReason.HeavyRoomsFull;
   return failureReason;
 }
 

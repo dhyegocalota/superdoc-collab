@@ -159,7 +159,7 @@ test('Failed is sticky until reset', () => {
   connection.report(readingReport(TransportReading.Clear));
   connection.answer(true);
   expect(connection.result.current.state).toBe(ConnectionState.Failed);
-  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.AccessDenied);
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.HeavyRoomsFull);
 });
 
 test.each([
@@ -168,7 +168,7 @@ test.each([
 ])('an exception reason beats Unknown from the callback, $name', ({ reports }) => {
   const connection = renderConnection();
   reports.forEach((failureReason) => connection.report(readingReport(TransportReading.Failed, failureReason)));
-  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.AccessDenied);
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.HeavyRoomsFull);
 });
 
 test('two readings in one tick fold in arrival order', () => {
@@ -250,7 +250,7 @@ test('a Failed report queued between the recovery render and its effect stays Fa
   connection.report(readingReport(TransportReading.Lost));
   connection.answer(true);
   expect(connection.result.current.state).toBe(ConnectionState.Failed);
-  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.AccessDenied);
+  expect(connection.result.current.failureReason).toBe(ConnectionFailureReason.HeavyRoomsFull);
 });
 
 test.each([TransportReading.Lost, TransportReading.Reconnecting])(

@@ -29,7 +29,6 @@ type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; faile
 type QueueStanding = { queuePosition: number | null; queueWaitMs: number | null };
 
 const NOTHING_TO_PROCESS_BYTES = 0;
-const MAX_ENDED_ARITY = 1;
 const PREDICTED_JOB_KEY = 'predicted-job';
 const NOT_QUEUED: QueueStanding = { queuePosition: null, queueWaitMs: null };
 const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
@@ -235,6 +234,7 @@ export class RoomBootstrap {
   }
 
   forget(documentId: string): void {
+    this.onEnded(documentId);
     this.blankWaiting = this.blankWaiting.filter((waitingId) => waitingId !== documentId);
     if (this.blankConverting === documentId) this.releaseBlankWaiters();
     this.jobs.delete(documentId);
@@ -411,7 +411,7 @@ export class RoomBootstrap {
   }
 
   private endAttempt(documentId: string): void {
-    if (this.onEnded.length > MAX_ENDED_ARITY) this.onEnded(documentId);
+    this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({ key: documentId, value: { ...job, attempt: null } });
@@ -430,6 +430,7 @@ export class RoomBootstrap {
   }
 
   private fail({ documentId, error }: { documentId: string; error: unknown }): void {
+    this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
     this.jobs.set({

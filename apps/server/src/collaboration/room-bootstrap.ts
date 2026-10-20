@@ -192,7 +192,8 @@ export class RoomBootstrap {
   }
 
   isRunningFor({ ownerId, documentXmlBytes }: { ownerId: string; documentXmlBytes: number }): boolean {
-    throw new Error('isRunningFor is not implemented');
+    const runningDocumentId = this.running[bootstrapLaneOf(documentXmlBytes)];
+    return runningDocumentId !== null && this.ownerOf(runningDocumentId) === ownerId;
   }
 
   predictedWaitMs({ documentXmlBytes, ownerId }: { documentXmlBytes: number; ownerId: string }): number {

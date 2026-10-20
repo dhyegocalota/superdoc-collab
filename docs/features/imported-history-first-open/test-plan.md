@@ -26,6 +26,9 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Edge cases found during execution
 
+- [x] The full gate was red on `main` before this branch: `final-visuals` 419 and 632 at 320, 375 and 768 px waited for the Download button, which the header hides below `md` (the upload helper now waits for the live editor's text and for the local preview to leave), and `backpressure` "a second heavy upload…" uploaded from an 8 GB headless browser, which device-first sends to the device path (its third uploader now reports a 4 GB device). Both pass alone, `--workers=1`. No test was removed.
+- [x] Five heavy-document specs (`backpressure`, `device-first`, `local-preview`, `open-progress`, `room-admission`) timed out in every full gate because four workers uploaded heavy files into the server's one heavy lane at once; they now run in a one-worker `heavy` project beside the parallel `chromium` project.
+
 - [x] The first timeline can arrive before the import finishes, so the hook decided "no imported history" and never started — fixed with `isImporting`; regression `use-imported-history-summary.test.tsx::waits while the import runs, then starts once the imported authors arrive`
 
 ## Adversarial review

@@ -119,8 +119,10 @@ test('a heavy upload is prepared on the uploader device, the panel stays until t
   await expect(ana.page.getByTestId(PANEL_TEST_ID)).toHaveCount(0, { timeout: EDITABLE_TIMEOUT_MS });
   const editableMs = Date.now() - startedAt;
   await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible();
+  const typedAt = Date.now();
   await insertInParagraph({ page: ana.page, paragraphText: LARGE_PARAGRAPH, text: TYPED_TEXT });
-  await expect(editorText(ana.page).filter({ hasText: TYPED_TEXT.trim() }).first()).toBeVisible();
+  await expect(editorText(ana.page).filter({ hasText: TYPED_TEXT.trim() }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  const typedMs = Date.now() - typedAt;
   await expect(editorText(bruno.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: EDITABLE_TIMEOUT_MS });
   const joinerTextMs = Date.now() - startedAt;
   const editableAt = Date.now();
@@ -138,6 +140,7 @@ test('a heavy upload is prepared on the uploader device, the panel stays until t
     description: JSON.stringify({
       editableMs,
       joinerTextMs,
+      typedMs,
       previewTextMs: samples[firstPreviewText]!.at - startedAt,
       liveTextMs: swappedAt - startedAt,
       samples: samples.length,

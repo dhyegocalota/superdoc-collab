@@ -1,6 +1,6 @@
-import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
+import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES, DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
-import { DeviceRefusal, deviceRefusalOf } from './device-guard';
+import { canPreviewOnDevice, DeviceRefusal, deviceRefusalOf } from './device-guard';
 
 const ENOUGH_MEMORY_GIGABYTES = DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES;
 const LITTLE_MEMORY_GIGABYTES = DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES - 1;
@@ -23,4 +23,16 @@ test('a browser that does not expose its memory is not blocked by it', () => {
 
 test('the viewport is named before the memory when both fail', () => {
   expect(deviceRefusalOf({ isPhoneLayout: true, deviceMemoryGigabytes: LITTLE_MEMORY_GIGABYTES })).toBe(DeviceRefusal.NarrowViewport);
+});
+
+test('a device that reports the memory for two engines may preview while it converts', () => {
+  expect(canPreviewOnDevice(DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES)).toBe(true);
+});
+
+test('a device that reports less memory than that converts without a preview', () => {
+  expect(canPreviewOnDevice(DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES - 1)).toBe(false);
+});
+
+test('a browser that does not expose its memory converts without a preview', () => {
+  expect(canPreviewOnDevice(null)).toBe(false);
 });

@@ -1,5 +1,6 @@
 import {
   BootstrapStage,
+  DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES,
   OPEN_PROGRESS_DELAY_MS,
   ApiPath,
   AppRoute,
@@ -267,7 +268,12 @@ beforeEach(() => {
   SuperDoc.mockClear();
   installAuthorPalette();
 });
+function stubDeviceMemory(gigabytes: number): void {
+  Object.defineProperty(navigator, 'deviceMemory', { value: gigabytes, configurable: true });
+}
+
 afterEach(() => {
+  Reflect.deleteProperty(navigator, 'deviceMemory');
   removeAuthorPalette();
   vi.restoreAllMocks();
   superDocDestroy.mockClear();
@@ -1245,6 +1251,7 @@ function deviceCreatorWithKeptFile(): File {
   const file = new File([new Uint8Array([1, 2, 3])], 'plan.docx');
   keepLocalFile({ documentId: DOCUMENT_ID, file });
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  stubDeviceMemory(DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES);
   mockDocumentApi({ opened: openedOnDevice(), estimatedMs: DEVICE_ESTIMATE_MS });
   return file;
 }
@@ -1281,4 +1288,15 @@ test('on the device path the preview engine is destroyed at the first painted pa
   expect(superDocDestroy).toHaveBeenCalledTimes(1);
   expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
   expect(localFileOf(DOCUMENT_ID)).toBeNull();
+});
+
+test('a device that reports less memory than the preview needs converts with no preview and drops the kept file', async () => {
+  deviceCreatorWithKeptFile();
+  stubDeviceMemory(DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES - 1);
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(panel).toHaveTextContent(PREPARING_HERE_DETAIL);
+  expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument();
+  expect(configOfCall(0).documents[0]!.v2Collaboration).toBeDefined();
 });

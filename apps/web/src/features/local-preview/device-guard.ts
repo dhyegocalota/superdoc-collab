@@ -1,4 +1,4 @@
-import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
+import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES, DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 
 export enum DeviceRefusal {
@@ -17,6 +17,10 @@ export function deviceRefusalOf({
   const isMemoryExposed = deviceMemoryGigabytes !== null;
   if (isMemoryExposed && deviceMemoryGigabytes < DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES) return DeviceRefusal.LittleMemory;
   return null;
+}
+
+export function canPreviewOnDevice(deviceMemoryGigabytes: number | null): boolean {
+  throw new Error('canPreviewOnDevice is not implemented');
 }
 
 function exposedDeviceMemory(): number | null {

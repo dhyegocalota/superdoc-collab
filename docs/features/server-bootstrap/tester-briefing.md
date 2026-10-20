@@ -39,3 +39,40 @@ The web build fails on the removed exports until the web lane deletes its uses o
 - A failed or lost bootstrap never leaves the open answer in Preparing.
 - The first open of an old uncommitted document starts exactly one bootstrap.
 - The heavy fixture: 38.9 s to Ready, 13.4 s from page open to the first paragraph, local, one run.
+
+## Hardening after the security and review findings (2026-10-19)
+
+### What changed
+
+- `apps/server/src/history/projection-{handler,worker,queues,scheduler,messages}.ts`, `bootstrap-applied.ts`, `bootstrap-host-environment.ts`: one SDK host and one worker queue per lane, the host disposed after every bootstrap and before the answer, the host's request timeout later than the server's, secrets and the database location removed from the host's environment, a heap cap from `PROJECTION_WORKER_HEAP_MEGABYTES`, a fast failure when the open result did not apply the bootstrap, and a bootstrap posted during a recycle held until the fresh worker exists.
+- `apps/server/src/collaboration/room-bootstrap.ts`, `limits/owner-round-robin-queue.ts`: a light lane (files up to `BOOTSTRAP_LIGHT_MAX_BYTES`, 2 MB) and a heavy lane, owners served in turns, a grace of `BOOTSTRAP_COMMIT_GRACE_MS` for the commit after the run resolves, one retry of a run the worker's death interrupted, a Failed bootstrap started again by the first request after `BOOTSTRAP_RETRY_COOLDOWN_MS`, and the attempt ending with the run.
+- `apps/server/src/collaboration/{authenticate-bootstrap,collaboration-runtime}.ts`: a committed room refuses a bootstrap socket; an open of a document queued or preparing is answered from the registry without the budget or a log scan.
+- `apps/server/src/documents/documents-routes.ts`, `libs/history/src/docx-signature.ts`, `apps/server/src/server.ts`, `config/environment.ts`: 429 with `Retry-After` for a user over `UPLOADS_PER_MINUTE` (an environment knob, default 30) or with a file waiting in the lane of the new one; 415 for a `word/document.xml` that inflates past 64 MB.
+- `e2e/`: two waiting-page cases and the identity case describe the server bootstrap, the upload helper waits out a 429, the heavy cases of `room-admission.spec.ts` use their own owners, and one case proves a blank document is ready right after a broken file.
+- Docs: spec, plan, test plan, ADR 0048, `.claude/rules/collaboration.md`, the install and runbook variable tables, and a learning about JSZip's `nodeStream` in the bundled server.
+
+### How to run
+
+```bash
+pnpm --filter @superdoc-collab/server exec vitest run src/collaboration src/history src/documents src/limits src/config
+pnpm exec playwright test e2e/room-admission.spec.ts
+```
+
+### Red today, green after
+
+Each row of the hardening section of `test-plan.md` names its red and green commit. The first red test of the attempt fence said a ready attempt must stop being current. The green commit ends it when the run ends, because the tests of 13 files write on their bootstrap socket after the commit.
+
+### Hypotheses to attack
+
+- A blank document is ready in under a second while a 10 MB document converts in the other lane (measured: 0.38 to 0.45 s from the create to Ready alone, 1.0 s in the full run, with 250 ms polling).
+- A broken file, a timeout and a worker death each leave the next document of the same owner and of another owner unaffected.
+- One owner cannot hold more than one waiting bootstrap per lane, and cannot make more than `UPLOADS_PER_MINUTE` uploads in a minute.
+- A host that outlives its run, or a token replayed on a committed room, writes nothing.
+- A zip that declares a small `word/document.xml` and inflates to gigabytes is refused with bounded memory.
+
+### Gaps I know about
+
+- The heap cap goes through `NODE_OPTIONS`. The SDK binary is a Bun executable, so I did not prove it limits the host. The timeout and the lane remain the bounds.
+- `Failed` is started again after a cooldown of 30 s, which the owner's request did not name; a broken file is therefore tried again once every 30 s while someone keeps opening it.
+- Heavy timings (alone): Ready 45.5 s after the upload and the first paragraph 15.1 s after the page opens. In the full suite the same file took 65 to 170 s to be Ready because four heavy files share one lane.
+- Fixed in `1fdcc380`: an export from a Join editor had a `word/document.xml` without `xmlns:r`, `xmlns:wp` and `xmlns:a`, so the PDF print view could not open it and a DOCX download was damaged. The cause was not the SDK conversion but `apps/web/public/blank.docx`, which declared only `xmlns:w`; a joiner's converter takes its root attributes from that file. It now declares the full Word set, and `final-visuals.spec.ts` "Download PDF of the uploaded brief" passes.

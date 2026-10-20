@@ -63,11 +63,29 @@ export const UPLOADS_PER_MINUTE = 30;
 export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const LARGE_ROOM_STATE_BYTES = 16 * BYTES_PER_MEGABYTE;
 export const MAX_BOOTSTRAP_WAIT_MS = 5 * MINUTE_MS;
-export const HEAVY_ROOM_RESIDENT_MEGABYTES = 700;
+export const HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE = 19;
+export const MAX_HEAVY_ROOMS_PER_USER = 2;
+export const HEAVY_ROOM_IDLE_MS = MINUTE_MS;
 export const BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES = 2300;
-export function maxLoadedHeavyRooms(memoryLimitMegabytes: number): number {
-  const roomsMegabytes = usableMegabytesOf(memoryLimitMegabytes) - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
-  return Math.max(0, Math.floor(roomsMegabytes / HEAVY_ROOM_RESIDENT_MEGABYTES));
+export const SERVER_HEAP_BASELINE_MEGABYTES = 100;
+export const ROOM_LOAD_SPIKE_HEAP_MEGABYTES = 900;
+export function roomHeapMegabytesOf(stateBytes: number): number {
+  return (stateBytes * HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE) / BYTES_PER_MEGABYTE;
+}
+export function roomHeapBudgetMegabytes({
+  memoryLimitMegabytes,
+  serverHeapMegabytes,
+}: {
+  memoryLimitMegabytes: number | null;
+  serverHeapMegabytes: number | null;
+}): number | null {
+  const containerBudget =
+    memoryLimitMegabytes === null ? null : usableMegabytesOf(memoryLimitMegabytes) - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
+  const heapBudget =
+    serverHeapMegabytes === null ? null : serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - ROOM_LOAD_SPIKE_HEAP_MEGABYTES;
+  const budgets = [containerBudget, heapBudget].filter((budget): budget is number => budget !== null);
+  if (budgets.length === 0) return null;
+  return Math.max(0, Math.min(...budgets));
 }
 export function isHeavyRoomDocument(documentXmlBytes: number): boolean {
   return documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO > LARGE_ROOM_STATE_BYTES;

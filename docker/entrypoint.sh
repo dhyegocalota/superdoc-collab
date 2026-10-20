@@ -47,5 +47,6 @@ server_heap_megabytes=$((limit_megabytes * SERVER_HEAP_PERCENT / 100))
 export PROJECTION_WORKER_HEAP_MEGABYTES=$((limit_megabytes * WORKER_HEAP_PERCENT / 100))
 export BOOTSTRAP_HOST_HEAP_MEGABYTES=$((limit_megabytes * HOST_HEAP_PERCENT / 100))
 export MEMORY_LIMIT_MEGABYTES=$limit_megabytes
+export SERVER_HEAP_MEGABYTES=$server_heap_megabytes
 echo "memory limit $limit_megabytes MB, heap $server_heap_megabytes MB"
 exec node --max-old-space-size="$server_heap_megabytes" --expose-gc dist/main.js

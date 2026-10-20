@@ -72,7 +72,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes: null,
     maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
-    maxLoadedHeavyRooms: null,
+    roomHeapBudgetMegabytes: null,
   };
 }
 
@@ -101,7 +101,7 @@ export async function startTestServer({
   now = Date.now,
   memoryLimitMegabytes = null,
   maxBootstrapWaitMs = MAX_BOOTSTRAP_WAIT_MS,
-  maxLoadedHeavyRooms = null,
+  roomHeapBudgetMegabytes = null,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -114,7 +114,7 @@ export async function startTestServer({
   now?: () => number;
   memoryLimitMegabytes?: number | null;
   maxBootstrapWaitMs?: number;
-  maxLoadedHeavyRooms?: number | null;
+  roomHeapBudgetMegabytes?: number | null;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -132,7 +132,7 @@ export async function startTestServer({
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes,
     maxBootstrapWaitMs,
-    maxLoadedHeavyRooms,
+    roomHeapBudgetMegabytes,
   };
   try {
     const running = await startServer({

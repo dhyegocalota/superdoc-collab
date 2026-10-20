@@ -1,22 +1,37 @@
-import { LARGE_ROOM_STATE_BYTES, BOOTSTRAP_STATE_BYTES_RATIO } from '@superdoc-collab/types';
+import { BOOTSTRAP_STATE_BYTES_RATIO, LARGE_ROOM_STATE_BYTES } from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { createHeavyRoomAdmission } from './heavy-room-admission';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
+const USER_ID = 'user-ana';
 const DOCUMENT_ID = '11111111-1111-4111-8111-111111111111';
 const HEAVY_XML_BYTES = LARGE_ROOM_STATE_BYTES / BOOTSTRAP_STATE_BYTES_RATIO + 1;
 const LIGHT_XML_BYTES = LARGE_ROOM_STATE_BYTES / BOOTSTRAP_STATE_BYTES_RATIO;
 
 function admissionWith({
-  isAtCeiling,
+  isAdmitted = true,
+  hasHeadroom = true,
+  isBounded = true,
   documentXmlBytes,
   isInFlight = false,
 }: {
-  isAtCeiling: boolean;
+  isAdmitted?: boolean;
+  hasHeadroom?: boolean;
+  isBounded?: boolean;
   documentXmlBytes: number;
   isInFlight?: boolean;
 }) {
-  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), heavyRoomCount: vi.fn(), isAtCeiling: vi.fn(() => isAtCeiling) };
+  const roomMemory = {
+    grew: vi.fn(),
+    unloaded: vi.fn(),
+    heavyHeapBytes: vi.fn(),
+    loaded: vi.fn(),
+    isDueForMeasure: vi.fn(),
+    measured: vi.fn(),
+    isBounded: vi.fn(() => isBounded),
+    admit: vi.fn(() => isAdmitted),
+    hasHeadroomFor: vi.fn(() => hasHeadroom),
+  };
   const documentXmlBytesOf = vi.fn(() => documentXmlBytes);
   return {
     roomMemory,
@@ -25,24 +40,40 @@ function admissionWith({
   };
 }
 
-test('a heavy document is refused while the ceiling is reached for its room', () => {
-  const { admission, roomMemory } = admissionWith({ isAtCeiling: true, documentXmlBytes: HEAVY_XML_BYTES });
-  expect(admission.isRefused(DOCUMENT_ID)).toBe(true);
-  expect(roomMemory.isAtCeiling).toHaveBeenCalledWith(`${SUPERDOC_ROOM_PREFIX}${DOCUMENT_ID}`);
+test('a heavy document is asked of the room memory with the state its XML would make, under its room name', () => {
+  const { admission, roomMemory } = admissionWith({ isAdmitted: false, documentXmlBytes: HEAVY_XML_BYTES });
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(false);
+  expect(roomMemory.admit).toHaveBeenCalledWith({
+    documentName: `${SUPERDOC_ROOM_PREFIX}${DOCUMENT_ID}`,
+    estimatedStateBytes: HEAVY_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO,
+    userId: USER_ID,
+  });
 });
 
-test('a light document is never refused, whatever the ceiling', () => {
-  const { admission } = admissionWith({ isAtCeiling: true, documentXmlBytes: LIGHT_XML_BYTES });
-  expect(admission.isRefused(DOCUMENT_ID)).toBe(false);
+test('a light document is admitted without taking a place', () => {
+  const { admission, roomMemory } = admissionWith({ isAdmitted: false, documentXmlBytes: LIGHT_XML_BYTES });
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
+  expect(roomMemory.admit).not.toHaveBeenCalled();
 });
 
-test('below the ceiling nothing is refused and the stored file is not even read', () => {
-  const { admission, documentXmlBytesOf } = admissionWith({ isAtCeiling: false, documentXmlBytes: HEAVY_XML_BYTES });
-  expect(admission.isRefused(DOCUMENT_ID)).toBe(false);
+test('without a budget nothing is asked and the stored file is not even read', () => {
+  const { admission, documentXmlBytesOf, roomMemory } = admissionWith({ isBounded: false, documentXmlBytes: HEAVY_XML_BYTES });
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
   expect(documentXmlBytesOf).not.toHaveBeenCalled();
+  expect(roomMemory.admit).not.toHaveBeenCalled();
 });
 
 test('a document still being prepared is never refused, so the queue shows where it stands', () => {
-  const { admission } = admissionWith({ isAtCeiling: true, documentXmlBytes: HEAVY_XML_BYTES, isInFlight: true });
-  expect(admission.isRefused(DOCUMENT_ID)).toBe(false);
+  const { admission, roomMemory } = admissionWith({ isAdmitted: false, documentXmlBytes: HEAVY_XML_BYTES, isInFlight: true });
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
+  expect(roomMemory.admit).not.toHaveBeenCalled();
+});
+
+test('headroom for an upload is asked only for a heavy file, with the state its XML would make', () => {
+  const heavy = admissionWith({ hasHeadroom: false, documentXmlBytes: 0 });
+  expect(heavy.admission.hasHeadroomFor({ documentXmlBytes: HEAVY_XML_BYTES })).toBe(false);
+  expect(heavy.roomMemory.hasHeadroomFor).toHaveBeenCalledWith(HEAVY_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO);
+  const light = admissionWith({ hasHeadroom: false, documentXmlBytes: 0 });
+  expect(light.admission.hasHeadroomFor({ documentXmlBytes: LIGHT_XML_BYTES })).toBe(true);
+  expect(light.roomMemory.hasHeadroomFor).not.toHaveBeenCalled();
 });

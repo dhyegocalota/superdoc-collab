@@ -1,8 +1,11 @@
-import { isHeavyRoomDocument } from '@superdoc-collab/types';
+import { BOOTSTRAP_STATE_BYTES_RATIO, isHeavyRoomDocument } from '@superdoc-collab/types';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { RoomMemoryRelease } from './room-memory-release';
 
-export type HeavyRoomAdmission = { isRefused: (documentId: string) => boolean };
+export type HeavyRoomAdmission = {
+  admits: (parameters: { documentId: string; userId: string }) => boolean;
+  hasHeadroomFor: (parameters: { documentXmlBytes: number }) => boolean;
+};
 
 export function createHeavyRoomAdmission({
   roomMemory,
@@ -14,10 +17,20 @@ export function createHeavyRoomAdmission({
   isInFlight: (documentId: string) => boolean;
 }): HeavyRoomAdmission {
   return {
-    isRefused(documentId) {
-      if (isInFlight(documentId)) return false;
-      if (!roomMemory.isAtCeiling(`${SUPERDOC_ROOM_PREFIX}${documentId}`)) return false;
-      return isHeavyRoomDocument(documentXmlBytesOf(documentId));
+    admits({ documentId, userId }) {
+      if (isInFlight(documentId)) return true;
+      if (!roomMemory.isBounded()) return true;
+      const documentXmlBytes = documentXmlBytesOf(documentId);
+      if (!isHeavyRoomDocument(documentXmlBytes)) return true;
+      return roomMemory.admit({
+        documentName: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
+        estimatedStateBytes: documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO,
+        userId,
+      });
+    },
+    hasHeadroomFor({ documentXmlBytes }) {
+      if (!isHeavyRoomDocument(documentXmlBytes)) return true;
+      return roomMemory.hasHeadroomFor(documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO);
     },
   };
 }

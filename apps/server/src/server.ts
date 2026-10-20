@@ -13,6 +13,7 @@ import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
 import { createRoomModes } from './collaboration/room-modes';
+import { cachedDocumentXmlBytes } from './documents/cached-document-xml-bytes';
 import { createHeavyRoomAdmission } from './collaboration/heavy-room-admission';
 import { createProcessRoomMemoryRelease } from './collaboration/room-memory-release';
 import { createAgentToolkit } from '@superdoc/sdk';
@@ -248,7 +249,7 @@ function createServices({
   const versionRooms = new VersionRooms({ auth, documents, versions, policy: versionRoomPolicy });
   const throttle = new ProjectionThrottle({ intervalMs: PROJECTION_THROTTLE_MS, run: (documentId) => scheduler.schedule(documentId) });
   const storage = createLocalDiskFileStorage(documentFilesDirectory);
-  const documentXmlBytesOf = (documentId: string): number => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId)));
+  const documentXmlBytesOf = cachedDocumentXmlBytes((documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))));
   const roomBootstrap = new RoomBootstrap({
     run: (request) => scheduler.bootstrap(request),
     issueToken: ({ userId, documentId, attempt }) =>
@@ -275,7 +276,10 @@ function createServices({
   });
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
-  const roomMemory = createProcessRoomMemoryRelease({ maxHeavyRooms: environment.maxLoadedHeavyRooms });
+  const roomMemory = createProcessRoomMemoryRelease({
+    roomHeapBudgetMegabytes: environment.roomHeapBudgetMegabytes,
+    closeRoom: (documentName) => hocuspocus.closeConnections(documentName),
+  });
   const heavyRooms = createHeavyRoomAdmission({
     roomMemory,
     documentXmlBytesOf,

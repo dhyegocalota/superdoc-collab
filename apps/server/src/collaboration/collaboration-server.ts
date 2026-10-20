@@ -180,6 +180,12 @@ export function createCollaborationServer({
       impersonationEndsAt: null,
     }),
   };
+  function admitDeviceClaim({ documentId, userId, attempt }: { documentId: string; userId: string; attempt: string }): void {
+    if (heavyRooms.admitsDevice({ documentId, userId })) return;
+    console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
+    roomBootstrap.deviceClosed({ documentId, attempt });
+    throw new HeavyRoomsFullError();
+  }
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
     if (!heavyRooms.admits({ documentId, userId })) {
       console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
@@ -215,13 +221,15 @@ export function createCollaborationServer({
         tabId,
       });
       if (role === DocumentRole.Reader) connection.readOnly = true;
+      const isDeviceClaim = socketKind === SocketKind.Member && bootstrapAttempt !== null;
       if (bootstrapAttempt === null) admitToCommittedRoom({ documentId, userId });
+      if (isDeviceClaim) admitDeviceClaim({ documentId, userId, attempt: bootstrapAttempt });
       return {
         userId,
         documentId,
         actor: ACTOR_BY_SOCKET_KIND[socketKind],
         bootstrapAttempt,
-        holdsRoomPlace: bootstrapAttempt === null,
+        holdsRoomPlace: bootstrapAttempt === null || isDeviceClaim,
         tabId,
         impersonationEndsAt,
       };
@@ -258,8 +266,10 @@ export function createCollaborationServer({
       awarenessOwners.seed({ documentName, bindings: updateLog.clientIdentities(requireDocumentId(documentName)) });
       trackAwarenessOwners({ document, owners: awarenessOwners });
     },
-    async beforeHandleMessage({ update, context, document, socketId }) {
-      const { userId } = context as CollaborationContext;
+    async beforeHandleMessage({ update, context, document, socketId, connection }) {
+      const { userId, documentId, bootstrapAttempt } = context as CollaborationContext;
+      const isStaleAttempt = bootstrapAttempt !== null && !roomBootstrap.isCurrent({ documentId, attempt: bootstrapAttempt });
+      if (isStaleAttempt) connection.readOnly = true;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
       const entries = awarenessEntriesOf(frame);
       if (entries === null) {
@@ -289,8 +299,8 @@ export function createCollaborationServer({
       onLogged(documentId);
     },
     async onDisconnect({ socketId, documentName, context }) {
-      const { documentId, userId, bootstrapAttempt } = context as CollaborationContext;
-      if (bootstrapAttempt === null) roomMemory.released({ documentName, userId });
+      const { documentId, userId, bootstrapAttempt, holdsRoomPlace } = context as CollaborationContext;
+      if (holdsRoomPlace) roomMemory.released({ documentName, userId });
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
       if (bootstrapAttempt !== null) roomBootstrap.deviceClosed({ documentId, attempt: bootstrapAttempt });

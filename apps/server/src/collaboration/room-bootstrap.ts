@@ -8,6 +8,7 @@ import {
   BOOTSTRAP_RATE_SAMPLES,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
+  DEVICE_JOB_LIFETIME_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapLane,
   bootstrapLaneOf,
@@ -63,6 +64,12 @@ export class BootstrapOwnerMissingError extends Error {
 export class BootstrapUncommittedError extends Error {
   constructor() {
     super('The bootstrap finished without committing the room.');
+  }
+}
+
+export class DeviceExpiredError extends Error {
+  constructor() {
+    super('The device did not commit the room within the lifetime of a device job.');
   }
 }
 
@@ -127,20 +134,25 @@ export class RoomBootstrap {
   }
 
   isDevicePending(documentId: string): boolean {
+    this.expireDevice(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return false;
-    return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
+    return job.isDevice && job.progress.stage === BootstrapStage.Preparing;
   }
 
-  isDeviceCreator({ documentId, userId }: { documentId: string; userId: string; tabId: string | null }): boolean {
-    return this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
+  isDeviceCreator({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): boolean {
+    const isOwnerOfPendingJob = this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
+    if (!isOwnerOfPendingJob) return false;
+    const job = this.jobs.peek(documentId);
+    if (job === null || job.attempt === null) return true;
+    return job.claim !== null && job.claim.tabId === tabId;
   }
 
   claimDevice({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): string | null {
     const job = this.jobs.peek(documentId);
     if (job === null || !this.isDeviceCreator({ documentId, userId, tabId })) return null;
     const { claim, attempt: claimedAttempt } = job;
-    const isClaimedByTab = claim !== null && claimedAttempt !== null && claim.tabId === tabId;
+    const isClaimedByTab = claim !== null && claimedAttempt !== null;
     if (isClaimedByTab) {
       this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets + 1 } } });
       return claimedAttempt;
@@ -165,6 +177,7 @@ export class RoomBootstrap {
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
+    this.expireDevice(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return null;
     return this.answerOf({ documentId, job });
@@ -189,6 +202,7 @@ export class RoomBootstrap {
   }
 
   request(documentId: string): BootstrapProgress {
+    this.expireDevice(documentId);
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return this.answerOf({ documentId, job: existing });
     if (!this.isPreparableByServer(documentId)) return this.registerDevice(documentId);
@@ -497,6 +511,13 @@ export class RoomBootstrap {
     this.commitWaiters.delete(documentId);
     if (this.isReady(documentId)) return;
     throw new BootstrapUncommittedError();
+  }
+
+  private expireDevice(documentId: string): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null || !job.isDevice || job.progress.stage !== BootstrapStage.Preparing || job.startedAt === null) return;
+    if (this.now() - job.startedAt < DEVICE_JOB_LIFETIME_MS) return;
+    this.fail({ documentId, error: new DeviceExpiredError() });
   }
 
   private fail({ documentId, error }: { documentId: string; error: unknown }): void {

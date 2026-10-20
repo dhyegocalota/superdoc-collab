@@ -40,8 +40,10 @@ export function createHeavyRoomAdmission({
       if (place === null) return true;
       return roomMemory.admit(place);
     },
-    admitsDevice() {
-      throw new Error('admitsDevice is not implemented');
+    admitsDevice(seat) {
+      const place = heavyPlaceOf(seat);
+      if (place === null) return true;
+      return roomMemory.admit(place);
     },
     fits(seat) {
       if (isInFlight(seat.documentId)) return true;

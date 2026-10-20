@@ -751,12 +751,12 @@ describe('collaboration device creator', () => {
     const creator = await connectAsDeviceCreator(scenario, randomUUID());
     const lost = vi.spyOn(server.services.roomBootstrap, 'isCurrent').mockReturnValue(false);
     creator.document.getText('t').insert(0, 'written after the claim was lost');
-    await expect.poll(() => lost.mock.calls.length).toBeGreaterThan(0);
-    lost.mockReturnValue(true);
-    creator.document.getText('control').insert(0, 'control');
-    await expect.poll(() => loggedRows({ server, documentId }).length).toBeGreaterThan(0);
     const room = server.services.hocuspocus.documents.get(`${SUPERDOC_ROOM_PREFIX}${documentId}`)!;
-    expect([room.getText('t').toString(), room.getText('control').toString()]).toEqual(['', 'control']);
+    const isReadOnly = () => [...room.connections.values()].some(({ connection }) => connection.readOnly);
+    await expect.poll(isReadOnly).toBe(true);
+    expect(lost).toHaveBeenCalled();
+    expect(room.getText('t').toString()).toBe('');
+    expect(loggedRows({ server, documentId })).toHaveLength(0);
     creator.close();
     await server.stop();
   });

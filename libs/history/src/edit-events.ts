@@ -87,9 +87,7 @@ export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'y
 
 export type ProjectedBatch = { events: ProjectedEdit[]; marks: VersionMark[] };
 
-export function projectEditEvents({ baselineState, updates }: { baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedBatch {
-  const document = new Y.Doc();
-  Y.applyUpdate(document, baselineState);
+export function projectEditEvents({ document, updates }: { document: Y.Doc; updates: LoggedUpdate[] }): ProjectedBatch {
   let previous = readBlockStates(document);
   const marks: VersionMark[] = [];
   const events = updates.flatMap((update, index) => {

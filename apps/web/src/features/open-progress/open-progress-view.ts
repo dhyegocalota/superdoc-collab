@@ -5,6 +5,7 @@ import {
   detailLine,
   documentsAheadDetail,
   preparedOnDeviceDetail,
+  PREPARING_HERE_DETAIL,
   estimatedConversionDetail,
   elapsedLabel,
   LAYING_OUT_DETAIL,
@@ -112,7 +113,7 @@ export function preparingView({
 }
 
 export function preparingHereView({ elapsedSeconds }: { elapsedSeconds: number }): OpenProgressView {
-  throw new Error(`preparingHereView is not implemented for ${elapsedSeconds}`);
+  return { stage: OpenStage.Preparing, detail: detailLine([PREPARING_HERE_DETAIL, elapsedLabel(elapsedSeconds)]), fraction: null };
 }
 
 export function downloadingView({ stateBytes, elapsedSeconds }: { stateBytes: number | null; elapsedSeconds: number }): OpenProgressView {

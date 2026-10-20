@@ -49,6 +49,8 @@ function renderPreview({ isProgressShown = true }: { isProgressShown?: boolean }
       answeredAt={now}
       startedAt={now}
       isProgressShown={isProgressShown}
+      isSwapping={false}
+      onScrollFraction={vi.fn()}
     />,
   );
   const config = SuperDoc.mock.calls.at(0)?.[0];

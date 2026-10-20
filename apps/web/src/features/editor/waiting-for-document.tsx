@@ -18,7 +18,14 @@ import { LeaveOpeningButton } from './leave-opening-button';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { useCachedTitle } from './use-cached-title';
 import { DocumentReadiness } from './use-opened-document';
-import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
+import {
+  DEVICE_STOPPED_HINT,
+  deviceStoppedMessage,
+  LOAD_RETRY_HINT,
+  PREPARATION_FAILED_HINT,
+  PREPARATION_FAILED_MESSAGE,
+  TRY_AGAIN_LABEL,
+} from './waiting-copy';
 
 export type WaitingProgress = {
   bootstrap: BootstrapProgress | null;
@@ -92,6 +99,7 @@ function PreparingCard({ title, progress }: { title: string | null; progress: Wa
 
 function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress: WaitingProgress; failure: Error | null }) {
   const isPreparationFailure = progress.bootstrap?.stage === BootstrapStage.Failed;
+  const stoppedDeviceOwner = isPreparationFailure ? progress.preparedOnDeviceOf : null;
   if (failure instanceof ServerBusyError) {
     return (
       <StatusCard
@@ -104,6 +112,17 @@ function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress:
             <BackToDocumentsButton />
           </>
         }
+      />
+    );
+  }
+  if (stoppedDeviceOwner !== null) {
+    return (
+      <StatusCard
+        role="alert"
+        icon={<TriangleAlertIcon aria-hidden="true" className="size-4 text-destructive" />}
+        heading={deviceStoppedMessage(stoppedDeviceOwner)}
+        hint={DEVICE_STOPPED_HINT}
+        actions={<BackToDocumentsButton />}
       />
     );
   }

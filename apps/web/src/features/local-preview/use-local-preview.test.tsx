@@ -8,9 +8,10 @@ const DOCUMENT_ID = 'doc-1';
 const FILE = new File([new Uint8Array(1)], 'plan.docx');
 
 function previewAt(readiness: DocumentReadiness) {
-  return renderHook(({ current }) => useLocalPreview({ documentId: DOCUMENT_ID, readiness: current }), {
-    initialProps: { current: readiness },
-  });
+  return renderHook(
+    ({ current, isPainted }) => useLocalPreview({ documentId: DOCUMENT_ID, readiness: current, isLiveEditorPainted: isPainted }),
+    { initialProps: { current: readiness, isPainted: false } },
+  );
 }
 
 test('shows the kept file while the document is waiting', () => {
@@ -39,11 +40,14 @@ test.each([DocumentReadiness.Ready, DocumentReadiness.Failed, DocumentReadiness.
   },
 );
 
-test('swapping to Ready after waiting drops the file for good', () => {
+test('swapping to Ready after waiting keeps the file until the live editor has painted, then drops it for good', () => {
   keepLocalFile({ documentId: DOCUMENT_ID, file: FILE });
   const { result, rerender } = previewAt(DocumentReadiness.Waiting);
   expect(result.current).toBe(FILE);
-  rerender({ current: DocumentReadiness.Ready });
+  rerender({ current: DocumentReadiness.Ready, isPainted: false });
+  expect(result.current).toBe(FILE);
+  expect(localFileOf(DOCUMENT_ID)).toBe(FILE);
+  rerender({ current: DocumentReadiness.Ready, isPainted: true });
   expect(result.current).toBeNull();
   expect(localFileOf(DOCUMENT_ID)).toBeNull();
 });

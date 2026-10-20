@@ -1,16 +1,33 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DocumentReadiness } from '@/features/editor/use-opened-document';
 import { discardLocalFile, localFileOf } from './local-file-store';
 
-const SETTLED_READINESS = [DocumentReadiness.Ready, DocumentReadiness.Failed, DocumentReadiness.Unavailable];
+const ABANDONED_READINESS = [DocumentReadiness.Failed, DocumentReadiness.Unavailable];
 
-export function useLocalPreview({ documentId, readiness }: { documentId: string; readiness: DocumentReadiness }): File | null {
-  const isSettled = SETTLED_READINESS.includes(readiness);
+export function useLocalPreview({
+  documentId,
+  readiness,
+  isLiveEditorPainted,
+}: {
+  documentId: string;
+  readiness: DocumentReadiness;
+  isLiveEditorPainted: boolean;
+}): File | null {
+  const [hasPreviewed, setHasPreviewed] = useState(false);
+  const file = localFileOf(documentId);
+  const isWaiting = readiness === DocumentReadiness.Waiting;
+  const isReady = readiness === DocumentReadiness.Ready;
+  const isSwapping = isReady && hasPreviewed && !isLiveEditorPainted;
+  const isDone = ABANDONED_READINESS.includes(readiness) || (isReady && !isSwapping);
 
   useEffect(() => {
-    if (isSettled) discardLocalFile(documentId);
-  }, [isSettled, documentId]);
+    if (isWaiting && file !== null) setHasPreviewed(true);
+  }, [isWaiting, file]);
 
-  if (readiness !== DocumentReadiness.Waiting) return null;
-  return localFileOf(documentId);
+  useEffect(() => {
+    if (isDone) discardLocalFile(documentId);
+  }, [isDone, documentId]);
+
+  if (isWaiting || isSwapping) return file;
+  return null;
 }

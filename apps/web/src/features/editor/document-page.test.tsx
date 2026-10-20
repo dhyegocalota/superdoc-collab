@@ -1159,6 +1159,7 @@ test(
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
     const preview = await screen.findByTestId('local-preview');
     giveScroll({ element: preview, scrollHeight: 2000, scrollTop: 750 });
+    fireEvent.scroll(preview);
     isBootstrapped = true;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
     const live = screen.getByTestId('document-editor');
@@ -1172,6 +1173,9 @@ test(
 
 test('the creator of a device job reads Preparing on this device with the counter until the editor is ready, painted or not', async () => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  SuperDoc.mockImplementationOnce(function UnreadySuperDoc() {
+    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
+  } as unknown as typeof SuperDoc);
   mockDocumentApi({ opened: openedOnDevice() });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });

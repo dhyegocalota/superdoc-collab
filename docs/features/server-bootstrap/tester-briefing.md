@@ -87,7 +87,7 @@ Each row of the hardening section of `test-plan.md` names its red and green comm
 
 Hypotheses to attack:
 
-- At a 4096 MB limit a document with 9.5 MB of `word/document.xml` is a 413 reading `This server can prepare documents with up to 6 MB of text and layout.` however small its file is, and stores nothing; a 2 MB one and a blank create pass the guard.
+- At a 4096 MB limit a document with 9.5 MB of `word/document.xml` is a 413 reading `This server can prepare documents with up to 4 MB of text and layout.` however small its file is, and stores nothing; a 2 MB one and a blank create pass the guard. A heavy file is judged after the light lane's need is subtracted, so 5 MB of XML is refused at 4 GB and accepted at 8 GB.
 - With no limit known nothing is refused for memory.
 - The upload dialog shows that sentence in its alert.
 
@@ -97,3 +97,9 @@ Gaps:
 - The ratio is one measurement of one file; a file with a different shape may use more or less per byte.
 - Not rerun in a 4 GB container after the guard; the guard is proved by unit tests on the formula. The ratio comes from a completed 8 GB run (the completed 6 GB walk, 5.20 GiB over 9.52 MiB of XML; the 8 GB bootstrap alone peaked at 4,752 MiB).
 - Every size rule keys on `documentXmlBytes`: `e2e/room-admission.spec.ts` has a deflated heavy upload that must reach Ready (red before the fix: a light lane and a 19 s timeout).
+
+Cached blank (regression fix):
+
+- The second and later blank documents are committed from the first blank's state with the document id rewritten (`rebase-room-document-id.ts`); before, they stayed on Loading with "document.xml was not seeded by the room authority". Run `e2e/documents.spec.ts` whole (the typing case needs a blank created after another) and `e2e/shortcuts.spec.ts`.
+- If committing from the state throws, the blank is prepared in the lane and the create still answers 201.
+- `DOCUMENT_XML_STATE_BYTES_RATIO` (3.7) is gone; `BOOTSTRAP_STATE_BYTES_RATIO` (4) also derives the XML cap, which is now 20 MB instead of 21 MB.

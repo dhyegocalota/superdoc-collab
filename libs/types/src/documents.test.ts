@@ -24,4 +24,8 @@ describe('documents contracts', () => {
     expect(bootstrapTimeoutMsOf(0)).toBe(BOOTSTRAP_TIMEOUT_FLOOR_MS);
     expect(bootstrapTimeoutMsOf(MAX_UPLOAD_BYTES)).toBe(BOOTSTRAP_TIMEOUT_FLOOR_MS + 10 * 4500 * 5);
   });
+
+  test('the state of a document at the XML cap fits the socket message cap, so no admitted document closes with 1009', () => {
+    expect(MAX_DOCUMENT_XML_BYTES * DOCUMENT_XML_STATE_BYTES_RATIO).toBeLessThanOrEqual(MAX_SOCKET_MESSAGE_BYTES);
+  });
 });

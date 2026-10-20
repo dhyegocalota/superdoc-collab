@@ -49,7 +49,14 @@ function renderWaiting({
   if (cached) queryClient.setQueryData(DOCUMENTS_QUERY_KEY, CACHED_LIST);
   const onRetry = vi.fn();
   const { router } = renderWithProviders(
-    <WaitingForDocument documentId={DOCUMENT_ID} readiness={readiness} progress={progress} failure={failure} onRetry={onRetry} />,
+    <WaitingForDocument
+      documentId={DOCUMENT_ID}
+      readiness={readiness}
+      progress={progress}
+      failure={failure}
+      deviceRefusal={null}
+      onRetry={onRetry}
+    />,
     { queryClient, route: documentPagePath(DOCUMENT_ID) },
   );
   return { onRetry, router };

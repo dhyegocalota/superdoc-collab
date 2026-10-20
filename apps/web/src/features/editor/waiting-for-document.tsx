@@ -8,6 +8,8 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ServerBusyError } from '@/lib/api';
 import { AccountMenu } from '@/features/account/account-menu';
+import { DEVICE_REFUSAL_COPY } from '@/features/local-preview/local-preview-copy';
+import type { DeviceRefusal } from '@/features/local-preview/device-guard';
 import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
 import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
@@ -34,6 +36,7 @@ type WaitingForDocumentProps = WaitingActions & {
   readiness: WaitingReadiness;
   progress: WaitingProgress;
   failure: Error | null;
+  deviceRefusal: DeviceRefusal | null;
 };
 
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
@@ -120,6 +123,17 @@ function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress:
   );
 }
 
+function DeviceRefusedCard({ refusal }: { refusal: DeviceRefusal }) {
+  return (
+    <StatusCard
+      role="alert"
+      icon={<TriangleAlertIcon aria-hidden="true" className="size-4 text-destructive" />}
+      heading={DEVICE_REFUSAL_COPY[refusal]}
+      actions={<BackToDocumentsButton />}
+    />
+  );
+}
+
 function UnavailableCard() {
   return (
     <StatusCard
@@ -139,7 +153,7 @@ const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactEle
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
-export function WaitingForDocument({ documentId, readiness, progress, failure, onRetry }: WaitingForDocumentProps) {
+export function WaitingForDocument({ documentId, readiness, progress, failure, deviceRefusal, onRetry }: WaitingForDocumentProps) {
   const title = useCachedTitle(documentId);
 
   return (
@@ -162,7 +176,11 @@ export function WaitingForDocument({ documentId, readiness, progress, failure, o
             <Skeleton key={`${width}-${index}`} className={`h-3 ${width}`} />
           ))}
         </div>
-        {CARD_BY_READINESS[readiness]({ title, progress, failure, onRetry })}
+        {deviceRefusal === null ? (
+          CARD_BY_READINESS[readiness]({ title, progress, failure, onRetry })
+        ) : (
+          <DeviceRefusedCard refusal={deviceRefusal} />
+        )}
       </main>
     </div>
   );

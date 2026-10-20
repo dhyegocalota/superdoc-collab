@@ -1,4 +1,11 @@
-import { ConnectionFailureReason, ConnectionState, DocumentRole, OPEN_PROGRESS_DELAY_MS, VersionViewerState } from '@superdoc-collab/types';
+import {
+  ConnectionFailureReason,
+  ConnectionState,
+  DocumentRole,
+  OPEN_PROGRESS_DELAY_MS,
+  RoomMode,
+  VersionViewerState,
+} from '@superdoc-collab/types';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
@@ -7,6 +14,7 @@ import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
 import { useOpenStartedAt } from '@/features/open-progress/use-open-started-at';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { LocalPreview } from '@/features/local-preview/local-preview';
+import { useDeviceRefusal } from '@/features/local-preview/device-guard';
 import { useLocalPreview } from '@/features/local-preview/use-local-preview';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -101,6 +109,7 @@ export function DocumentPage() {
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
   const cachedTitle = useCachedTitle(documentId);
+  const deviceGuardRefusal = useDeviceRefusal();
   const previewFile = useLocalPreview({ documentId, readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness });
   const {
     isUnsynced,
@@ -133,6 +142,20 @@ export function DocumentPage() {
 
   if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
   const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
+  const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
+  const deviceRefusal = isDeviceJobCreatedHere ? deviceGuardRefusal : null;
+  if (deviceRefusal !== null) {
+    return withAnnouncement(
+      <WaitingForDocument
+        documentId={documentId}
+        readiness={DocumentReadiness.Waiting}
+        progress={{ bootstrap, preparedOnDeviceOf, answeredAt: bootstrapAnsweredAt, startedAt, isShown: isProgressShown }}
+        failure={null}
+        deviceRefusal={deviceRefusal}
+        onRetry={retry}
+      />,
+    );
+  }
   if (previewFile) {
     return withAnnouncement(
       <LocalPreview
@@ -152,6 +175,7 @@ export function DocumentPage() {
         readiness={documentReadiness}
         progress={{ bootstrap, preparedOnDeviceOf, answeredAt: bootstrapAnsweredAt, startedAt, isShown: isProgressShown }}
         failure={openFailure}
+        deviceRefusal={null}
         onRetry={retry}
       />,
     );

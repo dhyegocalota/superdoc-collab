@@ -269,7 +269,7 @@ export function createCollaborationServer({
       const { userId, documentId, actor, bootstrapAttempt } = connectionContext;
       if (!isWriteAllowed({ roomBootstrap, bootstrap, context: connectionContext, document }))
         return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
-      const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);
+      const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isKnownCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });
         return onLogged(documentId);

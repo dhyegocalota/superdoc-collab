@@ -70,7 +70,7 @@ TRUSTED_PROXY_HOPS=
 | `MEMORY_LIMIT_MEGABYTES` | no | Do not set. The container entrypoint sets it from the cgroup limit; the server refuses an upload whose bootstrap would not fit in it. |
 | `TRUSTED_PROXY_HOPS` | no | Empty keeps one trusted hop: the client address is the rightmost entry of `X-Forwarded-For` ([ADR 0042](../../adr/0042-the-client-address-is-the-rightmost-trusted-hop.md)). |
 
-Size the service's memory before you rely on large files. A 4 GB service prepares documents with up to about 7 MB of text and layout (the inflated `word/document.xml`, which for a Word file is several times the size of the file) and answers a larger upload with a 413 that names the largest size it can prepare. An 8 GB service (the Railway Hobby maximum) prepares up to 15 MB of text and layout, which covers the owner's heaviest 10 MB file with headroom ([measurements](../server-bootstrap/spec.md)).
+Size the service's memory before you rely on large files. A 4 GB service prepares documents with up to about 6 MB of text and layout (the inflated `word/document.xml`, which for a Word file is several times the size of the file) and answers a larger upload with a 413 that names the largest size it can prepare. An 8 GB service (the Railway Hobby maximum) prepares up to 14 MB of text and layout, which covers the owner's heaviest 10 MB file with headroom ([measurements](../server-bootstrap/spec.md)).
 
 Do not set `PORT`, `DATABASE_DIR`, `WEB_DIST_DIR` or `TRUST_PROXY`: the compose file pins them.
 

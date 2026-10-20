@@ -1,4 +1,11 @@
-import { ApiPath, type AuthorColorSlot, DocumentRole, type RoomMode, type SessionUser } from '@superdoc-collab/types';
+import {
+  ApiPath,
+  type AuthorColorSlot,
+  ConnectionFailureReason,
+  DocumentRole,
+  type RoomMode,
+  type SessionUser,
+} from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -75,7 +82,10 @@ export function SuperDocEditor({
     function reportTransport(report: TransportReport): void {
       isReady = isReady || report.hasSynced;
       if (isReady) return onTransportReport(report);
-      if (report.reading === TransportReading.Failed) setHasFailed(true);
+      if (report.reading !== TransportReading.Failed) return;
+      setHasFailed(true);
+      const isDenied = report.failureReason === ConnectionFailureReason.AccessDenied;
+      if (isDenied) onTransportReport(report);
     }
     const exceptionHandlers: Record<ExceptionOutcome, (payload: SuperDocExceptionPayload) => void> = {
       [ExceptionOutcome.Logged]: (payload) => {

@@ -52,3 +52,12 @@ test('an access denial the server cannot be asked about stays an access denial',
   const { result } = probeWith(ConnectionFailureReason.AccessDenied);
   await waitFor(() => expect(result.current.failureReason).toBe(ConnectionFailureReason.AccessDenied));
 });
+
+test('one access denial asks the server once, however often the window regains focus', async () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Forbidden }));
+  const { result } = probeWith(ConnectionFailureReason.AccessDenied);
+  await waitFor(() => expect(result.current.failureReason).toBe(ConnectionFailureReason.AccessDenied));
+  window.dispatchEvent(new Event('focus'));
+  document.dispatchEvent(new Event('visibilitychange'));
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+});

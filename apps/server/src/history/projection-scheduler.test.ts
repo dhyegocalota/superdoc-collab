@@ -43,6 +43,7 @@ const PROBE_WORKER_FILE_NAME = 'probe-worker.js';
 const MISSING_WORKER_FILE_NAME = 'missing-worker.js';
 const MISSING_FILE_ERRORS_BEFORE_CRASH = 2;
 const WORKER_HEAP_MEGABYTES = 192;
+const HOST_HEAP_MEGABYTES = 96;
 const RECYCLE_QUIET_TEST_MS = 50;
 const BURST_QUIET_MS = 400;
 const BURST_REQUESTS = 4;
@@ -538,6 +539,24 @@ test('a worker heap limit is the old generation limit of the spawned worker', as
   });
   expect(scheduler.currentWorker.resourceLimits?.maxOldGenerationSizeMb).toBe(WORKER_HEAP_MEGABYTES);
   await scheduler.currentWorker.terminate();
+});
+
+test('the bootstrap host heap reaches the worker apart from the worker heap', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-heap-'));
+  writeFileSync(
+    join(directory, PROBE_WORKER_FILE_NAME),
+    `import { parentPort, workerData } from 'node:worker_threads';
+parentPort.on('message', (request) => parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: workerData.hostHeapMegabytes, blocks: [], retainedHeapBytes: 0 }));
+`,
+  );
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    projectionWorkerFile: pathToFileURL(join(directory, PROBE_WORKER_FILE_NAME)),
+    workerHeapMegabytes: WORKER_HEAP_MEGABYTES,
+    hostHeapMegabytes: HOST_HEAP_MEGABYTES,
+  });
+  expect((await scheduler.blocks(randomUUID())).sequence).toBe(HOST_HEAP_MEGABYTES);
+  await scheduler.stop();
 });
 
 test('without a worker heap limit the spawned worker keeps the default limits', async () => {

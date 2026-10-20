@@ -93,12 +93,14 @@ export class ProjectionScheduler {
     databaseDirectory,
     projectionWorkerFile = null,
     workerHeapMegabytes = null,
+    hostHeapMegabytes = null,
     recycleQuietMs = PROJECTION_WORKER_QUIET_MS,
     recycleIntervalMs = PROJECTION_WORKER_RECYCLE_INTERVAL_MS,
   }: {
     databaseDirectory: string;
     projectionWorkerFile?: URL | null;
     workerHeapMegabytes?: number | null;
+    hostHeapMegabytes?: number | null;
     recycleQuietMs?: number;
     recycleIntervalMs?: number;
   }) {

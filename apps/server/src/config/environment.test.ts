@@ -33,6 +33,7 @@ describe('loadEnvironment', () => {
       openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
       uploadsPerMinute: UPLOADS_PER_MINUTE,
       projectionWorkerHeapMegabytes: null,
+      bootstrapHostHeapMegabytes: null,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -126,6 +127,12 @@ describe('loadEnvironment', () => {
   });
   test('reads the projection worker heap when it is set', () => {
     expect(loadEnvironment({ ...complete, PROJECTION_WORKER_HEAP_MEGABYTES: '256' }).projectionWorkerHeapMegabytes).toBe(256);
+  });
+  test('reads the bootstrap host heap when it is set', () => {
+    expect(loadEnvironment({ ...complete, BOOTSTRAP_HOST_HEAP_MEGABYTES: '128' }).bootstrapHostHeapMegabytes).toBe(128);
+  });
+  test.each([undefined, ''])('leaves the bootstrap host heap to Node when it is %j', (value) => {
+    expect(loadEnvironment({ ...complete, BOOTSTRAP_HOST_HEAP_MEGABYTES: value }).bootstrapHostHeapMegabytes).toBeNull();
   });
   test.each([undefined, ''])('leaves the projection worker heap to Node when it is %j', (value) => {
     expect(loadEnvironment({ ...complete, PROJECTION_WORKER_HEAP_MEGABYTES: value }).projectionWorkerHeapMegabytes).toBeNull();

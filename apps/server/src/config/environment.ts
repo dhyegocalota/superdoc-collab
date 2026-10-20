@@ -68,6 +68,7 @@ export type Environment = {
   openUncommittedPerMinute: number;
   uploadsPerMinute: number;
   projectionWorkerHeapMegabytes: number | null;
+  bootstrapHostHeapMegabytes: number | null;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -123,5 +124,6 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'PROJECTION_WORKER_HEAP_MEGABYTES',
       value: source.PROJECTION_WORKER_HEAP_MEGABYTES,
     }),
+    bootstrapHostHeapMegabytes: null,
   };
 }

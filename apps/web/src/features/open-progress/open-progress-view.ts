@@ -112,8 +112,24 @@ export function preparingView({
   return { stage, detail: detailLine([subject, elapsed]), fraction: null };
 }
 
-export function preparingHereView({ elapsedSeconds }: { estimatedMs: number | null; elapsedSeconds: number }): OpenProgressView {
-  return { stage: OpenStage.Preparing, detail: detailLine([PREPARING_HERE_DETAIL, elapsedLabel(elapsedSeconds)]), fraction: null };
+export function preparingHereView({
+  estimatedMs,
+  elapsedSeconds,
+}: {
+  estimatedMs: number | null;
+  elapsedSeconds: number;
+}): OpenProgressView {
+  const stage = OpenStage.Preparing;
+  const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds });
+  if (estimatedMs === null || timeFraction === null) {
+    return { stage, detail: detailLine([PREPARING_HERE_DETAIL, elapsedLabel(elapsedSeconds)]), fraction: null };
+  }
+  const detail = estimatedConversionDetail({
+    subject: PREPARING_HERE_DETAIL,
+    estimatedSeconds: estimatedSecondsOf(estimatedMs),
+    elapsedSeconds,
+  });
+  return { stage, detail, fraction: timeFraction };
 }
 
 export function downloadingView({ stateBytes, elapsedSeconds }: { stateBytes: number | null; elapsedSeconds: number }): OpenProgressView {

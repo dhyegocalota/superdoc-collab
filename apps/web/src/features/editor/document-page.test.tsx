@@ -39,7 +39,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { pagesSoFarDetail } from '@/features/open-progress/open-progress-copy';
 import { OpenStage } from '@/features/open-progress/open-stage';
-import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, READY_BOOTSTRAP, SESSION_USER } from '@/testing/opened-document';
+import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, EDITOR_USER, openedAs, SESSION_USER } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { timelineWith } from '@/testing/timeline-fixtures';
 import { FAILURE_REASON_COPY, RELOAD_FAILED_MESSAGE, RELOAD_LABEL, RELOADING_LABEL, SIGN_IN_LABEL } from './connection-copy';
@@ -155,6 +155,7 @@ function mockDocumentApi({
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
   bootstrapStage = () => BootstrapStage.Ready,
+  estimatedMs = null,
   timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
@@ -170,6 +171,7 @@ function mockDocumentApi({
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
   bootstrapStage?: () => BootstrapStage;
+  estimatedMs?: number | null;
   timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
@@ -219,7 +221,9 @@ function mockDocumentApi({
       const answeredStage = bootstrapStage();
       const answeredRoomMode = answeredStage === BootstrapStage.Ready ? reloadedBody.roomMode : RoomMode.Join;
       const answered =
-        status === HttpStatus.Ok ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: bootstrapAt(answeredStage) } : openBody;
+        status === HttpStatus.Ok
+          ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: { ...bootstrapAt(answeredStage), estimatedMs } }
+          : openBody;
       return jsonResponse({ body: answered, status });
     }
     throw new Error(`unexpected request ${String(input)}`);
@@ -1197,7 +1201,7 @@ test(
 
 test('the creator of a device job reads Preparing on this device with the estimate and the counter', async () => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
-  mockDocumentApi({ opened: { ...openedOnDevice(), bootstrap: { ...READY_BOOTSTRAP, estimatedMs: DEVICE_ESTIMATE_MS } } });
+  mockDocumentApi({ opened: openedOnDevice(), estimatedMs: DEVICE_ESTIMATE_MS });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   expect(panel).toHaveTextContent(`${PREPARING_HERE_DETAIL} · about 50 s`);

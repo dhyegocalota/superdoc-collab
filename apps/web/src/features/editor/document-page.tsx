@@ -209,7 +209,8 @@ export function DocumentPage() {
     const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
     const isFailed = connectionState === ConnectionState.Failed;
     const isEditingSurfaceInert = isViewingPastVersion || isFailed;
-    const isCreatingOnDevice = opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null && superdoc === null;
+    const isDeviceEditorUsable = loadProgress.isSynced && hasPaintedParagraph;
+    const isCreatingOnDevice = opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null && !isDeviceEditorUsable;
     const isOpenProgressVisible = isProgressShown && !isOpenFailing && (isCreatingOnDevice || !hasPaintedParagraph);
     const openProgress = isOpenProgressVisible
       ? (elapsedSeconds: number) =>

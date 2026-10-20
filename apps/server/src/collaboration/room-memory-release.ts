@@ -39,8 +39,9 @@ export function createRoomMemoryRelease({
   }
 
   return {
-    grew() {
-      void roomBytes;
+    grew({ documentName, bytes }) {
+      const known = roomBytes.get(documentName);
+      roomBytes.set(documentName, known === undefined ? bytes : known + bytes);
     },
     unloaded({ documentName, isReloaded }) {
       const bytes = roomBytes.get(documentName);

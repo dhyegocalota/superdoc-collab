@@ -1274,20 +1274,19 @@ test('the creator of a device job reads the kept file as a read-only preview whi
   expect(superDocDestroy).not.toHaveBeenCalled();
 });
 
-test('on the device path the preview engine is destroyed at the first painted paragraph and the layer leaves when the editor is ready', async () => {
+test('on the device path the preview engine and its frozen pages are dropped at the first painted paragraph, and the panel stays until the editor is ready', async () => {
   deviceCreatorWithKeptFile();
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
   paintFirstParagraph();
   await waitFor(() => expect(superDocDestroy).toHaveBeenCalledTimes(1));
-  expect(screen.getByTestId('local-preview')).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+  expect(localFileOf(DOCUMENT_ID)).toBeNull();
   expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
   act(() => collaborativeEditorConfig().onCollaborationReady());
-  await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
   expect(superDocDestroy).toHaveBeenCalledTimes(1);
-  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
-  expect(localFileOf(DOCUMENT_ID)).toBeNull();
 });
 
 test('a device that reports less memory than the preview needs converts with no preview and drops the kept file', async () => {

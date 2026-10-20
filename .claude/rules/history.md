@@ -60,6 +60,7 @@ Citations to `poc/...` name files of the proof of concept removed on 2026-10-17;
 - Time travel will use native Yjs snapshots; the design is proposed, not proven. (ADR 0003)
 - A version mark is the last update of each minute and anchors the timeline's bins; `/versions/<sequence>` resolves a sequence the log knows to itself, with `versionAt` merging the log up to it and keeping nothing, and only an unknown sequence clamps to the latest mark. (libs/history/src/version-state.ts, libs/history/src/version-marks.ts, ADR 0043)
 - A user starts at most `VERSION_LOADS_PER_MINUTE` version builds per rolling minute (429 with `Retry-After` above it; cached, in-flight and failed lookups are free), and the scheduler holds at most `MAX_PENDING_VERSION_JOBS` version jobs, refusing the rest with 503 instead of queueing. (apps/server/src/history/versions-service.ts, apps/server/src/history/projection-scheduler.ts, ADR 0044)
+- A bin whose events are all imported (sequence 0) opens the first mark, the document as uploaded, and the banner says "Document as uploaded". (apps/server/src/history/timeline-service.ts, docs/features/imported-history-first-open/spec.md)
 - A bin edit run carries `versionSequence`, the sequence of its last inserting event, or of its last event when it inserted nothing. (libs/history/src/timeline/runs.ts, ADR 0043)
 
 ## SingleFlight

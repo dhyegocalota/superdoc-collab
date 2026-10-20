@@ -12,6 +12,7 @@ import {
   filterRuns,
   groupIntoRuns,
   IdentitySource,
+  IMPORTED_SEQUENCE,
   narrowRuns,
   topicBandId,
   versionSequenceAt,
@@ -210,8 +211,9 @@ function projectionStatus({ services, documentId }: { services: AppServices; doc
     limit: 1,
   });
   const isDegraded = services.scheduler.isDegraded;
-  if (!next) return { isBehind: false, lagMs: null, isDegraded, cursor };
-  return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded, cursor };
+  const isImporting = services.scheduler.isImporting(documentId);
+  if (!next) return { isBehind: false, lagMs: null, isDegraded, isImporting, cursor };
+  return { isBehind: true, lagMs: Date.now() - next.serverTime, isDegraded, isImporting, cursor };
 }
 
 function binMsOf({ binMs, bounds }: { binMs: number | null; bounds: TimeBounds | null }): number {
@@ -290,7 +292,7 @@ export function buildDocumentTimeline({
   };
 }
 
-// NB ADR 0043: a bin opens the exact sequence of its last event; only a bin before every event falls back to the first mark.
+// NB ADR 0043: a bin opens the exact sequence of its last event; a bin before every logged event, imported ones included, falls back to the first mark.
 function versionSequenceResolver({
   events,
   marks,
@@ -301,7 +303,8 @@ function versionSequenceResolver({
   const lastEventSequenceAt = eventSequenceLookup(events);
   return (time) => {
     const eventSequence = lastEventSequenceAt(time);
-    if (eventSequence !== null) return eventSequence;
+    const isLoggedSequence = eventSequence !== null && eventSequence !== IMPORTED_SEQUENCE;
+    if (isLoggedSequence) return eventSequence;
     return versionSequenceAt({ marks, time });
   };
 }

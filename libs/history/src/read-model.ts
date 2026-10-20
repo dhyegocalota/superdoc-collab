@@ -3,7 +3,7 @@ import { BlockChangeKind, ClientActor } from '@superdoc-collab/types';
 import type { ProjectedEdit } from './edit-events';
 import type { VersionMark, VersionMarkSummary } from './version-marks';
 
-const IMPORTED_SEQUENCE = 0;
+export const IMPORTED_SEQUENCE = 0;
 export const ALL_SEQUENCES = IMPORTED_SEQUENCE - 1;
 const IMPORTED_KEY_PREFIX = 'imported';
 const READ_MODEL_TABLES = ['edit_events', 'projection_cursor', 'version_marks', 'document_previews'];

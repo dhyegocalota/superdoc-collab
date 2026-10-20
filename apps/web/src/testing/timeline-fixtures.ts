@@ -84,6 +84,6 @@ export function timelineWith({
       [FIXTURE_AGENT_AUTHOR_KEY]: { id: 'user-1', name: FIXTURE_AGENT_AUTHOR_NAME, actor: ClientActor.Agent },
     },
     topics: { state: TopicState.Ready, failure: null, computedAtSequence: 1 },
-    projection: { isBehind: false, lagMs: null, isDegraded: false, cursor: 1 },
+    projection: { isBehind: false, lagMs: null, isDegraded: false, isImporting: false, cursor: 1 },
   };
 }

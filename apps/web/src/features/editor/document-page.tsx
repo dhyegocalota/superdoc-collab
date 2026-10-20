@@ -21,6 +21,7 @@ import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/u
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
 import { useLastEditAt } from '@/features/timeline/use-last-edit-at';
 import { PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-position';
+import { useImportedHistorySummary } from '@/features/timeline/use-imported-history-summary';
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
 import { useDocumentTitle } from '@/lib/use-document-title';
@@ -108,6 +109,18 @@ export function DocumentPage() {
   const isPhoneLayout = useIsPhoneLayout();
   const { timeZone } = useTimeZone();
   const summarize = useSummarize({ documentId });
+  const canSummarize = opened !== undefined && opened.role !== DocumentRole.Reader;
+  useImportedHistorySummary({
+    documentId,
+    canRequest: canSummarize,
+    isEditorReady: hasPaintedParagraph,
+    onStart: summarizeAndOpenPanel,
+  });
+
+  function summarizeAndOpenPanel(): void {
+    setIsPanelOpen(true);
+    summarize.summarize();
+  }
   const editorSetup = useEditorSetup({ opened: openedAfterMount, user, file, generation: editorGeneration });
   const timeTravel = useTimeTravel({ documentId, isEnabled: opened !== undefined && !isUnavailable });
   useDocumentTitle(opened ? opened.document.title : null);
@@ -196,11 +209,6 @@ export function DocumentPage() {
 
     function renderUseWithAi(slot?: UseWithAiSlot): ReactNode {
       return <UseWithAiDialog title={title} canEdit={!isReader} {...slot} />;
-    }
-
-    function summarizeAndOpenPanel(): void {
-      setIsPanelOpen(true);
-      summarize.summarize();
     }
 
     function downloadLiveDocument(): void {

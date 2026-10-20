@@ -169,6 +169,18 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
     return !isPreparable({ documentXmlBytes, memoryLimitMegabytes });
   }
 
+  function isHonouredDevicePreparation({
+    preparation,
+    documentXmlBytes,
+  }: {
+    preparation: PreparationSource;
+    documentXmlBytes: number;
+  }): boolean {
+    if (preparation !== PreparationSource.Device) return false;
+    const isHeavy = bootstrapLaneOf(documentXmlBytes) === BootstrapLane.Heavy;
+    return isHeavy || isRefusedByMemoryGuard(documentXmlBytes);
+  }
+
   function refusalWhenMemoryShort({
     context,
     documentXmlBytes,
@@ -178,7 +190,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
     documentXmlBytes: number;
     isDevicePreparation: boolean;
   }): Response | null {
-    if (memoryLimitMegabytes === null || !isRefusedByMemoryGuard(documentXmlBytes)) return null;
+    if (memoryLimitMegabytes === null || !(isRefusedByMemoryGuard(documentXmlBytes) || isDevicePreparation)) return null;
     if (roomHeapBudgetMegabytes !== null) {
       const largestHoldable = largestHoldableMegabytes(roomHeapBudgetMegabytes);
       const isBeyondHeap = documentXmlBytes > largestHoldable * BYTES_PER_MEGABYTE;
@@ -201,15 +213,16 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
     title,
     importRevisions,
     isBlank,
-    entersLane = true,
+    preparation = PreparationSource.Server,
   }: {
     context: Context<SignedIn>;
     bytes: Uint8Array;
     title: string;
     importRevisions: boolean;
     isBlank: boolean;
-    entersLane?: boolean;
+    preparation?: PreparationSource;
   }): Promise<Response> {
+    const entersLane = preparation === PreparationSource.Server;
     const queueRefusal = entersLane ? refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
     if (queueRefusal) return queueRefusal;
     const busyRefusal = entersLane ? refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
@@ -221,7 +234,17 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
     const userId = context.var.user.id;
     uploadBudget.record(userId);
     if (bootstrapLaneOf(declaredDocumentXmlBytes(bytes)) === BootstrapLane.Heavy) heavyUploadBudget.record(userId);
-    const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
+    const documentId = await storeDocument({
+      documents,
+      storage,
+      runtime,
+      ownerUserId: userId,
+      title,
+      bytes,
+      importRevisions,
+      isBlank,
+      preparation,
+    });
     heavyRooms.reserveForUpload({ documentId, userId });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }
@@ -263,17 +286,16 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
       if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       const documentXmlBytes = declaredDocumentXmlBytes(bytes);
-      const isDevicePreparation = preparation === PreparationSource.Device;
+      const isDevicePreparation = isHonouredDevicePreparation({ preparation, documentXmlBytes });
       const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes, isDevicePreparation });
       if (memoryRefusal) return memoryRefusal;
-      const entersLane = !(isDevicePreparation && isRefusedByMemoryGuard(documentXmlBytes));
       return respondWithStoredDocument({
         context,
         bytes,
         title: titleFromFileName(file.name),
         importRevisions: true,
         isBlank: false,
-        entersLane,
+        preparation: isDevicePreparation ? PreparationSource.Device : PreparationSource.Server,
       });
     },
   );

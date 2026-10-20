@@ -10,6 +10,7 @@ import {
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
   DEVICE_JOB_LIFETIME_MS,
+  DEVICE_MS_PER_MEGABYTE,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapLane,
   bootstrapLaneOf,
@@ -398,8 +399,9 @@ export class RoomBootstrap {
 
   private registerDevice(documentId: string): BootstrapProgress {
     const queued = this.register(documentId);
+    const estimatedMs = (queued.documentXmlBytes / BYTES_PER_MEGABYTE) * DEVICE_MS_PER_MEGABYTE;
     const job = {
-      progress: { ...queued, stage: BootstrapStage.Preparing },
+      progress: { ...queued, stage: BootstrapStage.Preparing, estimatedMs },
       attempt: null,
       failedAt: null,
       startedAt: this.now(),

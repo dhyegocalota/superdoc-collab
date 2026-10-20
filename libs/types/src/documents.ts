@@ -126,4 +126,6 @@ export type BootstrapProgress = {
   total: number;
   stateBytes: number | null;
   estimatedMs: number | null;
+  fileBytes: number;
+  preparingSince: number | null;
 };

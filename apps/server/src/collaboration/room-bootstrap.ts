@@ -32,6 +32,8 @@ export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   total: NOTHING_TO_PROCESS_BYTES,
   stateBytes: null,
   estimatedMs: null,
+  fileBytes: NOTHING_TO_PROCESS_BYTES,
+  preparingSince: null,
 };
 
 export class BootstrapOwnerMissingError extends Error {
@@ -112,7 +114,7 @@ export class RoomBootstrap {
     const fileBytes = this.fileBytesOf(documentId);
     const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
     const estimatedMs = (fileBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
-    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs };
+    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs, fileBytes: 0, preparingSince: null };
     this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
     const lane = bootstrapLaneOf(fileBytes);
     this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
@@ -128,7 +130,15 @@ export class RoomBootstrap {
     this.jobs.set({
       key: documentId,
       value: {
-        progress: { stage: BootstrapStage.Preparing, done: 0, total, stateBytes: null, estimatedMs: this.estimatedMsOf(documentId) },
+        progress: {
+          stage: BootstrapStage.Preparing,
+          done: 0,
+          total,
+          stateBytes: null,
+          estimatedMs: this.estimatedMsOf(documentId),
+          fileBytes: 0,
+          preparingSince: null,
+        },
         attempt,
         failedAt: null,
         startedAt: this.now(),
@@ -159,7 +169,15 @@ export class RoomBootstrap {
     this.jobs.set({
       key: documentId,
       value: {
-        progress: { stage: BootstrapStage.Ready, done: total, total, stateBytes, estimatedMs: this.estimatedMsOf(documentId) },
+        progress: {
+          stage: BootstrapStage.Ready,
+          done: total,
+          total,
+          stateBytes,
+          estimatedMs: this.estimatedMsOf(documentId),
+          fileBytes: 0,
+          preparingSince: null,
+        },
         attempt,
         failedAt: null,
         startedAt: null,

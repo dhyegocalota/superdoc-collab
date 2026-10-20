@@ -23,7 +23,7 @@ const QUEUED: BootstrapProgress = {
   stateBytes: null,
   estimatedMs: null,
   fileBytes: 0,
-  preparingSince: null,
+  preparingElapsedMs: null,
 };
 
 function fakeRoomBootstrap({ progress = null, isInFlight = false }: { progress?: BootstrapProgress | null; isInFlight?: boolean } = {}) {
@@ -111,7 +111,7 @@ test('the bootstrap of a document with a job is the progress of that job', () =>
     stateBytes: null,
     estimatedMs: null,
     fileBytes: 0,
-    preparingSince: null,
+    preparingElapsedMs: null,
   };
   const roomBootstrap = fakeRoomBootstrap({ progress });
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });
@@ -141,7 +141,7 @@ test('a failed job is requested again so the registry may retry it after its coo
     stateBytes: null,
     estimatedMs: null,
     fileBytes: 0,
-    preparingSince: null,
+    preparingElapsedMs: null,
   };
   const roomBootstrap = fakeRoomBootstrap({ progress: failed });
   const runtime = runtimeWith({ rooms: {}, roomBootstrap });

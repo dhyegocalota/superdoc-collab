@@ -1,5 +1,4 @@
-import { BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
-import type { BootstrapReading } from './bootstrap-reading';
+import { type BootstrapProgress, BootstrapStage, SECOND_MS } from '@superdoc-collab/types';
 import {
   bytesProgressDetail,
   convertingDetail,
@@ -65,7 +64,7 @@ export function preparingView({
   startedAt,
   answeredAt,
 }: {
-  bootstrap: BootstrapReading | null;
+  bootstrap: BootstrapProgress | null;
   elapsedSeconds: number;
   startedAt: number;
   answeredAt: number;

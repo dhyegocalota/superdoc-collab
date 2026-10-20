@@ -1,8 +1,13 @@
-import { BootstrapStage, DOCUMENT_READY_POLL_MS, type OpenedDocument, PREPARING_POLL_MS } from '@superdoc-collab/types';
+import {
+  type BootstrapProgress,
+  BootstrapStage,
+  DOCUMENT_READY_POLL_MS,
+  type OpenedDocument,
+  PREPARING_POLL_MS,
+} from '@superdoc-collab/types';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentUnavailableError } from '@/lib/api';
-import type { BootstrapReading } from '@/features/open-progress/bootstrap-reading';
 import { openDocument, openedDocumentQueryKey } from './editor-api';
 
 export enum DocumentReadiness {
@@ -34,10 +39,9 @@ function pollIntervalOf(data: OpenedDocument | undefined): number {
   return DOCUMENT_READY_POLL_MS;
 }
 
-function bootstrapOf(data: OpenedDocument | undefined): BootstrapReading | null {
+function bootstrapOf(data: OpenedDocument | undefined): BootstrapProgress | null {
   if (!data) return null;
-  const preparingElapsedMs = 'preparingElapsedMs' in data.bootstrap ? (data.bootstrap.preparingElapsedMs as number | null) : null;
-  return { ...data.bootstrap, preparingElapsedMs };
+  return data.bootstrap;
 }
 
 function openedDocumentQueryOptions(documentId: string) {

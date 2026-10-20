@@ -33,7 +33,7 @@ export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   stateBytes: null,
   estimatedMs: null,
   fileBytes: NOTHING_TO_PROCESS_BYTES,
-  preparingSince: null,
+  preparingElapsedMs: null,
 };
 
 export class BootstrapOwnerMissingError extends Error {
@@ -114,7 +114,7 @@ export class RoomBootstrap {
     const fileBytes = this.fileBytesOf(documentId);
     const total = fileBytes * BOOTSTRAP_STATE_BYTES_RATIO;
     const estimatedMs = (fileBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
-    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs, fileBytes, preparingSince: null };
+    const progress = { stage: BootstrapStage.Queued, done: 0, total, stateBytes: null, estimatedMs, fileBytes, preparingElapsedMs: null };
     this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
     const lane = bootstrapLaneOf(fileBytes);
     this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
@@ -138,7 +138,7 @@ export class RoomBootstrap {
           stateBytes: null,
           estimatedMs: this.estimatedMsOf(documentId),
           fileBytes: this.fileBytesOfJob(documentId),
-          preparingSince: startedAt,
+          preparingElapsedMs: null,
         },
         attempt,
         failedAt: null,
@@ -177,7 +177,7 @@ export class RoomBootstrap {
           stateBytes,
           estimatedMs: this.estimatedMsOf(documentId),
           fileBytes: this.fileBytesOfJob(documentId),
-          preparingSince: null,
+          preparingElapsedMs: null,
         },
         attempt,
         failedAt: null,
@@ -283,7 +283,7 @@ export class RoomBootstrap {
     this.jobs.set({
       key: documentId,
       value: {
-        progress: { ...job.progress, stage: BootstrapStage.Failed, done: 0, preparingSince: null },
+        progress: { ...job.progress, stage: BootstrapStage.Failed, done: 0, preparingElapsedMs: null },
         attempt: null,
         failedAt: this.now(),
         startedAt: null,

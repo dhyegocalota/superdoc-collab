@@ -1,5 +1,5 @@
-import type { BootstrapReading } from '@/features/open-progress/bootstrap-reading';
 import {
+  type BootstrapProgress,
   BootstrapStage,
   DocumentRole,
   RoomMode,
@@ -28,18 +28,17 @@ export function summaryAs(role: DocumentRole): DocumentSummary {
 }
 
 export const STATE_BYTES = 36_500_000;
-export const READY_BOOTSTRAP: BootstrapReading = {
+export const READY_BOOTSTRAP: BootstrapProgress = {
   stage: BootstrapStage.Ready,
   done: 0,
   total: 0,
   stateBytes: STATE_BYTES,
   estimatedMs: null,
   fileBytes: 0,
-  preparingSince: null,
   preparingElapsedMs: null,
 };
 
-export function bootstrapAt(stage: BootstrapStage): BootstrapReading {
+export function bootstrapAt(stage: BootstrapStage): BootstrapProgress {
   return { ...READY_BOOTSTRAP, stage };
 }
 

@@ -57,7 +57,7 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
     fileBytes: FILE_BYTES,
-    preparingSince: null,
+    preparingElapsedMs: null,
   });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
@@ -67,7 +67,7 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
     fileBytes: FILE_BYTES,
-    preparingSince: expect.any(Number),
+    preparingElapsedMs: 0,
   });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
   expect({ userId, documentId }).toEqual({ userId: OWNER_ID, documentId: DOCUMENT_ID });
@@ -117,7 +117,7 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
     stateBytes: STATE_BYTES,
     estimatedMs: ESTIMATED_MS,
     fileBytes: FILE_BYTES,
-    preparingSince: null,
+    preparingElapsedMs: null,
   });
   pending[0]!.resolve();
   await Promise.resolve();
@@ -134,7 +134,7 @@ test('a commit nobody asked for is ready with nothing to process', () => {
     stateBytes: STATE_BYTES,
     estimatedMs: null,
     fileBytes: 0,
-    preparingSince: null,
+    preparingElapsedMs: null,
   });
 });
 
@@ -152,7 +152,7 @@ test('a failed run is reported once, stays failed within the cooldown and is not
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
     fileBytes: FILE_BYTES,
-    preparingSince: null,
+    preparingElapsedMs: null,
   });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
@@ -485,13 +485,16 @@ test('the conversion of a small file never moves the rate, whatever its fixed co
   expect(nextEstimate).toBeCloseTo((SMALL_FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE);
 });
 
-test('preparingSince is the clock when Preparing began and null before and after it', async () => {
+test('preparingElapsedMs is the time since Preparing began at each answer and null before and after it', async () => {
   let currentMs = 1_000_000;
   const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs });
-  expect(bootstrap.request(DOCUMENT_ID).preparingSince).toBeNull();
+  expect(bootstrap.request(DOCUMENT_ID).preparingElapsedMs).toBeNull();
   await vi.waitFor(() => expect(pending).toHaveLength(1));
-  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingSince).toBe(1_000_000);
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingElapsedMs).toBe(0);
   currentMs += 5000;
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingElapsedMs).toBe(5000);
+  currentMs += 2500;
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingElapsedMs).toBe(7500);
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
-  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingSince).toBeNull();
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingElapsedMs).toBeNull();
 });

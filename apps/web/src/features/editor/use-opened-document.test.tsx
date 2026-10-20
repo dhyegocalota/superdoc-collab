@@ -175,13 +175,10 @@ test('the answer carries when it arrived, by the browser clock, so Preparing nev
   expect(result.current.bootstrapAnsweredAt).toBeLessThan(ANSWER_ARRIVED_AT.getTime() + SETTLE_MS * 2);
 });
 
-test.each([
-  ['an answer with no preparingElapsedMs reads null', undefined, null],
-  ['an answer with preparingElapsedMs keeps it', 12_000, 12_000],
-])('%s', async (_, preparingElapsedMs, expected) => {
-  const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), ...(preparingElapsedMs === undefined ? {} : { preparingElapsedMs }) };
+test('an answer with preparingElapsedMs keeps it', async () => {
+  const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), preparingElapsedMs: 12_000 };
   answerInOrder(() => jsonResponse({ body: { ...OPENED, bootstrap } }));
   const result = renderOpenedDocument();
   await advance(0);
-  expect(result.current.bootstrap!.preparingElapsedMs).toBe(expected);
+  expect(result.current.bootstrap!.preparingElapsedMs).toBe(12_000);
 });

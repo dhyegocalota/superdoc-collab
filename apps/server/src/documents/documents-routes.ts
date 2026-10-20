@@ -222,7 +222,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetM
     isBlank: boolean;
     preparation?: PreparationSource;
   }): Promise<Response> {
-    const entersLane = preparation === PreparationSource.Server;
+    const entersLane = preparation === PreparationSource.Server && !isBlank;
     const queueRefusal = entersLane ? refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
     if (queueRefusal) return queueRefusal;
     const busyRefusal = entersLane ? refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;

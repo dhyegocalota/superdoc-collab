@@ -1,4 +1,4 @@
-import { expect, type APIResponse, type Locator, type Page } from '@playwright/test';
+import { expect, type APIResponse, type Locator, type Page, type Response } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import {
   ApiPath,
@@ -6,6 +6,7 @@ import {
   DocumentResource,
   documentApiPath,
   DOCX_MIME_TYPE,
+  HttpMethod,
   HttpStatus,
   TimelineQueryParam,
   UPLOAD_FIELD,
@@ -114,11 +115,27 @@ export async function uploadSeed({
   const buffer = await buildSeedDocx(paragraphs.map((text) => ({ text, trackedChanges: [] })));
   await page.goto(AppRoute.Documents);
   await openDocumentFileInput(page);
-  await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer });
+  await expect
+    .poll(
+      async () => {
+        const [response] = await Promise.all([
+          page.waitForResponse(isDocumentUpload),
+          page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer }),
+        ]);
+        return response.status();
+      },
+      { timeout: UPLOAD_QUEUE_TIMEOUT_MS, intervals: [UPLOAD_RETRY_INTERVAL_MS] },
+    )
+    .not.toBe(HttpStatus.TooManyRequests);
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
   await expect(liveEditorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
   await expect(page.getByTestId(LOCAL_PREVIEW_TEST_ID)).toHaveCount(0, { timeout: EDITOR_READY_TIMEOUT_MS });
   return documentIdOf(page.url());
+}
+
+function isDocumentUpload(response: Response): boolean {
+  const isPost = response.request().method() === HttpMethod.Post;
+  return isPost && new URL(response.url()).pathname === ApiPath.Documents;
 }
 
 export function sameOriginHeaders(page: Page): Record<string, string> {

@@ -29,6 +29,8 @@ import type { ThemePreference } from '../apps/web/src/lib/use-theme';
 
 export const TEXT_RUN_SELECTOR = '.superdoc-text-run';
 export const EDITOR_INPUT_SELECTOR = 'textarea';
+const LIVE_EDITOR_TEST_ID = 'document-editor';
+const LOCAL_PREVIEW_TEST_ID = 'local-preview';
 export const REMOTE_CARET_SELECTOR = '.v2-collaboration-overlay__remote-caret';
 const TOOLBAR_ROW_TEST_ID = 'editor-toolbar-row';
 const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
@@ -43,6 +45,10 @@ const TYPING_DELAY_MS = 20;
 
 export function editorText(page: Page) {
   return page.locator(TEXT_RUN_SELECTOR);
+}
+
+export function liveEditorText(page: Page): Locator {
+  return page.getByTestId(LIVE_EDITOR_TEST_ID).locator(TEXT_RUN_SELECTOR);
 }
 
 export function topBar(page: Page): Locator {
@@ -110,8 +116,8 @@ export async function uploadSeed({
   await openDocumentFileInput(page);
   await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer });
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
-  await expect(editorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
-  await expect(downloadButton(page)).toBeEnabled({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await expect(liveEditorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await expect(page.getByTestId(LOCAL_PREVIEW_TEST_ID)).toHaveCount(0, { timeout: EDITOR_READY_TIMEOUT_MS });
   return documentIdOf(page.url());
 }
 

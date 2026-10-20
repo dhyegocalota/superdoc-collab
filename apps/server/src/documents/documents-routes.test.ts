@@ -242,6 +242,26 @@ test('everyone but the owner joins a document prepared on the device and is told
   await server.stop();
 });
 
+test('while a tab of the owner holds the device claim only that tab is answered Create', async () => {
+  const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES), preparation: PreparationSource.Device })
+  ).json();
+  const claimingTab = randomUUID();
+  const unclaimed = await openedBy({ server, user: owner, documentId: created.id, tabId: randomUUID() });
+  server.services.roomBootstrap.claimDevice({ documentId: created.id, userId: owner.id, tabId: claimingTab });
+  const answers = await Promise.all(
+    [claimingTab, randomUUID(), undefined].map((tabId) => openedBy({ server, user: owner, documentId: created.id, tabId })),
+  );
+  expect([unclaimed.roomMode, ...answers.map((opened) => opened.roomMode)]).toEqual([
+    RoomMode.Create,
+    RoomMode.Create,
+    RoomMode.Join,
+    RoomMode.Join,
+  ]);
+  await server.stop();
+});
+
 test('a document the server can hold is prepared by the server even when the device is asked for', async () => {
   const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
   const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));

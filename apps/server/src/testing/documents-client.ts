@@ -1,4 +1,4 @@
-import { documentApiPath, HttpMethod, type DocumentResource, type OpenedDocument } from '@superdoc-collab/types';
+import { documentApiPath, HttpMethod, TAB_QUERY_KEY, type DocumentResource, type OpenedDocument } from '@superdoc-collab/types';
 import type { TestServer, TestUser } from './test-server';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
@@ -31,10 +31,13 @@ export async function openedBy({
   server,
   user,
   documentId,
+  tabId,
 }: {
   server: TestServer;
   user: TestUser;
   documentId: string;
+  tabId?: string;
 }): Promise<OpenedDocument> {
-  return (await request({ server, cookie: user.cookie, path: pathOf({ documentId }) })).json();
+  const query = tabId === undefined ? '' : `?${new URLSearchParams({ [TAB_QUERY_KEY]: tabId })}`;
+  return (await request({ server, cookie: user.cookie, path: `${pathOf({ documentId })}${query}` })).json();
 }

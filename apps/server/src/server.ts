@@ -26,6 +26,7 @@ import { attachCollaboration } from './collaboration/attach-collaboration';
 import { createCollaborationRuntime } from './collaboration/collaboration-runtime';
 import { createCollaborationServer } from './collaboration/collaboration-server';
 import { createBootstrapState } from './collaboration/bootstrap-state';
+import { rebaseRoomDocumentId } from './collaboration/rebase-room-document-id';
 import { RoomBootstrap } from './collaboration/room-bootstrap';
 import type { Environment } from './config/environment';
 import { join } from 'node:path';
@@ -254,9 +255,10 @@ function createServices({
     documentXmlBytesOf: (documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))),
     filePathOf: (documentId) => storage.pathOf(documentId),
     commitBlank: ({ documentId, ownerId, state }) => {
+      const rebasedState = rebaseRoomDocumentId({ state, documentId });
       const document = new Y.Doc();
-      Y.applyUpdate(document, state);
-      bootstrap.commit({ documentId, connectionUserId: ownerId, connectionActor: ClientActor.Human, update: state, document });
+      Y.applyUpdate(document, rebasedState);
+      bootstrap.commit({ documentId, connectionUserId: ownerId, connectionActor: ClientActor.Human, update: rebasedState, document });
       throttle.request(documentId);
     },
   });

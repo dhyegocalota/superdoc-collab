@@ -1,6 +1,7 @@
-import type { APIResponse, Page } from '@playwright/test';
+import type { APIResponse, Browser, Page } from '@playwright/test';
 import {
   ApiPath,
+  AppRoute,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
   DEMO_USERS,
@@ -19,7 +20,17 @@ import {
 import { buildSeedDocx } from '../libs/history/src';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks, sameOriginHeaders, uploadDocument } from './editor';
 import { buildBrokenDocx, buildLargeDocx } from './fixtures/large-docx';
-import { expect, signedInContext, test } from './fixtures';
+import {
+  type OpenedContext,
+  acceptInvite,
+  expect,
+  expectSignedInAs,
+  generateInvite,
+  signedInAdmin,
+  signedInContext,
+  test,
+  uniqueEmail,
+} from './fixtures';
 
 const EDITOR_TEST_ID = 'document-editor';
 const SEED_PARAGRAPH = 'Paragraph written by the server.';
@@ -48,6 +59,19 @@ async function shareWithEditor({ owner, member, documentId }: { owner: Page; mem
   const token = new URL(links[ShareLinkRole.Edit]).pathname.split('/').pop()!;
   const response = await member.request.post(shareLinkAcceptPath(token), { headers: sameOriginHeaders(member) });
   expect(response.ok()).toBe(true);
+}
+
+async function invitedPerson({ browser, name }: { browser: Browser; name: string }): Promise<OpenedContext> {
+  const admin = await signedInAdmin({ browser });
+  await admin.page.goto(AppRoute.Admin);
+  const person = await acceptInvite({
+    browser,
+    url: await generateInvite({ page: admin.page }),
+    name,
+    email: uniqueEmail(name.toLowerCase()),
+  });
+  await expectSignedInAs({ page: person.page, name });
+  return person;
 }
 
 async function readOpenAnswer(response: APIResponse): Promise<OpenedDocument> {
@@ -113,13 +137,14 @@ test('a document the server cannot read is reported Failed, never left preparing
 });
 
 test('a document the server cannot read does not hold back the next blank document', async ({ browser }) => {
-  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
-  await uploadDocument({ page: ana.page, buffer: buildBrokenDocx() });
+  const lena = await invitedPerson({ browser, name: 'Lena' });
+  await uploadDocument({ page: lena.page, buffer: buildBrokenDocx() });
   const startedAt = Date.now();
-  const created = await ana.page.request.post(ApiPath.Documents, { data: { title: `blank-${startedAt}` } });
+  const created = await lena.page.request.post(ApiPath.Documents, { data: { title: `blank-${startedAt}` } });
+  expect(created.status()).toBe(HttpStatus.Created);
   const { id: blankId } = (await created.json()) as DocumentSummary;
   await expect
-    .poll(async () => (await openAnswer({ page: ana.page, documentId: blankId })).stage, {
+    .poll(async () => (await openAnswer({ page: lena.page, documentId: blankId })).stage, {
       timeout: BLANK_READY_LIMIT_MS,
       intervals: STAGE_POLL_INTERVALS_MS,
     })

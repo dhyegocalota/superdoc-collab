@@ -63,11 +63,13 @@ export function preparingView({
   elapsedSeconds,
   startedAt,
   answeredAt,
+  preparedOnDeviceOf,
 }: {
   bootstrap: BootstrapProgress | null;
   elapsedSeconds: number;
   startedAt: number;
   answeredAt: number;
+  preparedOnDeviceOf: string | null;
 }): OpenProgressView {
   const stage = OpenStage.Preparing;
   const elapsed = elapsedLabel(elapsedSeconds);

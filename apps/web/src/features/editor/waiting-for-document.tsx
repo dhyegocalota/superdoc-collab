@@ -18,7 +18,13 @@ import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-c
 import { DocumentReadiness } from './use-opened-document';
 import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
 
-export type WaitingProgress = { bootstrap: BootstrapProgress | null; answeredAt: number; startedAt: number; isShown: boolean };
+export type WaitingProgress = {
+  bootstrap: BootstrapProgress | null;
+  preparedOnDeviceOf: string | null;
+  answeredAt: number;
+  startedAt: number;
+  isShown: boolean;
+};
 
 export type WaitingReadiness = DocumentReadiness.Waiting | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
 
@@ -70,7 +76,13 @@ function PreparingCard({ title, progress }: { title: string | null; progress: Wa
       stages={EDITOR_OPEN_STAGES}
       startedAt={progress.startedAt}
       viewAt={(elapsedSeconds) =>
-        preparingView({ bootstrap: progress.bootstrap, elapsedSeconds, startedAt: progress.startedAt, answeredAt: progress.answeredAt })
+        preparingView({
+          bootstrap: progress.bootstrap,
+          elapsedSeconds,
+          startedAt: progress.startedAt,
+          answeredAt: progress.answeredAt,
+          preparedOnDeviceOf: progress.preparedOnDeviceOf,
+        })
       }
       action={<LeaveOpeningButton />}
     />

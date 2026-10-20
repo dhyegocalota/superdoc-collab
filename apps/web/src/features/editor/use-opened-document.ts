@@ -76,6 +76,7 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
     error: query.error,
     isFetchedAfterMount: query.isFetchedAfterMount,
     bootstrap: bootstrapOf(query.data),
+    preparedOnDeviceOf: null,
     bootstrapAnsweredAt: query.dataUpdatedAt,
     readiness,
     retry,

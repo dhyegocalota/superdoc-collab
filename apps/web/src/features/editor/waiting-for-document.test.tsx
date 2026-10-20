@@ -24,6 +24,7 @@ const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 
 const SHOWN_PROGRESS: WaitingProgress = {
   bootstrap: bootstrapAt(BootstrapStage.Preparing),
+  preparedOnDeviceOf: null,
   answeredAt: Date.now(),
   startedAt: Date.now(),
   isShown: true,
@@ -115,4 +116,9 @@ test('without a cached title a skeleton takes its place', () => {
   renderWaiting({ readiness: DocumentReadiness.Waiting });
   expect(screen.queryByText(DOCUMENT_TITLE)).not.toBeInTheDocument();
   expect(screen.getByTestId(TITLE_SKELETON_TEST_ID)).toBeInTheDocument();
+});
+
+test('a joiner is told whose device prepares the document', () => {
+  renderWaiting({ readiness: DocumentReadiness.Waiting, progress: { ...SHOWN_PROGRESS, preparedOnDeviceOf: 'Ana' } });
+  expect(screen.getByTestId('open-progress-detail')).toHaveTextContent("Being prepared on Ana's device");
 });

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentPagePath } from '@superdoc-collab/types';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { type DeviceRefusal } from '@/features/local-preview/device-guard';
 import type { UploadProgress } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY, uploadDocument, validateUpload } from './documents-api';
 import { ONE_FILE_AT_A_TIME_MESSAGE } from './documents-copy';
@@ -12,7 +13,10 @@ export type DocumentUpload = {
   clear: () => void;
   message: string | null;
   isPending: boolean;
+  devicePreparation: DevicePreparation | null;
 };
+
+export type DevicePreparation = { refusal: DeviceRefusal | null; start: () => void };
 
 type UseUploadDocumentOptions = { onUploaded?: () => void };
 
@@ -52,5 +56,5 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
     reset();
   }
 
-  return { progress, uploadFiles, clear, message: uploadErrorMessage({ rejectionMessage, error }), isPending };
+  return { progress, uploadFiles, clear, message: uploadErrorMessage({ rejectionMessage, error }), isPending, devicePreparation: null };
 }

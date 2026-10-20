@@ -5,11 +5,12 @@ import { detectPlatform } from '@/lib/platform';
 import { tabId } from '@/lib/tab-id';
 import { EDITOR_USER, SESSION_USER } from '@/testing/opened-document';
 import { HOCUSPOCUS_PROVIDER } from './collaboration-config';
-import { DocumentMode, superdocOptions, TOOLBAR_EXCLUDED_ITEMS } from './superdoc-options';
+import { DocumentMode, previewSuperdocOptions, superdocOptions, TOOLBAR_EXCLUDED_ITEMS } from './superdoc-options';
 import { SUPERDOC_TELEMETRY } from './superdoc-telemetry';
 import { ZoomMode } from './superdoc-zoom';
 
 const DOCUMENT_ID = 'doc-1';
+const PREVIEW_DOCUMENT_ID = 'preview';
 const COLLABORATION_PATH = '/collaboration/doc-1';
 const USER_COLOR = '#2e39b8';
 const PALETTE_COLORS = ['#2e39b8', '#5a2eb8', '#912eb8', '#b82ea8', '#b82e70', '#b82e39'];
@@ -88,6 +89,18 @@ test('user.color and colors come from the palette arguments', () => {
 
 test('without a toolbar container there is no toolbar', () => {
   expect(optionsFor(null).ui).not.toHaveProperty('toolbar');
+});
+
+test('the preview options open the uploaded bytes read-only, fitted to the width, with no room and no toolbar', () => {
+  const container = document.createElement('div');
+  const file = new Blob();
+  expect(previewSuperdocOptions({ container, file })).toEqual({
+    selector: container,
+    documentMode: DocumentMode.Viewing,
+    documents: [{ id: PREVIEW_DOCUMENT_ID, type: DOCX_MIME_TYPE, data: file }],
+    telemetry: SUPERDOC_TELEMETRY,
+    zoom: { mode: ZoomMode.FitWidth, fitWidth: { max: 100 } },
+  });
 });
 
 test('the context menu gets the shortcut provider', () => {

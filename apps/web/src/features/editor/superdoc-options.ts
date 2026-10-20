@@ -90,6 +90,10 @@ export function superdocOptions({
   };
 }
 
+export function previewSuperdocOptions(parameters: { container: HTMLElement; file: Blob }): Config {
+  throw new Error('previewSuperdocOptions is not implemented');
+}
+
 export function printSuperdocOptions({ container, file }: { container: HTMLElement; file: Blob }): Config {
   return {
     selector: container,

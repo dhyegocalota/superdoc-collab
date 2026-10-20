@@ -21,6 +21,7 @@ function preparing({ stage, done, total }: { stage: BootstrapStage; done: number
     elapsedSeconds: 12,
     startedAt: PAGE_STARTED_AT,
     answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: null,
   });
 }
 
@@ -51,7 +52,7 @@ function estimating({
     estimatedMs,
     preparingElapsedMs,
   };
-  return preparingView({ bootstrap, elapsedSeconds, startedAt: PAGE_STARTED_AT, answeredAt });
+  return preparingView({ bootstrap, elapsedSeconds, startedAt: PAGE_STARTED_AT, answeredAt, preparedOnDeviceOf: null });
 }
 
 test('uploading is a determinate bar of the bytes sent', () => {
@@ -145,7 +146,13 @@ test.each([
   ['a preparing bootstrap of unknown size', bootstrapAt(BootstrapStage.Preparing)],
   ['a legacy answer with no bootstrap', null],
 ])('%s still ticks the elapsed time', (_, bootstrap) => {
-  const view = preparingView({ bootstrap, elapsedSeconds: 75, startedAt: PAGE_STARTED_AT, answeredAt: PAGE_STARTED_AT });
+  const view = preparingView({
+    bootstrap,
+    elapsedSeconds: 75,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: null,
+  });
   expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Preparing the file · 1 min 15 s', fraction: null });
 });
 
@@ -187,4 +194,25 @@ describe('the view while the editor loads', () => {
       editorOpenView({ loadProgress: { ...FRESH, isSynced: true, pageCount: 7 }, stateBytes: 36_500_000, elapsedSeconds: 12 }),
     ).toEqual(renderingView({ pageCount: 7, elapsedSeconds: 12 }));
   });
+});
+
+test('a joiner is told whose device prepares the document, before and after bytes arrive', () => {
+  const owner = 'Ana';
+  const base = {
+    elapsedSeconds: 12,
+    startedAt: PAGE_STARTED_AT,
+    answeredAt: PAGE_STARTED_AT,
+    preparedOnDeviceOf: owner,
+  };
+  const silent = preparingView({
+    ...base,
+    bootstrap: { ...bootstrapAt(BootstrapStage.Preparing), total: TOTAL_BYTES, documentXmlBytes: TOTAL_BYTES },
+  });
+  expect(silent.detail).toBe("Being prepared on Ana's device · 12 s");
+  const receiving = preparingView({
+    ...base,
+    bootstrap: { ...bootstrapAt(BootstrapStage.Preparing), done: TOTAL_BYTES / 2, total: TOTAL_BYTES, documentXmlBytes: TOTAL_BYTES },
+  });
+  expect(receiving.detail).toBe("Being prepared on Ana's device · Received 4.8 MB · 12 s");
+  expect(receiving.fraction).toBe(0.5);
 });

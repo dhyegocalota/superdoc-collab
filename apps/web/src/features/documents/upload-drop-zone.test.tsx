@@ -11,7 +11,7 @@ import type { DocumentUpload } from './use-upload-document';
 const ERROR_MESSAGE = 'Only .docx files can be uploaded.';
 
 function uploadWith(overrides: Partial<DocumentUpload>): DocumentUpload {
-  return { progress: null, uploadFiles: vi.fn(), clear: vi.fn(), message: null, isPending: false, ...overrides };
+  return { progress: null, uploadFiles: vi.fn(), clear: vi.fn(), message: null, isPending: false, devicePreparation: null, ...overrides };
 }
 
 test('the zone invites a drop, states the limit and keeps the file input label', () => {

@@ -6,6 +6,7 @@ import {
   HttpStatus,
   MINUTE_MS,
   PREPARING_POLL_MS,
+  RoomMode,
 } from '@superdoc-collab/types';
 import { focusManager } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
@@ -181,4 +182,33 @@ test('an answer with preparingElapsedMs keeps it', async () => {
   const result = renderOpenedDocument();
   await advance(0);
   expect(result.current.bootstrap!.preparingElapsedMs).toBe(12_000);
+});
+
+test('a Create answer is ready at once, whatever the bootstrap says, because the person is the source', async () => {
+  answerInOrder(() => jsonResponse({ body: { ...OPENED, roomMode: RoomMode.Create, bootstrap: bootstrapAt(BootstrapStage.Preparing) } }));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.readiness).toBe(DocumentReadiness.Ready);
+  expect(result.current.data?.roomMode).toBe(RoomMode.Create);
+});
+
+test('a Create answer for a failed device job is still ready, so a reopen converts again', async () => {
+  answerInOrder(() => jsonResponse({ body: { ...OPENED, roomMode: RoomMode.Create, bootstrap: bootstrapAt(BootstrapStage.Failed) } }));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.readiness).toBe(DocumentReadiness.Ready);
+});
+
+test('the name of the device owner is exposed while the document waits', async () => {
+  answerInOrder(() => jsonResponse({ body: { ...OPENED, preparedOnDeviceOf: 'Ana', bootstrap: bootstrapAt(BootstrapStage.Preparing) } }));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.preparedOnDeviceOf).toBe('Ana');
+});
+
+test('no device owner is exposed when the server prepares the document', async () => {
+  answerInOrder(answeredAt(BootstrapStage.Preparing));
+  const result = renderOpenedDocument();
+  await advance(0);
+  expect(result.current.preparedOnDeviceOf).toBeNull();
 });

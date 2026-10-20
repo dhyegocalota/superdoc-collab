@@ -177,11 +177,30 @@ test('accepting the offer sends the same file again for the device, and keeps it
   expect(localFileOf(UPLOADED_DOCUMENT.id)).toBe(file);
 });
 
-test('a first upload sends no preparation field', async () => {
+test('a device that passes the guard sends its first upload for the device', async () => {
+  const { result } = renderHookWithRouter(useUploadDocument);
+  act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const form = (await sentUploadRequest()).body as FormData;
+  expect(form.get(PREPARATION_FIELD)).toBe(PreparationSource.Device);
+});
+
+test('a device that fails the guard sends its first upload for the server', async () => {
+  vi.mocked(useDeviceRefusal).mockReturnValue(DeviceRefusal.LittleMemory);
   const { result } = renderHookWithRouter(useUploadDocument);
   act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
   const form = (await sentUploadRequest()).body as FormData;
   expect(form.has(PREPARATION_FIELD)).toBe(false);
+  vi.mocked(useDeviceRefusal).mockReturnValue(null);
+});
+
+test('a device upload that the heap cannot hold shows the refusal and offers nothing', async () => {
+  const { result } = renderHookWithRouter(useUploadDocument);
+  act(() => result.current.uploadFiles([docxFile({ name: 'plan.docx', size: 1 })]));
+  const request = await sentUploadRequest();
+  act(() => request.respond({ status: HttpStatus.PayloadTooLarge, body: { error: REFUSAL_MESSAGE, canPrepareOnDevice: false } }));
+  await waitFor(() => expect(result.current.message).toBe(REFUSAL_MESSAGE));
+  expect(result.current.devicePreparation).toBeNull();
+  expect(FakeUploadRequest.requests).toHaveLength(1);
 });
 
 test('a device that cannot prepare names the reason instead of offering the button', async () => {

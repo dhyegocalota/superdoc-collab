@@ -224,21 +224,27 @@ export class ProjectionScheduler {
     return this.settleProject(reply);
   }
 
-  private armMeasure(): void {
+  private armMeasure(delayMs = this.recycleQuietMs): void {
     if (this.measureTimer) clearTimeout(this.measureTimer);
-    this.measureTimer = setTimeout(() => this.measureWhenIdle(), this.recycleQuietMs);
+    this.measureTimer = setTimeout(() => this.measureWhenIdle(), delayMs);
     this.measureTimer.unref();
   }
 
   private measureWhenIdle(): void {
     this.measureTimer = null;
-    if (!this.isRecyclable()) return;
+    if (!this.isQuiescent()) return;
+    const remainingMs = this.recycleCooldown.remainingMs(RECYCLE_COOLDOWN_KEY);
+    if (remainingMs > 0) return this.armMeasure(remainingMs);
     this.currentWorker.postMessage({ kind: ProjectionRequestKind.Measure });
   }
 
-  private isRecyclable(): boolean {
+  private isQuiescent(): boolean {
     const isRunning = !this.isRecycling && !this.stoppingPromise && !this.isDegraded;
-    return isRunning && this.isIdle() && this.recycleCooldown.remainingMs(RECYCLE_COOLDOWN_KEY) === 0;
+    return isRunning && this.isIdle();
+  }
+
+  private isRecyclable(): boolean {
+    return this.isQuiescent() && this.recycleCooldown.remainingMs(RECYCLE_COOLDOWN_KEY) === 0;
   }
 
   private recycleWhenHeavy(retainedHeapBytes: number): void {

@@ -49,6 +49,7 @@ const BURST_QUIET_MS = 400;
 const BURST_REQUESTS = 4;
 const STOP_DELAY_MS = 300;
 const RECYCLE_INTERVAL_TEST_MS = 600_000;
+const SHORT_RECYCLE_INTERVAL_TEST_MS = 400;
 const QUIET_PERIODS_WAITED = 6;
 
 test('a terminated worker is restarted and completes without duplicates', async () => {
@@ -831,6 +832,23 @@ test('a second heavy period inside the recycle interval keeps the fresh worker',
   await new Promise((resolve) => setTimeout(resolve, RECYCLE_QUIET_TEST_MS * QUIET_PERIODS_WAITED));
   expect(scheduler.currentWorker).toBe(freshWorker);
   await freshWorker.terminate();
+});
+
+test('a heavy period that the recycle interval blocked is measured again when the interval ends', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    recycleQuietMs: RECYCLE_QUIET_TEST_MS,
+    recycleIntervalMs: SHORT_RECYCLE_INTERVAL_TEST_MS,
+    projectionWorkerFile: writeHeapProbeWorker({ directory, heapTotalBytes: LARGE_DOCUMENT_HEAP_BYTES + 1 }),
+  });
+  const heavyWorker = scheduler.currentWorker;
+  await scheduler.blocks(randomUUID());
+  await expect.poll(() => scheduler.currentWorker !== heavyWorker).toBe(true);
+  const freshWorker = scheduler.currentWorker;
+  await scheduler.blocks(randomUUID());
+  await expect.poll(() => scheduler.currentWorker !== freshWorker).toBe(true);
+  await scheduler.currentWorker.terminate();
 });
 
 test('a bootstrap requested while the worker is being recycled is held for the fresh worker', async () => {

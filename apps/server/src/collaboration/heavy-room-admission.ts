@@ -7,6 +7,7 @@ type HeavyPlace = { documentName: string; estimatedStateBytes: number; userId: s
 
 export type HeavyRoomAdmission = {
   admits: (seat: Seat) => boolean;
+  admitsDevice: (seat: Seat) => boolean;
   fits: (seat: Seat) => boolean;
   refusalOf: (seat: Seat) => HeavyRoomsRefusal;
   reserveForUpload: (seat: Seat) => void;
@@ -37,6 +38,11 @@ export function createHeavyRoomAdmission({
   return {
     admits(seat) {
       if (isInFlight(seat.documentId)) return true;
+      const place = heavyPlaceOf(seat);
+      if (place === null) return true;
+      return roomMemory.admit(place);
+    },
+    admitsDevice(seat) {
       const place = heavyPlaceOf(seat);
       if (place === null) return true;
       return roomMemory.admit(place);

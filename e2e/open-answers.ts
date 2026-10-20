@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { documentApiPath, HttpMethod, HttpStatus, type BootstrapProgress, type OpenedDocument } from '../libs/types/src';
 
-const ANY_DOCUMENT_OPEN_PATH = /\/api\/documents\/[^/?#]+$/;
+const ANY_DOCUMENT_OPEN_PATH = /\/api\/documents\/[^/?#]+(\?[^#]*)?$/;
 
 async function scriptRoute({
   page,
@@ -32,7 +32,7 @@ export function scriptOpenAnswers({
   documentId: string;
   bootstraps: BootstrapProgress[];
 }): Promise<void> {
-  return scriptRoute({ page, matcher: `**${documentApiPath({ documentId })}`, bootstraps });
+  return scriptRoute({ page, matcher: `**${documentApiPath({ documentId })}*`, bootstraps });
 }
 
 export function scriptNextOpenAnswers({ page, bootstraps }: { page: Page; bootstraps: BootstrapProgress[] }): Promise<void> {

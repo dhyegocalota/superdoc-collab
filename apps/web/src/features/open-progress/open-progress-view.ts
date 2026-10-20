@@ -5,6 +5,7 @@ import {
   detailLine,
   documentsAheadDetail,
   preparedOnDeviceDetail,
+  PREPARING_HERE_DETAIL,
   estimatedConversionDetail,
   elapsedLabel,
   LAYING_OUT_DETAIL,
@@ -109,6 +110,10 @@ export function preparingView({
     };
   }
   return { stage, detail: detailLine([subject, elapsed]), fraction: null };
+}
+
+export function preparingHereView({ elapsedSeconds }: { elapsedSeconds: number }): OpenProgressView {
+  return { stage: OpenStage.Preparing, detail: detailLine([PREPARING_HERE_DETAIL, elapsedLabel(elapsedSeconds)]), fraction: null };
 }
 
 export function downloadingView({ stateBytes, elapsedSeconds }: { stateBytes: number | null; elapsedSeconds: number }): OpenProgressView {

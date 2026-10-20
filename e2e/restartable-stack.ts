@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { FAKE_OPENROUTER_ORIGIN } from './fake-openrouter-origin';
-import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, stackEnvironment, waitForHealth } from './stack';
+import { assertPortFree, localOrigin, SERVER_HEALTH_PATH, serverHeapMegabytesOf, stackEnvironment, waitForHealth } from './stack';
 
 export enum RestartablePort {
   ConnectionState = 3150,
@@ -13,6 +13,8 @@ export enum RestartablePort {
   LocalPreview = 3171,
 }
 
+const MEMORY_LIMIT_KEY = 'MEMORY_LIMIT_MEGABYTES';
+const SERVER_HEAP_KEY = 'SERVER_HEAP_MEGABYTES';
 const SEED_COMMAND = 'apps/server/dist/seed.js';
 const SERVER_COMMAND = 'apps/server/dist/main.js';
 const DATABASE_DIRECTORY_PREFIX = 'superdoc-collab-restartable-';
@@ -40,6 +42,12 @@ async function seedDatabase(seedEnvironment: Record<string, string>): Promise<vo
   if (exitCode !== 0) throw new Error(`${SEED_COMMAND} exited with ${exitCode}`);
 }
 
+function serverHeapEnvironmentOf(overrides: Record<string, string>): Record<string, string> {
+  const memoryLimit = overrides[MEMORY_LIMIT_KEY];
+  if (memoryLimit === undefined) return {};
+  return { [SERVER_HEAP_KEY]: String(serverHeapMegabytesOf(Number(memoryLimit))) };
+}
+
 export async function startRestartableStack({
   port,
   overrides = {},
@@ -50,7 +58,11 @@ export async function startRestartableStack({
   await assertPortFree(port);
   const databaseDir = mkdtempSync(join(tmpdir(), DATABASE_DIRECTORY_PREFIX));
   origin = localOrigin(port);
-  environment = { ...stackEnvironment({ port, databaseDir, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN }), ...overrides };
+  environment = {
+    ...stackEnvironment({ port, databaseDir, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN }),
+    ...serverHeapEnvironmentOf(overrides),
+    ...overrides,
+  };
   await seedDatabase(environment);
   await startServer();
   return origin;

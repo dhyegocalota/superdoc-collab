@@ -55,7 +55,7 @@ G1 types first, then G1 server and G2/G3 in that order, then G4.
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
 |------|-------------|------------------------------------|----------------|
 | 4 | The creator's socket writes after the commit with a stale attempt and its edits are dropped | An owner's first edit after the commit never reaches a joiner | The commit clears the attempt of a device job; test first |
-| 4 | Two owner tabs seed one room twice | Duplicated paragraphs after the commit | The newer claim supersedes; the older is closed as stale; test first |
+| 4 | Two owner tabs seed one room twice | Duplicated paragraphs after the commit | One live claim per job: another tab is refused and answered Join; a stale attempt's socket is read-only; test first |
 | 5 | A client forces the device source on a small file | A small file prepared by a browser | Honoured only when the guard refuses; test first |
 | 10 | Two SuperDoc instances alive at the swap | Memory doubles on the heavy file | The preview is destroyed in the same render that mounts the editor |
 | 10 | The preview freezes the tab | The elapsed counter stops | The E2E asserts the counter ticks; fall back to a smaller layout window |

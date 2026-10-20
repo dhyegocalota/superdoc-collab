@@ -8,6 +8,8 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ServerBusyError } from '@/lib/api';
 import { AccountMenu } from '@/features/account/account-menu';
+import { DEVICE_REFUSAL_COPY } from '@/features/local-preview/local-preview-copy';
+import type { DeviceRefusal } from '@/features/local-preview/device-guard';
 import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
 import { preparingView } from '@/features/open-progress/open-progress-view';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
@@ -16,7 +18,14 @@ import { LeaveOpeningButton } from './leave-opening-button';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { useCachedTitle } from './use-cached-title';
 import { DocumentReadiness } from './use-opened-document';
-import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
+import {
+  DEVICE_STOPPED_HINT,
+  deviceStoppedMessage,
+  LOAD_RETRY_HINT,
+  PREPARATION_FAILED_HINT,
+  PREPARATION_FAILED_MESSAGE,
+  TRY_AGAIN_LABEL,
+} from './waiting-copy';
 
 export type WaitingProgress = {
   bootstrap: BootstrapProgress | null;
@@ -34,6 +43,7 @@ type WaitingForDocumentProps = WaitingActions & {
   readiness: WaitingReadiness;
   progress: WaitingProgress;
   failure: Error | null;
+  deviceRefusal: DeviceRefusal | null;
 };
 
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
@@ -89,6 +99,7 @@ function PreparingCard({ title, progress }: { title: string | null; progress: Wa
 
 function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress: WaitingProgress; failure: Error | null }) {
   const isPreparationFailure = progress.bootstrap?.stage === BootstrapStage.Failed;
+  const stoppedDeviceOwner = isPreparationFailure ? progress.preparedOnDeviceOf : null;
   if (failure instanceof ServerBusyError) {
     return (
       <StatusCard
@@ -104,6 +115,17 @@ function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress:
       />
     );
   }
+  if (stoppedDeviceOwner !== null) {
+    return (
+      <StatusCard
+        role="alert"
+        icon={<TriangleAlertIcon aria-hidden="true" className="size-4 text-destructive" />}
+        heading={deviceStoppedMessage(stoppedDeviceOwner)}
+        hint={DEVICE_STOPPED_HINT}
+        actions={<BackToDocumentsButton />}
+      />
+    );
+  }
   return (
     <StatusCard
       role="alert"
@@ -116,6 +138,17 @@ function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress:
           <BackToDocumentsButton />
         </>
       }
+    />
+  );
+}
+
+function DeviceRefusedCard({ refusal }: { refusal: DeviceRefusal }) {
+  return (
+    <StatusCard
+      role="alert"
+      icon={<TriangleAlertIcon aria-hidden="true" className="size-4 text-destructive" />}
+      heading={DEVICE_REFUSAL_COPY[refusal]}
+      actions={<BackToDocumentsButton />}
     />
   );
 }
@@ -139,7 +172,7 @@ const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactEle
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
-export function WaitingForDocument({ documentId, readiness, progress, failure, onRetry }: WaitingForDocumentProps) {
+export function WaitingForDocument({ documentId, readiness, progress, failure, deviceRefusal, onRetry }: WaitingForDocumentProps) {
   const title = useCachedTitle(documentId);
 
   return (
@@ -162,7 +195,11 @@ export function WaitingForDocument({ documentId, readiness, progress, failure, o
             <Skeleton key={`${width}-${index}`} className={`h-3 ${width}`} />
           ))}
         </div>
-        {CARD_BY_READINESS[readiness]({ title, progress, failure, onRetry })}
+        {deviceRefusal === null ? (
+          CARD_BY_READINESS[readiness]({ title, progress, failure, onRetry })
+        ) : (
+          <DeviceRefusedCard refusal={deviceRefusal} />
+        )}
       </main>
     </div>
   );

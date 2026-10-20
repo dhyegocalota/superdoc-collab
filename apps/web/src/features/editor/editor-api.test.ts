@@ -1,8 +1,17 @@
-import { HEAVY_ROOMS_FULL_MESSAGE, HttpMethod, HttpStatus, thumbnailApiPath, ThumbnailMimeType } from '@superdoc-collab/types';
+import {
+  documentApiPath,
+  HEAVY_ROOMS_FULL_MESSAGE,
+  HttpMethod,
+  HttpStatus,
+  TAB_QUERY_KEY,
+  thumbnailApiPath,
+  ThumbnailMimeType,
+} from '@superdoc-collab/types';
 import { afterEach, expect, test, vi } from 'vitest';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID } from '@/testing/opened-document';
 import { DocumentUnavailableError, ServerBusyError } from '@/lib/api';
+import { tabId } from '@/lib/tab-id';
 import { openDocument, sendThumbnailBeacon, uploadThumbnail } from './editor-api';
 
 afterEach(() => vi.restoreAllMocks());
@@ -20,6 +29,12 @@ test('a 503 throws ServerBusyError carrying the message of the server, so the wa
   const failure = await openDocument(DOCUMENT_ID).catch((caught: unknown) => caught);
   expect(failure).toBeInstanceOf(ServerBusyError);
   expect((failure as Error).message).toBe(HEAVY_ROOMS_FULL_MESSAGE);
+});
+
+test('opening a document names the tab asking, so a device claim answers Create to that tab only', async () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Ok }));
+  await openDocument(DOCUMENT_ID);
+  expect(String(fetchSpy.mock.calls[0]![0])).toBe(`${documentApiPath({ documentId: DOCUMENT_ID })}?${TAB_QUERY_KEY}=${tabId()}`);
 });
 
 test('uploadThumbnail puts the image to the thumbnail route and reports whether it was stored', async () => {

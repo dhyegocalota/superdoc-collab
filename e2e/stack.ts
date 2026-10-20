@@ -14,6 +14,8 @@ const UPLOADS_PER_MINUTE = 10_000;
 const MAX_HEAVY_CONVERSIONS_PER_HOUR = 10_000;
 const CONNECTION_REFUSED = 'ECONNREFUSED';
 const HEALTH_POLL_INTERVAL_MS = 500;
+const SERVER_HEAP_PERCENT = 40;
+const PERCENT_DIVISOR = 100;
 
 export const FAKE_OPENROUTER_COMMAND = 'node e2e/fake-openrouter.ts';
 export const FAKE_OPENROUTER_HEALTH_PATH = '/health';
@@ -25,6 +27,10 @@ export const BUILD_AND_START_COMMAND = [
   'node apps/server/dist/seed.js',
   'node apps/server/dist/main.js',
 ].join(' && ');
+
+export function serverHeapMegabytesOf(memoryLimitMegabytes: number): number {
+  return Math.floor((memoryLimitMegabytes * SERVER_HEAP_PERCENT) / PERCENT_DIVISOR);
+}
 
 export function localOrigin(port: number): string {
   return `http://${LOOPBACK_HOST}:${port}`;

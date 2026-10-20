@@ -10,6 +10,9 @@ import {
   DEMO_USERS,
   DOCX_MIME_TYPE,
   documentApiPath,
+  largestHoldableMegabytes,
+  roomHeapBudgetMegabytes,
+  roomHoldShortMessage,
   RoomMode,
   ShareLinkRole,
   type BootstrapProgress,
@@ -25,6 +28,7 @@ import { DeviceRefusal } from '../apps/web/src/features/local-preview/device-gua
 import { preparedOnDeviceDetail } from '../apps/web/src/features/open-progress/open-progress-copy';
 import { scriptNextOpenAnswers } from './open-answers';
 import { RestartablePort, startRestartableStack, stopRestartableStack } from './restartable-stack';
+import { serverHeapMegabytesOf } from './stack';
 
 const PREVIEW_SURFACE_TEST_ID = 'local-preview';
 const LIVE_EDITOR_TEST_ID = 'document-editor';
@@ -43,6 +47,9 @@ const LARGE_SWAP_TIMEOUT_MS = 300_000;
 const HEARTBEAT_INTERVAL_MS = 100;
 const HEARTBEATS_KEY = 'previewHeartbeats';
 const DETAILS_KEY = 'previewPanelDetails';
+const TEXT_SAMPLES_KEY = 'previewTextSamples';
+const VISIBLE_TEXT_SELECTOR = '[data-testid="local-preview"] .superdoc-text-run, [data-testid="document-editor"] .superdoc-text-run';
+const TEXT_GAP_LIMIT_MS = 1_000;
 const LONGEST_STALL_LIMIT_MS = 5_000;
 const LONGEST_LAYOUT_STALL_LIMIT_MS = 10_000;
 const MIN_DISTINCT_DETAILS = 3;
@@ -54,6 +61,8 @@ const DOCUMENT_WORKER_PATTERN = /browser-worker-entry/;
 const NARROW_VIEWPORT = { width: 375, height: 812 };
 const DEVICE_JOINER_TIMEOUT_MS = 120_000;
 const FOUR_GIGABYTES = 4096;
+const SIX_GIGABYTES = 6144;
+const ROOMY_HEAP_BUDGET_MEGABYTES = 2000;
 
 function preparingAnswer(): BootstrapProgress {
   return {
@@ -90,30 +99,52 @@ function previewText(page: Page, text: string) {
 
 async function recordPageLife(page: Page): Promise<void> {
   await page.addInitScript(
-    ({ heartbeatsKey, detailsKey, intervalMs, detailTestId }) => {
+    ({ heartbeatsKey, detailsKey, textKey, textSelector, intervalMs, detailTestId }) => {
       const scope = window as unknown as Record<string, unknown[]>;
       scope[heartbeatsKey] = [];
       scope[detailsKey] = [];
+      scope[textKey] = [];
       setInterval(() => {
         scope[heartbeatsKey]!.push(performance.now());
+        scope[textKey]!.push(document.querySelector(textSelector) !== null);
         const detail = document.querySelector(`[data-testid="${detailTestId}"]`);
         if (!detail) return;
         const text = detail.textContent;
         if (scope[detailsKey]!.at(-1) !== text) scope[detailsKey]!.push(text);
       }, intervalMs);
     },
-    { heartbeatsKey: HEARTBEATS_KEY, detailsKey: DETAILS_KEY, intervalMs: HEARTBEAT_INTERVAL_MS, detailTestId: PANEL_DETAIL_TEST_ID },
+    {
+      heartbeatsKey: HEARTBEATS_KEY,
+      detailsKey: DETAILS_KEY,
+      textKey: TEXT_SAMPLES_KEY,
+      textSelector: VISIBLE_TEXT_SELECTOR,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      detailTestId: PANEL_DETAIL_TEST_ID,
+    },
   );
 }
 
-async function pageLifeOf(page: Page): Promise<{ heartbeats: number[]; details: string[] }> {
+async function pageLifeOf(page: Page): Promise<{ heartbeats: number[]; details: string[]; textSamples: boolean[] }> {
   return page.evaluate(
-    ({ heartbeatsKey, detailsKey }) => {
+    ({ heartbeatsKey, detailsKey, textKey }) => {
       const scope = window as unknown as Record<string, unknown[]>;
-      return { heartbeats: scope[heartbeatsKey] as number[], details: scope[detailsKey] as string[] };
+      return {
+        heartbeats: scope[heartbeatsKey] as number[],
+        details: scope[detailsKey] as string[],
+        textSamples: scope[textKey] as boolean[],
+      };
     },
-    { heartbeatsKey: HEARTBEATS_KEY, detailsKey: DETAILS_KEY },
+    { heartbeatsKey: HEARTBEATS_KEY, detailsKey: DETAILS_KEY, textKey: TEXT_SAMPLES_KEY },
   );
+}
+
+function longestTextGapMs(textSamples: boolean[]): number {
+  const firstText = textSamples.indexOf(true);
+  if (firstText === -1) return Infinity;
+  const gaps = textSamples
+    .slice(firstText)
+    .reduce<number[]>((runs, hasText) => (hasText ? [...runs, 0] : [...runs.slice(0, -1), runs.at(-1)! + 1]), [0]);
+  return Math.max(...gaps) * HEARTBEAT_INTERVAL_MS;
 }
 
 function longestGapOf(heartbeats: number[]): number {
@@ -126,12 +157,13 @@ test('the uploader reads the document in a preview before the shared copy is rea
   await expect(ana.page.getByText(PREVIEW_BADGE_MESSAGE)).toBeVisible();
   await expect(previewText(ana.page, SEED_PARAGRAPH)).toBeVisible({ timeout: PREVIEW_PAINT_TIMEOUT_MS });
   await expect(ana.page.getByTestId(LIVE_EDITOR_TEST_ID)).toHaveCount(0);
-  await expect(ana.page.getByText(PREVIEW_BADGE_MESSAGE)).toBeHidden({ timeout: SWAP_TIMEOUT_MS });
+  await expect(ana.page.getByTestId(PREVIEW_SURFACE_TEST_ID)).toHaveCount(0, { timeout: SWAP_TIMEOUT_MS });
   await expect(editorText(ana.page).filter({ hasText: SEED_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
 });
 
-test('the page swaps to the live room without a reload', async ({ browser }) => {
+test('the page swaps to the live room without a reload and without a moment with no text on screen', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await recordPageLife(ana.page);
   await uploadSeedWhilePreparing(ana.page);
   await expect(previewText(ana.page, SEED_PARAGRAPH)).toBeVisible({ timeout: PREVIEW_PAINT_TIMEOUT_MS });
   const timeOrigin = await ana.page.evaluate((key) => {
@@ -146,6 +178,7 @@ test('the page swaps to the live room without a reload', async ({ browser }) => 
     MARKER_KEY,
   );
   expect(afterSwap).toEqual({ marker: timeOrigin, origin: timeOrigin });
+  expect(longestTextGapMs((await pageLifeOf(ana.page)).textSamples)).toBeLessThanOrEqual(TEXT_GAP_LIMIT_MS);
 });
 
 test('the brief opens in a preview within seconds', async ({ browser }) => {
@@ -183,7 +216,7 @@ test('the preview of a large document opens while the panel keeps counting and t
   expect(await documentWorker!.evaluate(() => typeof window === 'undefined')).toBe(true);
   const painted = await pageLifeOf(ana.page);
   const stallUntilFirstParagraphMs = longestGapOf(painted.heartbeats);
-  await expect(ana.page.getByText(PREVIEW_BADGE_MESSAGE)).toBeHidden({ timeout: LARGE_SWAP_TIMEOUT_MS });
+  await expect(ana.page.getByTestId(PREVIEW_SURFACE_TEST_ID)).toHaveCount(0, { timeout: LARGE_SWAP_TIMEOUT_MS });
   const swapped = await pageLifeOf(ana.page);
   const stallWhileLayingOutMs = longestGapOf(swapped.heartbeats.slice(painted.heartbeats.length - 1));
   test.info().annotations.push({
@@ -197,6 +230,7 @@ test('the preview of a large document opens while the panel keeps counting and t
     }),
   });
   expect(previewMs).toBeLessThan(LARGE_PREVIEW_LIMIT_MS);
+  expect(longestTextGapMs(swapped.textSamples)).toBeLessThanOrEqual(TEXT_GAP_LIMIT_MS);
   expect(painted.details.length).toBeGreaterThanOrEqual(MIN_DISTINCT_DETAILS);
   expect(stallUntilFirstParagraphMs).toBeLessThan(LONGEST_STALL_LIMIT_MS);
   expect(stallWhileLayingOutMs).toBeLessThan(LONGEST_LAYOUT_STALL_LIMIT_MS);
@@ -209,7 +243,10 @@ test.describe('a server with no memory to prepare a file', () => {
   test.beforeAll(async () => {
     origin = await startRestartableStack({
       port: RestartablePort.LocalPreview,
-      overrides: { MEMORY_LIMIT_MEGABYTES: String(BOOTSTRAP_MEMORY_RESERVE_MEGABYTES) },
+      overrides: {
+        MEMORY_LIMIT_MEGABYTES: String(BOOTSTRAP_MEMORY_RESERVE_MEGABYTES),
+        ROOM_HEAP_BUDGET_MEGABYTES: String(ROOMY_HEAP_BUDGET_MEGABYTES),
+      },
     });
   });
 
@@ -256,6 +293,33 @@ test.describe('a four gigabyte server and the heavy fixture', () => {
     origin = await startRestartableStack({
       port: RestartablePort.LocalPreview,
       overrides: { MEMORY_LIMIT_MEGABYTES: String(FOUR_GIGABYTES) },
+    });
+  });
+
+  test.afterAll(async () => {
+    await stopRestartableStack();
+  });
+
+  test('cannot hold the document by any path, so the refusal names the largest size and offers no device', async ({ browser }) => {
+    const ana = await signedInContext({ browser, user: DEMO_USERS[0]!, origin });
+    await uploadThroughTheDialog({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
+    const roomHeapMegabytes = roomHeapBudgetMegabytes({
+      memoryLimitMegabytes: FOUR_GIGABYTES,
+      serverHeapMegabytes: serverHeapMegabytesOf(FOUR_GIGABYTES),
+    })!;
+    await expect(ana.page.getByRole('alert')).toHaveText(roomHoldShortMessage(largestHoldableMegabytes(roomHeapMegabytes)));
+    await expect(ana.page.getByRole('button', { name: DEVICE_OFFER_LABEL })).toHaveCount(0);
+  });
+});
+
+test.describe('a six gigabyte server and the heavy fixture', () => {
+  test.describe.configure({ mode: 'serial' });
+  let origin: string;
+
+  test.beforeAll(async () => {
+    origin = await startRestartableStack({
+      port: RestartablePort.LocalPreview,
+      overrides: { MEMORY_LIMIT_MEGABYTES: String(SIX_GIGABYTES) },
     });
   });
 

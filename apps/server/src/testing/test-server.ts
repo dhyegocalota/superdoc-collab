@@ -295,11 +295,13 @@ export async function signedInOwner({
   languageModel,
   versionRoomPolicy,
   memoryLimitMegabytes,
+  roomHeapBudgetMegabytes,
 }: {
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   memoryLimitMegabytes?: number | null;
+  roomHeapBudgetMegabytes?: number | null;
 } = {}): Promise<{ server: TestServer; owner: TestUser }> {
-  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes });
+  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes, roomHeapBudgetMegabytes });
   return { server, owner: await signedInUser({ server, name: OWNER_NAME }) };
 }

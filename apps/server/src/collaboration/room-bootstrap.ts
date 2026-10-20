@@ -9,6 +9,7 @@ import {
   BOOTSTRAP_RATE_SAMPLES,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
+  DEVICE_JOB_LIFETIME_MS,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapLane,
   bootstrapLaneOf,
@@ -33,6 +34,7 @@ type BootstrapJob = {
   failedAt: number | null;
   startedAt: number | null;
   isDevice: boolean;
+  isReopenable: boolean;
   claim: DeviceClaim | null;
 };
 
@@ -64,6 +66,12 @@ export class BootstrapOwnerMissingError extends Error {
 export class BootstrapUncommittedError extends Error {
   constructor() {
     super('The bootstrap finished without committing the room.');
+  }
+}
+
+export class DeviceExpiredError extends Error {
+  constructor() {
+    super('The device did not commit the room within the lifetime of a device job.');
   }
 }
 
@@ -137,20 +145,38 @@ export class RoomBootstrap {
   }
 
   isDevicePending(documentId: string): boolean {
+    this.expireDevice(documentId);
+    const job = this.jobs.peek(documentId);
+    if (job === null) return false;
+    return job.isDevice && job.progress.stage === BootstrapStage.Preparing;
+  }
+
+  isDeviceJob(documentId: string): boolean {
+    this.expireDevice(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return false;
     return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
   }
 
-  isDeviceCreator({ documentId, userId }: { documentId: string; userId: string }): boolean {
-    return this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
+  reopenDevice({ documentId, userId }: { documentId: string; userId: string }): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null || !job.isReopenable || this.ownerOf(documentId) !== userId) return;
+    this.registerDevice(documentId);
+  }
+
+  isDeviceCreator({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): boolean {
+    const isOwnerOfPendingJob = this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
+    if (!isOwnerOfPendingJob) return false;
+    const job = this.jobs.peek(documentId);
+    if (job === null || job.attempt === null) return true;
+    return job.claim !== null && job.claim.tabId === tabId;
   }
 
   claimDevice({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): string | null {
     const job = this.jobs.peek(documentId);
-    if (job === null || !this.isDeviceCreator({ documentId, userId })) return null;
+    if (job === null || !this.isDeviceCreator({ documentId, userId, tabId })) return null;
     const { claim, attempt: claimedAttempt } = job;
-    const isClaimedByTab = claim !== null && claimedAttempt !== null && claim.tabId === tabId;
+    const isClaimedByTab = claim !== null && claimedAttempt !== null;
     if (isClaimedByTab) {
       this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets + 1 } } });
       return claimedAttempt;
@@ -171,10 +197,11 @@ export class RoomBootstrap {
       this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets - 1 } } });
       return;
     }
-    this.fail({ documentId, error: new DeviceClosedError() });
+    this.fail({ documentId, error: new DeviceClosedError(), isReopenable: true });
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
+    this.expireDevice(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return null;
     return this.answerOf({ documentId, job });
@@ -204,6 +231,7 @@ export class RoomBootstrap {
   }
 
   request(documentId: string): BootstrapProgress {
+    this.expireDevice(documentId);
     const answered = this.answerWithoutStarting(documentId);
     if (answered !== null) return answered;
     if (!this.isPreparableByServer(documentId)) return this.registerDevice(documentId);
@@ -256,6 +284,7 @@ export class RoomBootstrap {
         failedAt: null,
         startedAt,
         isDevice: false,
+        isReopenable: false,
         claim: null,
       },
     });
@@ -300,6 +329,7 @@ export class RoomBootstrap {
         failedAt: null,
         startedAt: null,
         isDevice: job !== null && job.isDevice,
+        isReopenable: false,
         claim: null,
       },
     });
@@ -348,7 +378,10 @@ export class RoomBootstrap {
       queuePosition: null,
       queueWaitMs: null,
     };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false, claim: null } });
+    this.jobs.set({
+      key: documentId,
+      value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false, isReopenable: false, claim: null },
+    });
     return progress;
   }
 
@@ -360,6 +393,7 @@ export class RoomBootstrap {
       failedAt: null,
       startedAt: this.now(),
       isDevice: true,
+      isReopenable: false,
       claim: null,
     };
     this.jobs.set({ key: documentId, value: job });
@@ -535,7 +569,14 @@ export class RoomBootstrap {
     throw new BootstrapUncommittedError();
   }
 
-  private fail({ documentId, error }: { documentId: string; error: unknown }): void {
+  private expireDevice(documentId: string): void {
+    const job = this.jobs.peek(documentId);
+    if (job === null || !job.isDevice || job.progress.stage !== BootstrapStage.Preparing || job.startedAt === null) return;
+    if (this.now() - job.startedAt < DEVICE_JOB_LIFETIME_MS) return;
+    this.fail({ documentId, error: new DeviceExpiredError() });
+  }
+
+  private fail({ documentId, error, isReopenable = false }: { documentId: string; error: unknown; isReopenable?: boolean }): void {
     this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
@@ -547,6 +588,7 @@ export class RoomBootstrap {
         failedAt: this.now(),
         startedAt: null,
         isDevice: job.isDevice,
+        isReopenable,
         claim: null,
       },
     });

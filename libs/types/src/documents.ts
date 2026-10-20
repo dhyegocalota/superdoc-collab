@@ -88,6 +88,15 @@ export function roomHeapBudgetMegabytes({
   if (budgets.length === 0) return null;
   return Math.max(0, Math.min(...budgets));
 }
+export function largestHoldableMegabytes(roomHeapBudgetMegabytes: number): number {
+  const heavyShareMegabytes = roomHeapBudgetMegabytes * (1 - SMALL_ROOMS_HEAP_SHARE);
+  return Math.floor(heavyShareMegabytes / (HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE * BOOTSTRAP_STATE_BYTES_RATIO));
+}
+const ROOM_HOLD_NONE_MESSAGE = 'This server has no memory to hold a document that needs a heavy room, even prepared on a device.';
+export function roomHoldShortMessage(largestMegabytes: number): string {
+  if (largestMegabytes === 0) return ROOM_HOLD_NONE_MESSAGE;
+  return `This server cannot hold a document this large at its current memory, even prepared on a device. The largest it can hold has up to ${largestMegabytes} MB of text and layout.`;
+}
 export function isHeavyRoomDocument(documentXmlBytes: number): boolean {
   return documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO > LARGE_ROOM_STATE_BYTES;
 }
@@ -112,6 +121,7 @@ export const DOCX_EXTENSION = '.docx';
 export const UPLOAD_FIELD = 'file';
 export const PREPARATION_FIELD = 'preparation';
 export const DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES = 4;
+export const DEVICE_JOB_LIFETIME_MS = BOOTSTRAP_HOST_TIMEOUT_MS;
 export const UPLOAD_TOO_LARGE_MESSAGE = `Files up to ${MAX_UPLOAD_MEGABYTES} MB can be uploaded.`;
 export const NOT_A_DOCX_MESSAGE = 'Only .docx files can be uploaded.';
 export const DOCUMENT_TOO_LARGE_MESSAGE = `Documents with more than ${MAX_DOCUMENT_XML_MEGABYTES} MB of text and layout cannot be opened.`;

@@ -90,6 +90,17 @@ Laptop, local stack, headless Chromium, one run each (`e2e/local-preview.spec.ts
 | Longest stall of the heartbeat while the heavy preview lays out the rest, until the swap | not applicable | not applicable | 2.1 to 5.1 s while other lanes loaded the machine, asserted under 10 s |
 | Distinct lines the panel showed before the first paragraph (the elapsed counter ticking) | not applicable | not applicable | 6 to 8 |
 
+Browser memory of the tab across the heavy swap (peak of the sum of the renderer processes' resident memory, and of the JavaScript heap of the page, sampled every 500 ms by `e2e/tab-memory.ts`; one laptop, two runs each, noisy by several hundred MB):
+
+| Window | Preview kept alive as an overlay (two runs) | Preview engine destroyed at the swap, pages frozen (final) |
+|--------|---------------------------------------------|-------------------------------------------------------------|
+| Preview alone, until the live editor mounts | 2248 and 3432 MB resident, 1927 and 1833 MB heap | 2663 MB resident, 1934 MB heap |
+| Overlap, live editor mounted and preview on screen | 3143 and 3828 MB resident, 1347 and 1077 MB heap | 1956 MB resident, 683 MB heap |
+| Live editor alone, after the preview is gone | 3975 and 4667 MB resident, 1415 and 1163 MB heap | 2123 MB resident, 497 MB heap |
+| A tab that opens the same document live, no preview | not measured | 2565 MB resident, 489 MB heap |
+
+Keeping the preview engine alive added between 900 and 1400 MB of resident memory to the tab's peak over a tab with no preview, and two full documents lived in one tab for about 13 to 24 s. The page now destroys the preview's engine (its worker and layout) when the live editor starts and keeps a frozen copy of the pages already painted on screen until the live editor paints, so the tab's peak is the preview's, not the sum.
+
 Memory arithmetic for the heavy fixture (about 10 MB of document XML, estimated room heap 759 MB). The room heap budget is the smaller of the container budget (limit minus 512 MB reserve minus 2300 MB conversion) and the server heap (40 percent of the limit, as the image entrypoint sets it, minus 100 MB baseline minus 900 MB load spike); the heavy share of it is 75 percent.
 
 | Memory limit | Server heap | Room heap budget | Heavy share | Heavy fixture |

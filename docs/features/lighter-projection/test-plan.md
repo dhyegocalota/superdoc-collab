@@ -21,4 +21,4 @@
 
 ## Adversarial review
 
-- [ ] The reviewer tries a log whose snapshot predates a delete of content the tail created.
+- [x] The reviewer tries a log whose snapshot predates a delete of content the tail created. — evidence: reviewer round 1 at a254984e attacked it with a log whose snapshot predates a delete the tail created: held, the delete is in the merged tail and applies over the snapshot; materialize differs from a replay from sequence 0 only by leaving out pre-commit partials of abandoned attempts, the intended reading

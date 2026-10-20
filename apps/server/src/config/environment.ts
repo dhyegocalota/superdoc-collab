@@ -129,6 +129,6 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'BOOTSTRAP_HOST_HEAP_MEGABYTES',
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
-    memoryLimitMegabytes: null,
+    memoryLimitMegabytes: optionalLimitFrom({ name: 'MEMORY_LIMIT_MEGABYTES', value: source.MEMORY_LIMIT_MEGABYTES }),
   };
 }

@@ -163,7 +163,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));
   app.route(ApiPath.Documents, createVersionsRoutes({ services }));
-  app.route(ApiPath.Documents, createDocumentsRoutes({ services }));
+  app.route(ApiPath.Documents, createDocumentsRoutes({ services, memoryLimitMegabytes: environment.memoryLimitMegabytes }));
   app.route('/', createShareLinksRoutes({ services }));
   return app;
 }

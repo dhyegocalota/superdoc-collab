@@ -1,12 +1,17 @@
 import { buildSeedDocx, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
+  BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE,
+  bootstrapMemoryShortMessage,
+  BYTES_PER_MEGABYTE,
   DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
   HttpStatus,
   isTabId,
+  largestPreparableMegabytes,
   MAX_UPLOAD_BYTES,
   MEMBER_NOT_FOUND_MESSAGE,
   NOT_A_DOCX_MESSAGE,
@@ -62,8 +67,9 @@ function contentDisposition(fileName: string): string {
 }
 
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
+type CreationMount = RouteMount & { memoryLimitMegabytes: number | null };
 
-function mountCreation({ routes, services }: RouteMount): void {
+function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount): void {
   const { documents, storage, runtime, uploadBudget } = services;
 
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
@@ -87,6 +93,15 @@ function mountCreation({ routes, services }: RouteMount): void {
       status: HttpStatus.TooManyRequests,
       retryAfterSeconds: secondsRoundedUp(waitMs),
     });
+  }
+
+  function refusalWhenMemoryShort({ context, fileBytes }: { context: Context<SignedIn>; fileBytes: number }): Response | null {
+    if (memoryLimitMegabytes === null) return null;
+    const residentBytes = fileBytes * BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE;
+    const usableBytes = (memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES) * BYTES_PER_MEGABYTE;
+    if (residentBytes <= usableBytes) return null;
+    const message = bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes));
+    return context.json({ error: message }, HttpStatus.PayloadTooLarge);
   }
 
   async function respondWithStoredDocument({
@@ -137,6 +152,8 @@ function mountCreation({ routes, services }: RouteMount): void {
       const file = body[UPLOAD_FIELD];
       if (!(file instanceof File)) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (file.size > MAX_UPLOAD_BYTES) return context.json({ error: UPLOAD_TOO_LARGE_MESSAGE }, HttpStatus.PayloadTooLarge);
+      const memoryRefusal = refusalWhenMemoryShort({ context, fileBytes: file.size });
+      if (memoryRefusal) return memoryRefusal;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
       if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
@@ -240,9 +257,15 @@ function mountReading({ routes, services }: RouteMount): void {
   });
 }
 
-export function createDocumentsRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
+export function createDocumentsRoutes({
+  services,
+  memoryLimitMegabytes,
+}: {
+  services: AppServices;
+  memoryLimitMegabytes: number | null;
+}): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  mountCreation({ routes, services });
+  mountCreation({ routes, services, memoryLimitMegabytes });
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });

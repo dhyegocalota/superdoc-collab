@@ -28,10 +28,11 @@ export const BOOTSTRAP_LIGHT_MAX_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE = 413;
 export const BOOTSTRAP_MEMORY_RESERVE_MEGABYTES = 512;
 export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {
-  throw new Error('largestPreparableMegabytes is not implemented');
+  const usableMegabytes = memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
+  return Math.max(0, Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE));
 }
 export function bootstrapMemoryShortMessage(largestMegabytes: number): string {
-  throw new Error('bootstrapMemoryShortMessage is not implemented');
+  return `This server can prepare files up to ${largestMegabytes} MB.`;
 }
 export const BOOTSTRAP_QUEUE_RETRY_AFTER_MS = 5 * SECOND_MS;
 export const UPLOADS_PER_MINUTE = 30;

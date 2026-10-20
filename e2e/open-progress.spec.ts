@@ -42,7 +42,15 @@ const PAGES_SO_FAR_PATTERN = /([\d,]+) so far/;
 type Reading = { testId: string; stage: string | null; detail: string; value: string | null };
 
 function bootstrapAt({ stage, done }: { stage: BootstrapStage; done: number }): BootstrapProgress {
-  return { stage, done, total: SCRIPTED_TOTAL_BYTES, stateBytes: null, estimatedMs: null, fileBytes: 0, preparingSince: null };
+  return {
+    stage,
+    done,
+    total: SCRIPTED_TOTAL_BYTES,
+    stateBytes: null,
+    estimatedMs: null,
+    fileBytes: SCRIPTED_TOTAL_BYTES,
+    preparingSince: null,
+  };
 }
 
 async function scriptOpenAnswers({

@@ -30,6 +30,9 @@ function admissionWith({
     measured: vi.fn(),
     isBounded: vi.fn(() => isBounded),
     admit: vi.fn(() => isAdmitted),
+    fits: vi.fn(() => isAdmitted),
+    touched: vi.fn(),
+    released: vi.fn(),
     hasHeadroomFor: vi.fn(() => hasHeadroom),
   };
   const documentXmlBytesOf = vi.fn(() => documentXmlBytes);
@@ -76,4 +79,21 @@ test('headroom for an upload is asked only for a heavy file, with the state its 
   const light = admissionWith({ hasHeadroom: false, documentXmlBytes: 0 });
   expect(light.admission.hasHeadroomFor({ documentXmlBytes: LIGHT_XML_BYTES })).toBe(true);
   expect(light.roomMemory.hasHeadroomFor).not.toHaveBeenCalled();
+});
+
+test('fitting looks without taking a place: a heavy document is asked with fits, never admit, and a light or prepared one always fits', () => {
+  const heavy = admissionWith({ isAdmitted: false, documentXmlBytes: HEAVY_XML_BYTES });
+  expect(heavy.admission.fits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(false);
+  expect(heavy.roomMemory.fits).toHaveBeenCalledWith({
+    documentName: `${SUPERDOC_ROOM_PREFIX}${DOCUMENT_ID}`,
+    estimatedStateBytes: HEAVY_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO,
+    userId: USER_ID,
+  });
+  expect(heavy.roomMemory.admit).not.toHaveBeenCalled();
+  const light = admissionWith({ isAdmitted: false, documentXmlBytes: LIGHT_XML_BYTES });
+  expect(light.admission.fits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
+  const prepared = admissionWith({ isAdmitted: false, documentXmlBytes: HEAVY_XML_BYTES, isInFlight: true });
+  expect(prepared.admission.fits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
+  const unbounded = admissionWith({ isAdmitted: false, isBounded: false, documentXmlBytes: HEAVY_XML_BYTES });
+  expect(unbounded.admission.fits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
 });

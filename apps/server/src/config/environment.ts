@@ -1,5 +1,6 @@
 import {
   MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
   roomHeapBudgetMegabytes,
   OPEN_UNCOMMITTED_PER_MINUTE,
   presentOrNull,
@@ -62,6 +63,8 @@ export type LlmSettings = {
   maxCallsPerHour: number;
 };
 
+const HEAVY_CONVERSIONS_PLACEHOLDER = MAX_HEAVY_CONVERSIONS_PER_HOUR;
+
 export type Environment = {
   port: number;
   host: string | null;
@@ -78,6 +81,7 @@ export type Environment = {
   memoryLimitMegabytes: number | null;
   maxBootstrapWaitMs: number;
   roomHeapBudgetMegabytes: number | null;
+  heavyConversionsPerHour: number;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -152,6 +156,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
     memoryLimitMegabytes,
+    heavyConversionsPerHour: HEAVY_CONVERSIONS_PLACEHOLDER,
     maxBootstrapWaitMs: limitFrom({
       name: 'MAX_BOOTSTRAP_WAIT_MS',
       value: source.MAX_BOOTSTRAP_WAIT_MS,

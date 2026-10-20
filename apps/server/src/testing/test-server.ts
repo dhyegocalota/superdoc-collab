@@ -8,6 +8,7 @@ import {
   type SessionUser,
   inviteTokenOf,
   MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { createServer, type AddressInfo } from 'node:net';
@@ -73,6 +74,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     memoryLimitMegabytes: null,
     maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
     roomHeapBudgetMegabytes: null,
+    heavyConversionsPerHour: MAX_HEAVY_CONVERSIONS_PER_HOUR,
   };
 }
 
@@ -102,6 +104,7 @@ export async function startTestServer({
   memoryLimitMegabytes = null,
   maxBootstrapWaitMs = MAX_BOOTSTRAP_WAIT_MS,
   roomHeapBudgetMegabytes = null,
+  heavyConversionsPerHour = MAX_HEAVY_CONVERSIONS_PER_HOUR,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -115,6 +118,7 @@ export async function startTestServer({
   memoryLimitMegabytes?: number | null;
   maxBootstrapWaitMs?: number;
   roomHeapBudgetMegabytes?: number | null;
+  heavyConversionsPerHour?: number;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
@@ -133,6 +137,7 @@ export async function startTestServer({
     memoryLimitMegabytes,
     maxBootstrapWaitMs,
     roomHeapBudgetMegabytes,
+    heavyConversionsPerHour,
   };
   try {
     const running = await startServer({

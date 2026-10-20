@@ -727,3 +727,36 @@ test('loading a room reports the size of its restored state as the size of the r
   expect(roomMemory.loaded).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: state.byteLength });
   expect(roomMemory.grew).not.toHaveBeenCalled();
 });
+
+test('every inbound frame touches its room, even one the room refuses', async () => {
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), touched: vi.fn() };
+  const hocuspocus = createCollaborationServer({
+    roomMemory,
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${randomUUID()}`;
+  await hocuspocus
+    .hooks('beforeHandleMessage', {
+      update: new Uint8Array([0, 1, 2]),
+      context: { userId: 'u1' },
+      document: new Document(documentName),
+      socketId: 'socket-1',
+    } as unknown as Parameters<typeof hocuspocus.hooks<'beforeHandleMessage'>>[1])
+    .catch(() => undefined);
+  expect(roomMemory.touched).toHaveBeenCalledExactlyOnceWith(documentName);
+});
+
+test('a socket that disconnects gives back the place its room was admitted with', async () => {
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), released: vi.fn() };
+  const hocuspocus = createCollaborationServer({
+    roomMemory,
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${randomUUID()}`;
+  await hocuspocus.hooks('onDisconnect', { socketId: 'socket-1', documentName } as unknown as Parameters<
+    typeof hocuspocus.hooks<'onDisconnect'>
+  >[1]);
+  expect(roomMemory.released).toHaveBeenCalledExactlyOnceWith(documentName);
+});

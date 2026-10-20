@@ -7,6 +7,7 @@ import {
   bootstrapMemoryShortMessage,
   HEAVY_ROOMS_FULL_MESSAGE,
   HEAVY_ROOMS_RETRY_AFTER_MS,
+  HOUR_MS,
   SECOND_MS,
   largestPreparableMegabytes,
   BOOTSTRAP_MS_PER_MEGABYTE,
@@ -853,7 +854,7 @@ test('opening a document the server cannot hold as a large room is 503 with Retr
   vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
   const heavy: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Heavy' })).json();
   const light: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Light' })).json();
-  const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockImplementation(({ documentId }) => documentId !== heavy.id);
+  const refuses = vi.spyOn(server.services.heavyRooms, 'fits').mockImplementation(({ documentId }) => documentId !== heavy.id);
   const refused = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: heavy.id }) });
   expect([refused.status, await refused.json()]).toEqual([HttpStatus.ServiceUnavailable, { error: HEAVY_ROOMS_FULL_MESSAGE }]);
   expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(HEAVY_ROOMS_RETRY_AFTER_MS / SECOND_MS);
@@ -873,6 +874,20 @@ test('a heavy upload is 503 with the large documents message while no room of it
   expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(HEAVY_ROOMS_RETRY_AFTER_MS / SECOND_MS);
   expect((await listOf({ server, cookie: user.cookie })).mine).toEqual([]);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
+  const light = await upload({ server, cookie: user.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
+  const blank = await createBlank({ server, cookie: user.cookie, title: 'Blank' });
+  expect([light.status, blank.status]).toEqual([HttpStatus.Created, HttpStatus.Created]);
+  await server.stop();
+});
+
+test('an owner past the hourly budget of heavy conversions is 429 with the busy message and Retry-After, stores nothing, and a light file or a blank is still served', async () => {
+  const server = await startTestServer({ heavyConversionsPerHour: 2 });
+  const user = await signedInUser({ server, name: 'Ana' });
+  const [first, second, third] = await heavyUploadsOf({ server, user, count: 3 });
+  expect([first!.status, second!.status, third!.status]).toEqual([HttpStatus.Created, HttpStatus.Created, HttpStatus.TooManyRequests]);
+  expect(await third!.json()).toEqual({ error: bootstrapBusyMessage(HOUR_MS) });
+  expect(Number(third!.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(HOUR_MS / SECOND_MS - 5);
+  expect((await listOf({ server, cookie: user.cookie })).mine).toHaveLength(2);
   const light = await upload({ server, cookie: user.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
   const blank = await createBlank({ server, cookie: user.cookie, title: 'Blank' });
   expect([light.status, blank.status]).toEqual([HttpStatus.Created, HttpStatus.Created]);

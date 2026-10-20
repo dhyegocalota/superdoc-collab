@@ -4,6 +4,7 @@ import type { RoomMemoryRelease } from './room-memory-release';
 
 export type HeavyRoomAdmission = {
   admits: (parameters: { documentId: string; userId: string }) => boolean;
+  fits: (parameters: { documentId: string; userId: string }) => boolean;
   hasHeadroomFor: (parameters: { documentXmlBytes: number }) => boolean;
 };
 
@@ -27,6 +28,9 @@ export function createHeavyRoomAdmission({
         estimatedStateBytes: documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO,
         userId,
       });
+    },
+    fits({ documentId }) {
+      return documentId.length >= 0;
     },
     hasHeadroomFor({ documentXmlBytes }) {
       if (!isHeavyRoomDocument(documentXmlBytes)) return true;

@@ -309,3 +309,69 @@ test('the size of a room is its loaded state, measured again once enough updates
   release.measured({ documentName: SMALL_ROOM, bytes: HEAVY_BYTES });
   expect(release.heavyHeapBytes()).toBe(HEAVY_HEAP_BYTES);
 });
+
+test('fitting never takes a place, so reopening a document over HTTP holds no budget', () => {
+  const closeRoom = vi.fn();
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: HEAVY_HEAP_BYTES, closeRoom });
+  Array.from({ length: 5 }).forEach(() =>
+    expect(release.fits({ documentName: HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: ANA })).toBe(true),
+  );
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: BRUNO })).toBe(true);
+  expect(release.fits({ documentName: HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: ANA })).toBe(false);
+  expect(release.fits({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: ANA })).toBe(true);
+  expect(closeRoom).not.toHaveBeenCalled();
+});
+
+test('fitting obeys the share of a user without counting it', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: BIG_BUDGET_BYTES });
+  Array.from({ length: MAX_HEAVY_ROOMS_PER_USER }, (_, index) => `held-${index}`).forEach((documentName) =>
+    release.admit({ documentName, estimatedStateBytes: HEAVY_BYTES, userId: ANA }),
+  );
+  expect(release.fits({ documentName: 'new-room', estimatedStateBytes: HEAVY_BYTES, userId: ANA })).toBe(false);
+  expect(release.fits({ documentName: 'new-room', estimatedStateBytes: HEAVY_BYTES, userId: BRUNO })).toBe(true);
+});
+
+test('a socket that closed without loading its room gives the reservation back, and a loaded room keeps its bytes', () => {
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: HEAVY_HEAP_BYTES });
+  release.admit({ documentName: HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: ANA });
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: BRUNO })).toBe(false);
+  release.released(HEAVY_ROOM);
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: BRUNO })).toBe(true);
+  release.loaded({ documentName: OTHER_HEAVY_ROOM, bytes: HEAVY_BYTES });
+  release.released(OTHER_HEAVY_ROOM);
+  expect(release.heavyHeapBytes()).toBe(HEAVY_HEAP_BYTES);
+});
+
+test('a refused socket evicts the least recently active idle room, one at a time, and never one that is still closing', () => {
+  const clock = { currentMs: 0 };
+  const closeRoom = vi.fn();
+  const { release } = releaseWith({
+    readings: [],
+    roomHeapBudgetBytes: 3 * HEAVY_HEAP_BYTES + HEAP_PER_BYTE,
+    clock: () => clock.currentMs,
+    closeRoom,
+  });
+  release.loaded({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  clock.currentMs += 1000;
+  release.loaded({ documentName: OTHER_HEAVY_ROOM, bytes: HEAVY_BYTES });
+  clock.currentMs += 1000;
+  release.loaded({ documentName: THIRD_HEAVY_ROOM, bytes: HEAVY_BYTES });
+  clock.currentMs += 2 * HEAVY_ROOM_IDLE_MS;
+  const wanting = { documentName: 'wanting', estimatedStateBytes: HEAVY_BYTES, userId: BRUNO };
+  expect(release.admit(wanting)).toBe(false);
+  expect(closeRoom.mock.calls).toEqual([[HEAVY_ROOM]]);
+  expect(release.admit(wanting)).toBe(false);
+  expect(closeRoom.mock.calls).toEqual([[HEAVY_ROOM], [OTHER_HEAVY_ROOM]]);
+});
+
+test('every inbound frame counts as activity, so a room being watched is not idle', () => {
+  const clock = { currentMs: 0 };
+  const closeRoom = vi.fn();
+  const { release } = releaseWith({ readings: [], roomHeapBudgetBytes: HEAVY_HEAP_BYTES, clock: () => clock.currentMs, closeRoom });
+  release.loaded({ documentName: HEAVY_ROOM, bytes: HEAVY_BYTES });
+  clock.currentMs += HEAVY_ROOM_IDLE_MS - 1;
+  release.touched(HEAVY_ROOM);
+  clock.currentMs += HEAVY_ROOM_IDLE_MS - 1;
+  expect(release.admit({ documentName: OTHER_HEAVY_ROOM, estimatedStateBytes: HEAVY_BYTES, userId: BRUNO })).toBe(false);
+  expect(closeRoom).not.toHaveBeenCalled();
+});

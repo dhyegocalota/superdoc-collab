@@ -29,6 +29,9 @@ export type RoomMemoryRelease = {
   loaded: (room: { documentName: string; bytes: number }) => void;
   isDueForMeasure: (documentName: string) => boolean;
   measured: (room: { documentName: string; bytes: number }) => void;
+  touched: (documentName: string) => void;
+  released: (documentName: string) => void;
+  fits: (room: { documentName: string; estimatedStateBytes: number; userId: string }) => boolean;
   admit: (room: { documentName: string; estimatedStateBytes: number; userId: string }) => boolean;
   hasHeadroomFor: (estimatedStateBytes: number) => boolean;
 };
@@ -171,6 +174,15 @@ export function createRoomMemoryRelease({
       roomBytes.set(documentName, bytes);
       receivedSinceMeasure.set(documentName, 0);
       touch(documentName);
+    },
+    touched(documentName) {
+      throw new Error(`touched is not implemented ${documentName}`);
+    },
+    released(documentName) {
+      throw new Error(`released is not implemented ${documentName}`);
+    },
+    fits({ estimatedStateBytes }) {
+      return estimatedStateBytes >= 0;
     },
     isBounded: () => roomHeapBudgetBytes !== null,
     admit({ documentName, estimatedStateBytes, userId }) {

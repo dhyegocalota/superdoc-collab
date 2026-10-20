@@ -142,7 +142,7 @@ export function createCollaborationServer({
   onLogged,
   onStored,
   roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, closeRoom: () => undefined }),
-  heavyRooms = { admits: () => true, hasHeadroomFor: () => true },
+  heavyRooms = { admits: () => true, fits: () => true, hasHeadroomFor: () => true },
 }: {
   auth: Auth;
   documents: DocumentsRepository;

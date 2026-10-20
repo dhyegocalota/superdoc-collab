@@ -27,7 +27,7 @@ export function createBootstrapState({
 }: {
   updateLog: UpdateLog;
   readModel: ReadModel;
-  onCommitted?: (committed: { documentId: string; stateBytes: number }) => void;
+  onCommitted?: (committed: { documentId: string; stateBytes: number; state: Uint8Array }) => void;
 }): BootstrapState {
   const committed = new Set<string>();
   const scans = new LruMap<ScanProgress>({ isOverBudget: (entries) => entries.size > BOOTSTRAP_SCAN_CACHE_ENTRIES });
@@ -71,7 +71,7 @@ export function createBootstrapState({
       const appended = updateLog.appendCommitted({ documentName: documentId, state, ...logged });
       committed.add(documentId);
       scans.delete(documentId);
-      onCommitted({ documentId, stateBytes: state.byteLength });
+      onCommitted({ documentId, stateBytes: state.byteLength, state });
       return appended;
     },
     forget: (documentId) => {

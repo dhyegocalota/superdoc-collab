@@ -38,6 +38,7 @@ const SEED_PARAGRAPH = 'Paragraph written by the server.';
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const READY_TIMEOUT_MS = 60_000;
 const BLANK_READY_LIMIT_MS = 5_000;
+const BLANK_INSTANT_LIMIT_MS = 200;
 const LARGE_READY_TIMEOUT_MS = 180_000;
 const LARGE_TEST_TIMEOUT_MS = 360_000;
 const STAGE_POLL_INTERVALS_MS = [250];
@@ -208,4 +209,17 @@ test('a deflated heavy DOCX is prepared by the size of its XML: the heavy lane, 
   expect(progress.total).toBe(progress.documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO);
   const ready = await waitUntilReady({ page: mira.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
   expect(ready.bootstrap.stage).toBe(BootstrapStage.Ready);
+});
+
+test('a blank document is ready in the answer of its create, from the state the first blank left, with no lane', async ({ browser }) => {
+  const nico = await invitedPerson({ browser, name: 'Nico' });
+  const first = await nico.page.request.post(ApiPath.Documents, { data: { title: `warm-${Date.now()}` } });
+  const { id: firstId } = (await first.json()) as DocumentSummary;
+  await waitUntilReady({ page: nico.page, documentId: firstId, timeout: BLANK_READY_LIMIT_MS });
+  const startedAt = Date.now();
+  const created = await nico.page.request.post(ApiPath.Documents, { data: { title: `instant-${startedAt}` } });
+  const { id: blankId } = (await created.json()) as DocumentSummary;
+  const answer = await openAnswer({ page: nico.page, documentId: blankId });
+  expect(answer.stage).toBe(BootstrapStage.Ready);
+  expect(Date.now() - startedAt).toBeLessThan(BLANK_INSTANT_LIMIT_MS);
 });

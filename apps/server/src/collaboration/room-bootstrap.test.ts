@@ -33,7 +33,13 @@ function bootstrapWithPendingRuns({
   ownerOf = () => OWNER_ID,
   now = () => Date.now(),
   documentXmlBytesOf = () => FILE_BYTES,
-}: { ownerOf?: (documentId: string) => string | null; now?: () => number; documentXmlBytesOf?: (documentId: string) => number } = {}) {
+  commitBlank = () => undefined,
+}: {
+  ownerOf?: (documentId: string) => string | null;
+  now?: () => number;
+  documentXmlBytesOf?: (documentId: string) => number;
+  commitBlank?: (committed: { documentId: string; ownerId: string; state: Uint8Array }) => void;
+} = {}) {
   const pending: Pending[] = [];
   const issueToken = vi.fn(({ attempt }: { userId: string; documentId: string; attempt: string }) => `token-${attempt}`);
   const bootstrap = new RoomBootstrap({
@@ -43,6 +49,7 @@ function bootstrapWithPendingRuns({
     ownerOf,
     documentXmlBytesOf,
     filePathOf: (documentId) => `/files/${documentId}.docx`,
+    commitBlank,
     now,
   });
   return { bootstrap, pending, issueToken };
@@ -498,4 +505,74 @@ test('preparingElapsedMs is the time since Preparing began at each answer and nu
   expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingElapsedMs).toBe(7500);
   bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
   expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingElapsedMs).toBeNull();
+});
+
+const BLANK_STATE = new Uint8Array([1, 2, 3, 4]);
+
+function blankScenario() {
+  const committed: { documentId: string; ownerId: string; state: Uint8Array }[] = [];
+  const scenario: { bootstrap: RoomBootstrap | null } = { bootstrap: null };
+  const parts = bootstrapWithPendingRuns({
+    commitBlank: (blank) => {
+      committed.push(blank);
+      scenario.bootstrap!.ready({ documentId: blank.documentId, stateBytes: blank.state.byteLength });
+    },
+  });
+  scenario.bootstrap = parts.bootstrap;
+  return { ...parts, committed };
+}
+
+test('the first blank document converts in a lane, and a blank requested meanwhile waits for its state instead of converting again', async () => {
+  const { bootstrap, pending, committed } = blankScenario();
+  bootstrap.requestBlank(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.requestBlank(OTHER_DOCUMENT_ID).stage).toBe(BootstrapStage.Queued);
+  expect(pending).toHaveLength(1);
+  expect(bootstrap.isInFlight(OTHER_DOCUMENT_ID)).toBe(true);
+  expect(committed).toEqual([]);
+});
+
+test('when the first blank commits, the blanks that waited are committed from its state at once and are ready', async () => {
+  const { bootstrap, pending, committed } = blankScenario();
+  bootstrap.requestBlank(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.requestBlank(OTHER_DOCUMENT_ID);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: BLANK_STATE.byteLength });
+  bootstrap.blankCommitted({ documentId: DOCUMENT_ID, state: BLANK_STATE });
+  expect(committed).toEqual([{ documentId: OTHER_DOCUMENT_ID, ownerId: OWNER_ID, state: BLANK_STATE }]);
+  expect(bootstrap.progressOf(OTHER_DOCUMENT_ID)).toMatchObject({ stage: BootstrapStage.Ready, stateBytes: BLANK_STATE.byteLength });
+});
+
+test('a blank requested after the state is known is ready in the answer itself and never runs in a lane', async () => {
+  const { bootstrap, pending, committed } = blankScenario();
+  bootstrap.requestBlank(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: BLANK_STATE.byteLength });
+  bootstrap.blankCommitted({ documentId: DOCUMENT_ID, state: BLANK_STATE });
+  expect(bootstrap.requestBlank(OTHER_DOCUMENT_ID).stage).toBe(BootstrapStage.Ready);
+  expect(committed.map(({ documentId }) => documentId)).toEqual([OTHER_DOCUMENT_ID]);
+  expect(pending).toHaveLength(1);
+});
+
+test('when the first blank fails, the blanks that waited convert on their own', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const { bootstrap, pending, committed } = blankScenario();
+  bootstrap.requestBlank(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.requestBlank(OTHER_DOCUMENT_ID);
+  pending[0]!.reject(new Error('host died'));
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
+  expect(committed).toEqual([]);
+});
+
+test('forgetting the blank that waits keeps it from ever being committed', async () => {
+  const { bootstrap, pending, committed } = blankScenario();
+  bootstrap.requestBlank(DOCUMENT_ID);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  bootstrap.requestBlank(OTHER_DOCUMENT_ID);
+  bootstrap.forget(OTHER_DOCUMENT_ID);
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: BLANK_STATE.byteLength });
+  bootstrap.blankCommitted({ documentId: DOCUMENT_ID, state: BLANK_STATE });
+  expect(committed).toEqual([]);
 });

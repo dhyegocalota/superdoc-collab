@@ -7,7 +7,8 @@ import type { AddressInfo } from 'node:net';
 import type Database from 'better-sqlite3';
 import type { WebSocketServer } from 'ws';
 import { AgentActionsLog, declaredDocumentXmlBytes, MigrationSet, ReadModel, UpdateLog } from '@superdoc-collab/history';
-import { ApiPath, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
+import * as Y from 'yjs';
+import { ApiPath, ClientActor, HttpStatus, MINUTE_MS, SECOND_MS, TOPICS_INTERRUPTED_MESSAGE } from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
@@ -252,8 +253,21 @@ function createServices({
     ownerOf: (documentId) => documents.ownerOf(documentId),
     documentXmlBytesOf: (documentId) => declaredDocumentXmlBytes(readFileSync(storage.pathOf(documentId))),
     filePathOf: (documentId) => storage.pathOf(documentId),
+    commitBlank: ({ documentId, ownerId, state }) => {
+      const document = new Y.Doc();
+      Y.applyUpdate(document, state);
+      bootstrap.commit({ documentId, connectionUserId: ownerId, connectionActor: ClientActor.Human, update: state, document });
+      throttle.request(documentId);
+    },
   });
-  const bootstrap = createBootstrapState({ updateLog, readModel, onCommitted: (committed) => roomBootstrap.ready(committed) });
+  const bootstrap = createBootstrapState({
+    updateLog,
+    readModel,
+    onCommitted: (committed) => {
+      roomBootstrap.ready(committed);
+      roomBootstrap.blankCommitted(committed);
+    },
+  });
   const openBudget = new OpenBudget({ windowMs: MINUTE_MS, maxDocuments: environment.openUncommittedPerMinute, now });
   const roomModes = createRoomModes({ bootstrap, openBudget });
   const hocuspocus = createCollaborationServer({

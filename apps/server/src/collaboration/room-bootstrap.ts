@@ -63,6 +63,7 @@ export class RoomBootstrap {
   private readonly ownerOf: (documentId: string) => string | null;
   private readonly documentXmlBytesOf: (documentId: string) => number;
   private readonly filePathOf: (documentId: string) => string;
+  private readonly commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
   private readonly now: () => number;
 
   constructor({
@@ -72,6 +73,7 @@ export class RoomBootstrap {
     ownerOf,
     documentXmlBytesOf,
     filePathOf,
+    commitBlank,
     now = () => Date.now(),
   }: {
     run: BootstrapRun;
@@ -80,6 +82,7 @@ export class RoomBootstrap {
     ownerOf: (documentId: string) => string | null;
     documentXmlBytesOf: (documentId: string) => number;
     filePathOf: (documentId: string) => string;
+    commitBlank: (parameters: { documentId: string; ownerId: string; state: Uint8Array }) => void;
     now?: () => number;
   }) {
     this.run = run;
@@ -88,6 +91,7 @@ export class RoomBootstrap {
     this.ownerOf = ownerOf;
     this.documentXmlBytesOf = documentXmlBytesOf;
     this.filePathOf = filePathOf;
+    this.commitBlank = commitBlank;
     this.now = now;
   }
 
@@ -128,6 +132,14 @@ export class RoomBootstrap {
     this.queues[lane].push({ owner: this.ownerOf(documentId), item: documentId });
     this.pump(lane);
     return progress;
+  }
+
+  requestBlank(documentId: string): BootstrapProgress {
+    throw new Error('requestBlank is not implemented');
+  }
+
+  blankCommitted({ documentId, state }: { documentId: string; state: Uint8Array }): void {
+    throw new Error('blankCommitted is not implemented');
   }
 
   begin(documentId: string): string {

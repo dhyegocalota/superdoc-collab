@@ -52,7 +52,7 @@ export async function openDocument(documentId: string): Promise<OpenedAnswer> {
   const { bootstrap } = opened;
   return {
     ...opened,
-    bootstrap: { ...bootstrap, preparingSince: 'preparingSince' in bootstrap ? (bootstrap.preparingSince as number | null) : null },
+    bootstrap: { ...bootstrap, preparingSince: null, fileBytes: null },
   };
 }
 

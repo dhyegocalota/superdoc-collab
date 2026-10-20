@@ -113,6 +113,18 @@ test('a Preparing start in the future of this clock counts as zero elapsed', () 
   expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 5, preparingSecondsAgo: -3 }).fraction).toBe(0);
 });
 
+test('the conversion names the size of the file, not the estimated state', () => {
+  const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), total: 38_000_000, fileBytes: TOTAL_BYTES, stateBytes: null };
+  const view = preparingView({ bootstrap, elapsedSeconds: 12, startedAt: PAGE_STARTED_AT });
+  expect(view.detail).toBe('Converting a 9.5 MB file · 12 s');
+});
+
+test('an answer with no file size names the estimated total until the server sends one', () => {
+  const bootstrap = { ...bootstrapAt(BootstrapStage.Preparing), total: TOTAL_BYTES, fileBytes: null, stateBytes: null };
+  const view = preparingView({ bootstrap, elapsedSeconds: 12, startedAt: PAGE_STARTED_AT });
+  expect(view.detail).toBe('Converting a 9.5 MB file · 12 s');
+});
+
 test('a queued bootstrap ignores the estimate and no estimate keeps the bar indeterminate', () => {
   expect(estimating({ stage: BootstrapStage.Queued, estimatedMs: 40_000, elapsedSeconds: 12 }).fraction).toBeNull();
   expect(estimating({ estimatedMs: null, elapsedSeconds: 12 }).fraction).toBeNull();

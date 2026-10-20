@@ -25,7 +25,7 @@ export const MAX_DOCUMENT_XML_MEGABYTES = Math.floor(MAX_SOCKET_MESSAGE_BYTES / 
 export const MAX_DOCUMENT_XML_BYTES = MAX_DOCUMENT_XML_MEGABYTES * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_HOST_TIMEOUT_MS = bootstrapTimeoutMsOf(MAX_DOCUMENT_XML_BYTES) + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
 export const BOOTSTRAP_LIGHT_MAX_BYTES = 2 * BYTES_PER_MEGABYTE;
-export const BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE = 500;
+export const BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE = 520;
 export const BOOTSTRAP_MEMORY_RESERVE_MEGABYTES = 512;
 const BOOTSTRAP_MEMORY_NONE_MESSAGE = 'This server has too little memory to prepare documents.';
 export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {

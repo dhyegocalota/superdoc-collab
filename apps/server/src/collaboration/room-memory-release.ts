@@ -56,6 +56,7 @@ export function createRoomMemoryRelease({
   const holders = new Map<string, Set<string>>();
   const lastActivityAt = new Map<string, number>();
   const receivedSinceMeasure = new Map<string, number>();
+  const closing = new Set<string>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
   let isRetryPending = false;
 
@@ -101,13 +102,39 @@ export function createRoomMemoryRelease({
     return lastAt === undefined || now() - lastAt >= HEAVY_ROOM_IDLE_MS;
   }
 
-  function closeIdleRooms(except: string): void {
-    [...roomBytes.entries()]
-      .filter(([documentName, bytes]) => documentName !== except && isHeavy(bytes) && isIdle(documentName))
-      .forEach(([documentName]) => {
-        console.info(`${IDLE_ROOM_CLOSED_MESSAGE} ${documentName}`);
-        closeRoom(documentName);
-      });
+  function lastActivityOf(documentName: string): number {
+    const lastAt = lastActivityAt.get(documentName);
+    return lastAt === undefined ? 0 : lastAt;
+  }
+
+  function closeLeastActiveIdleRoom(except: string): void {
+    const [leastActive] = [...roomBytes.entries()]
+      .filter(([documentName, bytes]) => documentName !== except && isHeavy(bytes) && !closing.has(documentName) && isIdle(documentName))
+      .map(([documentName]) => documentName)
+      .sort((first, second) => lastActivityOf(first) - lastActivityOf(second));
+    if (leastActive === undefined) return;
+    closing.add(leastActive);
+    console.info(`${IDLE_ROOM_CLOSED_MESSAGE} ${leastActive}`);
+    closeRoom(leastActive);
+  }
+
+  function isHeld(documentName: string): boolean {
+    return isHeavy(roomBytes.get(documentName)) || liveReservations().has(documentName);
+  }
+
+  function fits({
+    documentName,
+    estimatedStateBytes,
+    userId,
+  }: {
+    documentName: string;
+    estimatedStateBytes: number;
+    userId: string;
+  }): boolean {
+    if (roomHeapBudgetBytes === null) return true;
+    if (isHeld(documentName)) return true;
+    if (heldRoomCount(userId) >= MAX_HEAVY_ROOMS_PER_USER) return false;
+    return hasHeadroomFor(estimatedStateBytes);
   }
 
   function hasHeadroomFor(estimatedStateBytes: number): boolean {
@@ -155,7 +182,7 @@ export function createRoomMemoryRelease({
     },
     unloaded({ documentName, isReloaded }) {
       const wasHeavy = isHeavy(roomBytes.get(documentName));
-      [roomBytes, reservations, holders, lastActivityAt, receivedSinceMeasure].forEach((tracked) => tracked.delete(documentName));
+      [roomBytes, reservations, holders, lastActivityAt, receivedSinceMeasure, closing].forEach((tracked) => tracked.delete(documentName));
       if (!wasHeavy || collectGarbage === null) return;
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
@@ -176,25 +203,24 @@ export function createRoomMemoryRelease({
       touch(documentName);
     },
     touched(documentName) {
-      throw new Error(`touched is not implemented ${documentName}`);
+      if (roomBytes.has(documentName)) touch(documentName);
     },
     released(documentName) {
-      throw new Error(`released is not implemented ${documentName}`);
+      if (isHeavy(roomBytes.get(documentName))) return;
+      reservations.delete(documentName);
+      holders.delete(documentName);
     },
-    fits({ estimatedStateBytes }) {
-      return estimatedStateBytes >= 0;
-    },
+    fits,
     isBounded: () => roomHeapBudgetBytes !== null,
     admit({ documentName, estimatedStateBytes, userId }) {
       if (roomHeapBudgetBytes === null) return true;
-      const isHeld = isHeavy(roomBytes.get(documentName)) || liveReservations().has(documentName);
-      if (isHeld) {
+      if (isHeld(documentName)) {
         addHolder({ documentName, userId });
         return true;
       }
       if (heldRoomCount(userId) >= MAX_HEAVY_ROOMS_PER_USER) return false;
       if (!hasHeadroomFor(estimatedStateBytes)) {
-        closeIdleRooms(documentName);
+        closeLeastActiveIdleRoom(documentName);
         return false;
       }
       addHolder({ documentName, userId });

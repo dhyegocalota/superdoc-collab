@@ -34,6 +34,10 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `collaboration-server.test.ts` — input: a room due for a measure; expected: `measured` with the encoded size of the live document; a load reports `loaded` with the restored state size
 - [ ] `room-bootstrap.test.ts` — input: two conversions by one owner, then another owner's; expected: one sample per owner (the latest), the mean across owners, clamped to three times and a third of the seeded rate; a requester's prediction counts only the turns ahead of them
 - [ ] `owner-round-robin-queue.test.ts` — input: a hypothetical push; expected: the order it would be served in, the queue unchanged
+- [ ] `room-memory-release.test.ts::fitting never takes a place` and `::a socket that closed without loading its room gives the reservation back` — input: five fits then an admit; a reservation and a release; expected: fits true until a socket admits, the reservation freed on release, a loaded room keeps its bytes
+- [ ] `room-memory-release.test.ts::a refused socket evicts the least recently active idle room, one at a time` and `::every inbound frame counts as activity` — input: three idle rooms, two refusals; a touched room; expected: oldest closed first, then the next, never a closing room, a touched room is not idle
+- [ ] `documents-heavy-routes.test.ts::an owner past the hourly budget of heavy conversions is 429` — input: budget of 2, three heavy uploads; expected: 201, 201, 429 with the busy message, a light file and a blank still 201
+- [ ] `room-bootstrap.test.ts` — input: one owner's conversions, then two owners'; expected: the seeded rate until two owners have a sample
 - [ ] Edge: `documents.test.ts` — the budget is the smaller of the container and the heap formulas, null with neither; a document is heavy above 4 MB of XML
 - [ ] `tools/repository-shape/src/entrypoint.test.ts` — input: an 8 GB limit; expected: the server sees `SERVER_HEAP_MEGABYTES=3276`
 

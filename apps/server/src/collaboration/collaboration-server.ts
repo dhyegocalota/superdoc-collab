@@ -251,6 +251,7 @@ export function createCollaborationServer({
       trackAwarenessOwners({ document, owners: awarenessOwners });
     },
     async beforeHandleMessage({ update, context, document, socketId }) {
+      roomMemory.touched(document.name);
       const { userId } = context as CollaborationContext;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
       const entries = awarenessEntriesOf(frame);
@@ -283,7 +284,8 @@ export function createCollaborationServer({
       if (bootstrapAttempt !== null) roomBootstrap.received({ documentId, bytes: update.byteLength });
       onLogged(documentId);
     },
-    async onDisconnect({ socketId }) {
+    async onDisconnect({ socketId, documentName }) {
+      roomMemory.released(documentName);
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
     },

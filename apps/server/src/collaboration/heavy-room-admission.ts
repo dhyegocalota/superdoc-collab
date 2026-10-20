@@ -29,8 +29,16 @@ export function createHeavyRoomAdmission({
         userId,
       });
     },
-    fits({ documentId }) {
-      return documentId.length >= 0;
+    fits({ documentId, userId }) {
+      if (isInFlight(documentId)) return true;
+      if (!roomMemory.isBounded()) return true;
+      const documentXmlBytes = documentXmlBytesOf(documentId);
+      if (!isHeavyRoomDocument(documentXmlBytes)) return true;
+      return roomMemory.fits({
+        documentName: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
+        estimatedStateBytes: documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO,
+        userId,
+      });
     },
     hasHeadroomFor({ documentXmlBytes }) {
       if (!isHeavyRoomDocument(documentXmlBytes)) return true;

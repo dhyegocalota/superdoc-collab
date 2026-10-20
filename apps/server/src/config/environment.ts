@@ -63,8 +63,6 @@ export type LlmSettings = {
   maxCallsPerHour: number;
 };
 
-const HEAVY_CONVERSIONS_PLACEHOLDER = MAX_HEAVY_CONVERSIONS_PER_HOUR;
-
 export type Environment = {
   port: number;
   host: string | null;
@@ -156,7 +154,11 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
     memoryLimitMegabytes,
-    heavyConversionsPerHour: HEAVY_CONVERSIONS_PLACEHOLDER,
+    heavyConversionsPerHour: limitFrom({
+      name: 'MAX_HEAVY_CONVERSIONS_PER_HOUR',
+      value: source.MAX_HEAVY_CONVERSIONS_PER_HOUR,
+      fallback: MAX_HEAVY_CONVERSIONS_PER_HOUR,
+    }),
     maxBootstrapWaitMs: limitFrom({
       name: 'MAX_BOOTSTRAP_WAIT_MS',
       value: source.MAX_BOOTSTRAP_WAIT_MS,

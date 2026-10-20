@@ -3,6 +3,7 @@ import {
   bytesProgressDetail,
   convertingDetail,
   detailLine,
+  documentsAheadDetail,
   estimatedConversionDetail,
   elapsedLabel,
   LAYING_OUT_DETAIL,
@@ -58,6 +59,12 @@ function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number |
   return Math.min((elapsedSeconds * SECOND_MS) / estimatedMs, ESTIMATE_FRACTION_CAP);
 }
 
+function queuedDetailOf({ bootstrap, elapsed }: { bootstrap: BootstrapProgress; elapsed: string }): string {
+  const { queuePosition, queueWaitMs } = bootstrap;
+  if (queuePosition === null || queueWaitMs === null || queuePosition === 0) return detailLine([QUEUED_DETAIL, elapsed]);
+  return detailLine([documentsAheadDetail(queuePosition), `about ${elapsedLabel(estimatedSecondsOf(queueWaitMs))}`, elapsed]);
+}
+
 export function preparingView({
   bootstrap,
   elapsedSeconds,
@@ -72,7 +79,7 @@ export function preparingView({
   const stage = OpenStage.Preparing;
   const elapsed = elapsedLabel(elapsedSeconds);
   if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
-  if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
+  if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: queuedDetailOf({ bootstrap, elapsed }), fraction: null };
   const { done, total, estimatedMs, preparingElapsedMs, documentXmlBytes } = bootstrap;
   const sizeBytes = documentXmlBytes;
   const preparingSeconds = preparingElapsedSeconds({ preparingElapsedMs, answeredAt, startedAt, elapsedSeconds });

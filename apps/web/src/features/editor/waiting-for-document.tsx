@@ -7,6 +7,7 @@ import { AppTopBar } from '@/components/app-top-bar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ServerBusyError } from '@/lib/api';
 import { AccountMenu } from '@/features/account/account-menu';
 import { DOCUMENTS_QUERY_KEY } from '@/features/documents/documents-api';
 import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
@@ -82,8 +83,23 @@ function PreparingCard({ title, progress }: { title: string | null; progress: Wa
   );
 }
 
-function FailedCard({ onRetry, progress }: WaitingActions & { progress: WaitingProgress }) {
+function FailedCard({ onRetry, progress, failure }: WaitingActions & { progress: WaitingProgress; failure: Error | null }) {
   const isPreparationFailure = progress.bootstrap?.stage === BootstrapStage.Failed;
+  if (failure instanceof ServerBusyError) {
+    return (
+      <StatusCard
+        role="alert"
+        icon={<TriangleAlertIcon aria-hidden="true" className="size-4 text-destructive" />}
+        heading={failure.message}
+        actions={
+          <>
+            <Button onClick={onRetry}>{TRY_AGAIN_LABEL}</Button>
+            <BackToDocumentsButton />
+          </>
+        }
+      />
+    );
+  }
   return (
     <StatusCard
       role="alert"
@@ -111,11 +127,11 @@ function UnavailableCard() {
   );
 }
 
-type CardInput = WaitingActions & { title: string | null; progress: WaitingProgress };
+type CardInput = WaitingActions & { title: string | null; progress: WaitingProgress; failure: Error | null };
 
 const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactElement | null> = {
   [DocumentReadiness.Waiting]: ({ title, progress }) => <PreparingCard title={title} progress={progress} />,
-  [DocumentReadiness.Failed]: ({ progress, onRetry }) => <FailedCard progress={progress} onRetry={onRetry} />,
+  [DocumentReadiness.Failed]: ({ progress, failure, onRetry }) => <FailedCard progress={progress} failure={failure} onRetry={onRetry} />,
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
@@ -143,7 +159,7 @@ export function WaitingForDocument({ documentId, readiness, progress, failure, o
             <Skeleton key={`${width}-${index}`} className={`h-3 ${width}`} />
           ))}
         </div>
-        {CARD_BY_READINESS[readiness]({ title, progress, onRetry })}
+        {CARD_BY_READINESS[readiness]({ title, progress, failure, onRetry })}
       </main>
     </div>
   );

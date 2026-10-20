@@ -1,4 +1,4 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE } from '@superdoc-collab/types';
+import { OPEN_UNCOMMITTED_PER_MINUTE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
@@ -31,6 +31,7 @@ describe('loadEnvironment', () => {
       trustedProxyHops: 1,
       llm: noLlm,
       openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+      uploadsPerMinute: UPLOADS_PER_MINUTE,
       projectionWorkerHeapMegabytes: null,
     });
   });
@@ -111,6 +112,16 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when OPEN_UNCOMMITTED_PER_MINUTE is %s', (value) => {
     const name = 'OPEN_UNCOMMITTED_PER_MINUTE';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('reads the upload budget when it is set', () => {
+    expect(loadEnvironment({ ...complete, UPLOADS_PER_MINUTE: '5000' }).uploadsPerMinute).toBe(5000);
+  });
+  test('treats an empty upload budget as unset', () => {
+    expect(loadEnvironment({ ...complete, UPLOADS_PER_MINUTE: '' }).uploadsPerMinute).toBe(UPLOADS_PER_MINUTE);
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when UPLOADS_PER_MINUTE is %s', (value) => {
+    const name = 'UPLOADS_PER_MINUTE';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test('reads the projection worker heap when it is set', () => {

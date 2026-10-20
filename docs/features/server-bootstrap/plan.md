@@ -38,6 +38,15 @@ One lane. Docs and ADR first, then red tests, then the worker, the registry, the
 - [x] **Step 10:** remove `CreatorReservations`, claimed ticket, reserve, takeover and their tests; adapt the remaining tests.
 - [x] **Step 11:** `e2e/room-admission.spec.ts` to the new behaviour; the large case timed.
 
+Steps 12 to 17 were added after the security and review findings on the first build (a takeover of the lane on 2026-10-19). Each has its red commit before its green one.
+
+- [x] **Step 12:** host and queue robustness: the host is disposed after every outcome, before the answer (red 635405f9, green 56cde4e7); the registry waits `BOOTSTRAP_COMMIT_GRACE_MS` for the commit, retries an interrupted run once and starts a Failed one again after a cooldown, and the worker fails fast on `bootstrapApplied: false` (red 5bd3ff96, green 56cde4e7).
+- [x] **Step 13:** the write fence: the attempt ends with the run, a committed room refuses bootstrap sockets, the scheduler holds a post made during a recycle (red c681c9a1, green 7557aff7).
+- [x] **Step 14:** an open of a document queued or preparing is answered from the registry (red 15a58212, green ccfbda50).
+- [x] **Step 15:** the SDK hosts run without the server's secrets and the bootstrap host with a heap cap (red a0092e61, green 8101b0be).
+- [x] **Step 16:** a light and a heavy lane with owners in turns (red 7b768c06, green f0d1a69b); the inflated size limit and the owner queue (red bafa0d97, green ef362c60); the upload limit, the queue cap and the 415 answer (red fd0d63df, green 80983260).
+- [x] **Step 17:** `e2e/` cases that described the browser creator now describe the server bootstrap, and a new case proves a blank document is ready right after a broken file (c4aa3765).
+
 ## Failure modes
 
 | Step | What breaks | How I notice (the concrete signal) | How I back out |
@@ -47,6 +56,9 @@ One lane. Docs and ADR first, then red tests, then the worker, the registry, the
 | 8 | Two bootstraps for one document | Two sockets on one uncommitted room | The registry refuses a second start; revert to the browser creator |
 | 9 | The web still waits on 409 | Web polls forever on a 200 | Lane merge with the web lane |
 | 10 | A race the tickets covered | Duplicated paragraphs after a restart | The attempt fence stays; revert the removal commit |
+| 12 | A host outlives its bootstrap | The next bootstrap waits behind a hung host, or memory stays at the heavy peak | Revert the release; the host exits with the worker |
+| 15 | The `NODE_OPTIONS` heap cap is ignored by the host binary | The host still grows past the cap on the heavy fixture | The cap is a safety net; the timeout and the lane remain |
+| 16 | A legitimate owner is refused by the queue cap or the upload limit | 429 with `Retry-After` on an upload | Raise `UPLOADS_PER_MINUTE`; the queue cap has no switch, revert the route check |
 
 **Steps with no backout:** none. The data format is unchanged; a revert restores the browser creator.
 

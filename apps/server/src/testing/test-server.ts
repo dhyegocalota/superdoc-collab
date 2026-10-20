@@ -3,6 +3,7 @@ import {
   DEMO_ADMIN,
   INVITE_TOKEN_HEADER,
   OPEN_UNCOMMITTED_PER_MINUTE,
+  UPLOADS_PER_MINUTE,
   UTC_TIME_ZONE,
   type SessionUser,
   inviteTokenOf,
@@ -65,6 +66,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     trustedProxyHops: TRUSTED_PROXY_HOPS,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+    uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
   };
 }
@@ -114,6 +116,7 @@ export async function startTestServer({
     trustedProxyHops,
     llm: NO_LLM_SETTINGS,
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
+    uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
   };
   try {

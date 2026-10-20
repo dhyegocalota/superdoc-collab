@@ -86,6 +86,7 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `LLM_MAX_CONCURRENT_JOBS` | `2` | Model jobs at once, for the whole server ([ADR 0011](adr/0011-process-wide-llm-cost-caps.md)) |
 | `LLM_MAX_CALLS_PER_HOUR` | `60` | Model calls per rolling hour, for the whole server |
 | `OPEN_UNCOMMITTED_PER_MINUTE` | `30` | Documents one user may open for the first time per rolling minute |
+| `UPLOADS_PER_MINUTE` | `30` | Uploads and blank creates one user may make per rolling minute |
 | `PROJECTION_WORKER_HEAP_MEGABYTES` | none | Old-generation heap cap in megabytes for the projection worker thread. The container entrypoint sets half of the memory limit it reads from the cgroup and starts the server at 70% of it; unset keeps Node's default |
 | `SEED_DEMO_USERS` | none, required, `true` or `false` | Tests only: `true` seeds four demo users and a test administrator on start. Production sets `false` ([ADR 0020](adr/0020-invite-only-accounts-with-a-first-claim-admin.md)) |
 | `DEMO_PASSWORD` | `superdoc-demo` in `.env.example` | Tests only: the seeded accounts' password, required when `SEED_DEMO_USERS=true` |

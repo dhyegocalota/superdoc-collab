@@ -78,21 +78,22 @@ function trackSentBytes(page: Page): { bytes: number[] } {
 }
 
 test('an uploaded document is answered Join with the bootstrap in progress to every editor, then ready', async ({ browser }) => {
-  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  test.setTimeout(LARGE_TEST_TIMEOUT_MS);
+  const dani = await signedInContext({ browser, user: DEMO_USERS[3]! });
   const bruno = await signedInContext({ browser, user: DEMO_USERS[1]! });
   const buffer = buildLargeDocx(LARGE_PARAGRAPH);
-  const documentId = await uploadDocument({ page: ana.page, buffer });
-  await shareWithEditor({ owner: ana.page, member: bruno.page, documentId });
-  const answers = await Promise.all([ana, bruno].map(({ page }) => openAnswer({ page, documentId })));
+  const documentId = await uploadDocument({ page: dani.page, buffer });
+  await shareWithEditor({ owner: dani.page, member: bruno.page, documentId });
+  const answers = await Promise.all([dani, bruno].map(({ page }) => openAnswer({ page, documentId })));
   answers.forEach((answer) => expect([answer.status, answer.roomMode]).toEqual([HttpStatus.Ok, RoomMode.Join]));
   answers.forEach((answer) => expect(PROGRESS_STAGES).toContain(answer.stage));
-  const progress = (await readOpenAnswer(await ana.page.request.get(documentApiPath({ documentId })))).bootstrap;
+  const progress = (await readOpenAnswer(await dani.page.request.get(documentApiPath({ documentId })))).bootstrap;
   expect(progress).toMatchObject({ total: buffer.byteLength * BOOTSTRAP_STATE_BYTES_RATIO, stateBytes: null });
   expect(progress.done).toBeLessThan(progress.total);
   const ready = await waitUntilReady({ page: bruno.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
   expect(ready.bootstrap.done).toBe(ready.bootstrap.total);
   expect(ready.bootstrap.stateBytes).toBeGreaterThan(buffer.byteLength);
-  expect((await openAnswer({ page: ana.page, documentId })).roomMode).toBe(RoomMode.Join);
+  expect((await openAnswer({ page: dani.page, documentId })).roomMode).toBe(RoomMode.Join);
 });
 
 test('a document the server cannot read is reported Failed, never left preparing', async ({ browser }) => {
@@ -146,15 +147,15 @@ test('two editors open an uploaded document once it is ready and see one paragra
 
 test('a 10 MB DOCX is built by the server and the uploader joins a snapshot', async ({ browser }) => {
   test.setTimeout(LARGE_TEST_TIMEOUT_MS);
-  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  const caio = await signedInContext({ browser, user: DEMO_USERS[2]! });
   const uploadedAt = Date.now();
-  const documentId = await uploadDocument({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
-  await waitUntilReady({ page: ana.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
+  const documentId = await uploadDocument({ page: caio.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
+  await waitUntilReady({ page: caio.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
   const readyAfterMs = Date.now() - uploadedAt;
-  const sent = trackSentBytes(ana.page);
+  const sent = trackSentBytes(caio.page);
   const openedAt = Date.now();
-  await ana.page.goto(documentPagePath(documentId));
-  await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
+  await caio.page.goto(documentPagePath(documentId));
+  await expect(editorText(caio.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
   const paragraphAfterMs = Date.now() - openedAt;
   test.info().annotations.push({
     type: 'large-open',
@@ -163,7 +164,7 @@ test('a 10 MB DOCX is built by the server and the uploader joins a snapshot', as
   console.log(`large-open: ready ${readyAfterMs} ms after the upload, first paragraph ${paragraphAfterMs} ms after the page opened`);
   expect(Math.max(0, ...sent.bytes)).toBeLessThan(MAX_SOCKET_MESSAGE_BYTES);
   expect(sent.bytes.reduce((sum, bytes) => sum + bytes, 0)).toBeLessThan(JOINER_SENT_BYTES_LIMIT);
-  await ana.page.reload();
-  await expect(ana.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
-  await expect(editorText(ana.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
+  await caio.page.reload();
+  await expect(caio.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
+  await expect(editorText(caio.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
 });

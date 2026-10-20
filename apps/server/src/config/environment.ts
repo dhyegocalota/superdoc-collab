@@ -1,4 +1,4 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull } from '@superdoc-collab/types';
+import { OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
 import { z } from 'zod';
 
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
@@ -66,6 +66,7 @@ export type Environment = {
   trustedProxyHops: number;
   llm: LlmSettings;
   openUncommittedPerMinute: number;
+  uploadsPerMinute: number;
   projectionWorkerHeapMegabytes: number | null;
 };
 
@@ -117,6 +118,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.OPEN_UNCOMMITTED_PER_MINUTE,
       fallback: OPEN_UNCOMMITTED_PER_MINUTE,
     }),
+    uploadsPerMinute: limitFrom({ name: 'UPLOADS_PER_MINUTE', value: source.UPLOADS_PER_MINUTE, fallback: UPLOADS_PER_MINUTE }),
     projectionWorkerHeapMegabytes: optionalLimitFrom({
       name: 'PROJECTION_WORKER_HEAP_MEGABYTES',
       value: source.PROJECTION_WORKER_HEAP_MEGABYTES,

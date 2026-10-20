@@ -87,6 +87,9 @@ test('with one large room loaded, opening a second large document is refused wit
   test.setTimeout(LARGE_TEST_TIMEOUT_MS);
   const holder = await signedInContext({ browser, user: ana!, origin });
   const refused = await signedInContext({ browser, user: bruno!, origin });
+  await expect
+    .poll(() => openStatus({ page: holder.page, documentId: firstId }), { timeout: EDITOR_READY_TIMEOUT_MS, intervals: POLL_INTERVALS_MS })
+    .toBe(HttpStatus.Ok);
   await holder.page.goto(documentPagePath(firstId));
   await expect(editorText(holder.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
   await expect

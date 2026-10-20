@@ -18,7 +18,7 @@ import {
   roomHeapBudgetMegabytes,
   roomHeapMegabytesOf,
   SERVER_HEAP_BASELINE_MEGABYTES,
-  BOOTSTRAP_HANDOFF_HEAP_MEGABYTES,
+  ROOM_LOAD_SPIKE_HEAP_MEGABYTES,
   BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES,
   MAX_SOCKET_MESSAGE_BYTES,
   MAX_UPLOAD_BYTES,
@@ -78,7 +78,7 @@ describe('documents contracts', () => {
 
   test('pin: the room heap budget is the smaller of what the container and the server heap leave after the reserve, a conversion and a hand-off', () => {
     const serverHeapMegabytes = 3276;
-    const heapLeft = serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - BOOTSTRAP_HANDOFF_HEAP_MEGABYTES;
+    const heapLeft = serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - ROOM_LOAD_SPIKE_HEAP_MEGABYTES;
     const containerLeft = 8192 - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
     expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 8192, serverHeapMegabytes })).toBe(Math.min(heapLeft, containerLeft));
     expect(roomHeapBudgetMegabytes({ memoryLimitMegabytes: 8192, serverHeapMegabytes })).toBe(heapLeft);

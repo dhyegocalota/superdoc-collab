@@ -67,8 +67,8 @@ export const HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE = 19;
 export const MAX_HEAVY_ROOMS_PER_USER = 2;
 export const HEAVY_ROOM_IDLE_MS = MINUTE_MS;
 export const BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES = 2300;
-export const SERVER_HEAP_BASELINE_MEGABYTES = 400;
-export const BOOTSTRAP_HANDOFF_HEAP_MEGABYTES = 1100;
+export const SERVER_HEAP_BASELINE_MEGABYTES = 100;
+export const ROOM_LOAD_SPIKE_HEAP_MEGABYTES = 900;
 export function roomHeapMegabytesOf(stateBytes: number): number {
   return (stateBytes * HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE) / BYTES_PER_MEGABYTE;
 }
@@ -82,7 +82,7 @@ export function roomHeapBudgetMegabytes({
   const containerBudget =
     memoryLimitMegabytes === null ? null : usableMegabytesOf(memoryLimitMegabytes) - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
   const heapBudget =
-    serverHeapMegabytes === null ? null : serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - BOOTSTRAP_HANDOFF_HEAP_MEGABYTES;
+    serverHeapMegabytes === null ? null : serverHeapMegabytes - SERVER_HEAP_BASELINE_MEGABYTES - ROOM_LOAD_SPIKE_HEAP_MEGABYTES;
   const budgets = [containerBudget, heapBudget].filter((budget): budget is number => budget !== null);
   if (budgets.length === 0) return null;
   return Math.max(0, Math.min(...budgets));

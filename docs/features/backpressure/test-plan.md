@@ -28,6 +28,12 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `environment.test.ts` — input: `MAX_BOOTSTRAP_WAIT_MS`, `ROOM_HEAP_BUDGET_MEGABYTES`, `MEMORY_LIMIT_MEGABYTES`, `SERVER_HEAP_MEGABYTES`; expected: the override wins, the two limits derive the budget, none means null, a non-integer fails startup
 - [ ] `open-progress-view.test.ts` — input: Queued with 3 ahead and 240,000 ms; expected: "3 documents ahead · about 4 min · 12 s"; 1 ahead: "1 document ahead"; 0 ahead: "Waiting for its turn"
 - [ ] `editor-api.test.ts`, `waiting-for-document.test.tsx`, `use-upload-document.test.tsx` — input: a 503 with a sentence; expected: `ServerBusyError` with it, the heading with Try again and no connection hint, the dialog message
+- [ ] `room-memory-release.test.ts::one user may hold only so many heavy rooms` — input: `MAX_HEAVY_ROOMS_PER_USER` rooms admitted for one user; expected: the next new room refused for them, admitted for another user, a held or loaded room admitted
+- [ ] `room-memory-release.test.ts::at the budget the heavy rooms nobody edited for a minute are closed` — input: two loaded rooms, one edited 1 ms before the minute; expected: only the idle one closed, the opener refused until it unloads, then admitted
+- [ ] `room-memory-release.test.ts::the size of a room is its loaded state, measured again once enough updates arrived` — input: 9 MB loaded, 6 MB of updates; expected: due for a measure, not heavy until the measure says so
+- [ ] `collaboration-server.test.ts` — input: a room due for a measure; expected: `measured` with the encoded size of the live document; a load reports `loaded` with the restored state size
+- [ ] `room-bootstrap.test.ts` — input: two conversions by one owner, then another owner's; expected: one sample per owner (the latest), the mean across owners, clamped to three times and a third of the seeded rate; a requester's prediction counts only the turns ahead of them
+- [ ] `owner-round-robin-queue.test.ts` — input: a hypothetical push; expected: the order it would be served in, the queue unchanged
 - [ ] Edge: `documents.test.ts` — the budget is the smaller of the container and the heap formulas, null with neither; a document is heavy above 4 MB of XML
 - [ ] `tools/repository-shape/src/entrypoint.test.ts` — input: an 8 GB limit; expected: the server sees `SERVER_HEAP_MEGABYTES=3276`
 
@@ -56,4 +62,5 @@ Empty on purpose.
 ## Coverage honesty
 
 - The memory constants are extrapolations of the one measured document; the E2E scripts the limits low instead of filling a container.
-- A real 8 GB container is not reproduced; the capped repro (server heap 3,276 MB) measured the heap at N rooms, see below.
+- A real 8 GB container is not reproduced; the capped repro (server heap 3,276 MB) measured the heap at N rooms, see the spec.
+- Two loads at the same instant are not budgeted twice: the load spike is counted once.

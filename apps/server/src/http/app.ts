@@ -171,6 +171,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
     createDocumentsRoutes({
       services,
       memoryLimitMegabytes: environment.memoryLimitMegabytes,
+      roomHeapBudgetMegabytes: environment.roomHeapBudgetMegabytes,
       maxBootstrapWaitMs: environment.maxBootstrapWaitMs,
     }),
   );

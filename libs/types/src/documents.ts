@@ -89,7 +89,8 @@ export function roomHeapBudgetMegabytes({
   return Math.max(0, Math.min(...budgets));
 }
 export function largestHoldableMegabytes(roomHeapBudgetMegabytes: number): number {
-  throw new Error(`largestHoldableMegabytes is not implemented for ${roomHeapBudgetMegabytes}`);
+  const heavyShareMegabytes = roomHeapBudgetMegabytes * (1 - SMALL_ROOMS_HEAP_SHARE);
+  return Math.floor(heavyShareMegabytes / (HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE * BOOTSTRAP_STATE_BYTES_RATIO));
 }
 const ROOM_HOLD_NONE_MESSAGE = 'This server has no memory to hold a document that needs a heavy room, even prepared on a device.';
 export function roomHoldShortMessage(largestMegabytes: number): string {

@@ -4,7 +4,9 @@ import {
   bootstrapBusyMessage,
   bootstrapLaneOf,
   BootstrapLane,
+  BYTES_PER_MEGABYTE,
   bootstrapMemoryShortMessage,
+  roomHoldShortMessage,
   DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
@@ -17,6 +19,7 @@ import {
   INVALID_PREPARATION_MESSAGE,
   isPreparable,
   isTabId,
+  largestHoldableMegabytes,
   largestPreparableMegabytes,
   MAX_UPLOAD_BYTES,
   MEMBER_NOT_FOUND_MESSAGE,
@@ -86,9 +89,13 @@ function contentDisposition(fileName: string): string {
 }
 
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
-type CreationMount = RouteMount & { memoryLimitMegabytes: number | null; maxBootstrapWaitMs: number };
+type CreationMount = RouteMount & {
+  memoryLimitMegabytes: number | null;
+  roomHeapBudgetMegabytes: number | null;
+  maxBootstrapWaitMs: number;
+};
 
-function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs }: CreationMount): void {
+function mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetMegabytes, maxBootstrapWaitMs }: CreationMount): void {
   const { documents, storage, runtime, uploadBudget, heavyUploadBudget, heavyRooms } = services;
 
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
@@ -154,15 +161,30 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
     });
   }
 
+  function isRefusedByMemoryGuard(documentXmlBytes: number): boolean {
+    if (memoryLimitMegabytes === null) return false;
+    return !isPreparable({ documentXmlBytes, memoryLimitMegabytes });
+  }
+
   function refusalWhenMemoryShort({
     context,
     documentXmlBytes,
+    isDevicePreparation,
   }: {
     context: Context<SignedIn>;
     documentXmlBytes: number;
+    isDevicePreparation: boolean;
   }): Response | null {
-    if (memoryLimitMegabytes === null) return null;
-    if (isPreparable({ documentXmlBytes, memoryLimitMegabytes })) return null;
+    if (memoryLimitMegabytes === null || !isRefusedByMemoryGuard(documentXmlBytes)) return null;
+    if (roomHeapBudgetMegabytes !== null) {
+      const largestHoldable = largestHoldableMegabytes(roomHeapBudgetMegabytes);
+      const isBeyondHeap = documentXmlBytes > largestHoldable * BYTES_PER_MEGABYTE;
+      const beyondHeap: UploadRefusal = { error: roomHoldShortMessage(largestHoldable), canPrepareOnDevice: false };
+      if (isBeyondHeap) return context.json(beyondHeap, HttpStatus.PayloadTooLarge);
+    }
+    const roomsRefusal = refusalWhenRoomsFull({ context, documentXmlBytes });
+    if (roomsRefusal) return roomsRefusal;
+    if (isDevicePreparation) return null;
     const refusal: UploadRefusal = {
       error: bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes)),
       canPrepareOnDevice: true,
@@ -176,16 +198,18 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
     title,
     importRevisions,
     isBlank,
+    entersLane = true,
   }: {
     context: Context<SignedIn>;
     bytes: Uint8Array;
     title: string;
     importRevisions: boolean;
     isBlank: boolean;
+    entersLane?: boolean;
   }): Promise<Response> {
-    const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    const queueRefusal = entersLane ? refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
     if (queueRefusal) return queueRefusal;
-    const busyRefusal = refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    const busyRefusal = entersLane ? refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) }) : null;
     if (busyRefusal) return busyRefusal;
     const heavyBudgetRefusal = refusalWhenHeavyBudgetSpent({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
     if (heavyBudgetRefusal) return heavyBudgetRefusal;
@@ -235,10 +259,19 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
       const verdict = file.type === DOCX_MIME_TYPE ? await inspectDocx(bytes) : DocxVerdict.NotADocx;
       if (verdict === DocxVerdict.TooLarge) return context.json({ error: DOCUMENT_TOO_LARGE_MESSAGE }, HttpStatus.UnsupportedMediaType);
       if (verdict !== DocxVerdict.Accepted) return context.json({ error: NOT_A_DOCX_MESSAGE }, HttpStatus.UnsupportedMediaType);
-      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+      const documentXmlBytes = declaredDocumentXmlBytes(bytes);
       const isDevicePreparation = preparation === PreparationSource.Device;
-      if (memoryRefusal && !isDevicePreparation) return memoryRefusal;
-      return respondWithStoredDocument({ context, bytes, title: titleFromFileName(file.name), importRevisions: true, isBlank: false });
+      const memoryRefusal = refusalWhenMemoryShort({ context, documentXmlBytes, isDevicePreparation });
+      if (memoryRefusal) return memoryRefusal;
+      const entersLane = !(isDevicePreparation && isRefusedByMemoryGuard(documentXmlBytes));
+      return respondWithStoredDocument({
+        context,
+        bytes,
+        title: titleFromFileName(file.name),
+        importRevisions: true,
+        isBlank: false,
+        entersLane,
+      });
     },
   );
 }
@@ -356,14 +389,16 @@ function mountReading({ routes, services }: RouteMount): void {
 export function createDocumentsRoutes({
   services,
   memoryLimitMegabytes,
+  roomHeapBudgetMegabytes,
   maxBootstrapWaitMs,
 }: {
   services: AppServices;
   memoryLimitMegabytes: number | null;
+  roomHeapBudgetMegabytes: number | null;
   maxBootstrapWaitMs: number;
 }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs });
+  mountCreation({ routes, services, memoryLimitMegabytes, roomHeapBudgetMegabytes, maxBootstrapWaitMs });
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });

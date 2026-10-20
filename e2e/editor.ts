@@ -111,6 +111,7 @@ export async function uploadSeed({
   await page.getByLabel(FILE_INPUT_LABEL).setInputFiles({ name: fileName, mimeType: DOCX_MIME_TYPE, buffer });
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
   await expect(editorText(page).filter({ hasText: paragraphs[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await expect(downloadButton(page)).toBeEnabled({ timeout: EDITOR_READY_TIMEOUT_MS });
   return documentIdOf(page.url());
 }
 

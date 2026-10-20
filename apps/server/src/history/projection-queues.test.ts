@@ -20,6 +20,7 @@ const REQUESTS: Record<ProjectionRequestKind, ProjectionRequest> = {
   },
   [ProjectionRequestKind.Stop]: { kind: ProjectionRequestKind.Stop },
   [ProjectionRequestKind.Recycle]: { kind: ProjectionRequestKind.Recycle },
+  [ProjectionRequestKind.Measure]: { kind: ProjectionRequestKind.Measure },
 };
 
 function queuesHoldingReplyOf(heldKind: ProjectionRequestKind) {
@@ -35,7 +36,10 @@ function queuesHoldingReplyOf(heldKind: ProjectionRequestKind) {
   const stop = vi.fn(async () => {
     events.push(ProjectionRequestKind.Stop);
   });
-  const enqueue = createProjectionQueues({ reply, stop });
+  const measure = vi.fn(async () => {
+    events.push(ProjectionRequestKind.Measure);
+  });
+  const enqueue = createProjectionQueues({ reply, stop, measure });
   return { events, release, enqueue };
 }
 
@@ -98,6 +102,7 @@ test('a light bootstrap is answered while a heavy one is still pending', async (
       answered.push(request.documentId);
     },
     stop: async () => undefined,
+    measure: async () => undefined,
   });
   enqueue(heavy);
   enqueue(light);
@@ -135,4 +140,14 @@ test('a recycle waits for a pending light bootstrap reply', async () => {
   expect(events).toEqual([]);
   release();
   await expect.poll(() => events).toEqual([ProjectionRequestKind.Bootstrap, ProjectionRequestKind.Stop]);
+});
+
+test('a measure runs after the pending serial replies and not before', async () => {
+  const { events, release, enqueue } = queuesHoldingReplyOf(ProjectionRequestKind.Blocks);
+  enqueue(REQUESTS[ProjectionRequestKind.Blocks]);
+  enqueue(REQUESTS[ProjectionRequestKind.Measure]);
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(events).toEqual([]);
+  release();
+  await expect.poll(() => events).toEqual([ProjectionRequestKind.Blocks, ProjectionRequestKind.Measure]);
 });

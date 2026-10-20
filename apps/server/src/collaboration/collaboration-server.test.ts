@@ -598,23 +598,40 @@ test('a socket admitted just before its member was removed is closed with 4404 o
   await server.stop();
 });
 
-test('unloading a room reports its state size and then its unload to the room memory', async () => {
-  const roomMemory = { observe: vi.fn(), unloaded: vi.fn() };
+test('unloading a room reports its unload to the room memory', async () => {
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn() };
   const hocuspocus = createCollaborationServer({
     roomMemory,
     onLogged: vi.fn(),
     onStored: vi.fn(),
   } as unknown as Parameters<typeof createCollaborationServer>[0]);
   const documentName = `${SUPERDOC_ROOM_PREFIX}${randomUUID()}`;
-  const document = new Document(documentName);
-  document.getText('story').insert(0, 'hello');
-  hocuspocus.documents.set(documentName, document);
-  await hocuspocus.hooks('beforeUnloadDocument', { instance: hocuspocus, documentName });
+  hocuspocus.documents.set(documentName, new Document(documentName));
   await hocuspocus.hooks('afterUnloadDocument', { instance: hocuspocus, documentName });
-  expect(roomMemory.observe).toHaveBeenCalledExactlyOnceWith({ documentName, stateBytes: Y.encodeStateAsUpdate(document).byteLength });
   expect(roomMemory.unloaded).toHaveBeenCalledOnce();
   const [[{ isReloaded }]] = roomMemory.unloaded.mock.calls as [[{ isReloaded: () => boolean }]];
   expect(isReloaded()).toBe(true);
   hocuspocus.documents.delete(documentName);
   expect(isReloaded()).toBe(false);
+});
+
+test('an accepted update grows the room memory by its byte length', async () => {
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn() };
+  const documentId = randomUUID();
+  const hocuspocus = createCollaborationServer({
+    roomMemory,
+    bootstrap: { isCommitted: () => true },
+    updateLog: { append: vi.fn() },
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
+  const update = new Uint8Array([1, 2, 3, 4, 5]);
+  await hocuspocus.hooks('onChange', {
+    update,
+    context: { userId: 'u1', documentId, actor: ClientActor.Human, bootstrapAttempt: null },
+    transactionOrigin: 'client',
+    document: new Document(documentName),
+  } as unknown as Parameters<typeof hocuspocus.hooks<'onChange'>>[1]);
+  expect(roomMemory.grew).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: update.byteLength });
 });

@@ -667,8 +667,9 @@ parentPort.on('message', (request) => {
     return void setTimeout(() => process.exit(0), ${stopDelayMs});
   }
   if (isStopping) return;
-  if (request.kind === '${ProjectionRequestKind.Bootstrap}') return parentPort.postMessage({ kind: request.kind, documentId: request.documentId, retainedHeapBytes: 0 });
-  parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: threadId, blocks: [], retainedHeapBytes: ${heapTotalBytes} });
+  if (request.kind === '${ProjectionRequestKind.Bootstrap}') return parentPort.postMessage({ kind: request.kind, documentId: request.documentId });
+  if (request.kind === '${ProjectionRequestKind.Measure}') return parentPort.postMessage({ kind: request.kind, retainedHeapBytes: ${heapTotalBytes} });
+  parentPort.postMessage({ kind: '${ProjectionRequestKind.Blocks}', documentId: request.documentId, sequence: threadId, blocks: [] });
 });
 `;
   writeFileSync(join(directory, PROBE_WORKER_FILE_NAME), source);
@@ -787,7 +788,7 @@ test('a bootstrap posted while the worker is being recycled is held, never poste
   });
   const heavyWorker = scheduler.currentWorker;
   const postMessage = vi.spyOn(heavyWorker, 'postMessage');
-  (scheduler as unknown as { recycleWhenIdle: (retainedHeapBytes: number) => void }).recycleWhenIdle(LARGE_DOCUMENT_HEAP_BYTES + 1);
+  (scheduler as unknown as { recycleWhenHeavy: (retainedHeapBytes: number) => void }).recycleWhenHeavy(LARGE_DOCUMENT_HEAP_BYTES + 1);
   await expect(scheduler.bootstrap(BOOTSTRAP_REQUEST)).resolves.toBeUndefined();
   const postedKinds = postMessage.mock.calls.map(([message]) => (message as ProjectionRequest).kind);
   expect(postedKinds).not.toContain(ProjectionRequestKind.Bootstrap);
@@ -834,5 +835,19 @@ test('a bootstrap requested while the worker is being recycled is held for the f
   await scheduler.bootstrap({ ...BOOTSTRAP_REQUEST, documentId: randomUUID() });
   expect(postMessage.mock.calls.some(([message]) => (message as ProjectionRequest).kind === ProjectionRequestKind.Bootstrap)).toBe(false);
   expect(scheduler.currentWorker).not.toBe(heavyWorker);
+  await scheduler.currentWorker.terminate();
+});
+
+test('a reply leaves before any measurement is requested', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'superdoc-collab-recycle-'));
+  const scheduler = new ProjectionScheduler({
+    databaseDirectory: directory,
+    recycleQuietMs: BURST_QUIET_MS,
+    recycleIntervalMs: 0,
+    projectionWorkerFile: writeHeapProbeWorker({ directory, heapTotalBytes: LARGE_DOCUMENT_HEAP_BYTES + 1 }),
+  });
+  const postMessage = vi.spyOn(scheduler.currentWorker, 'postMessage');
+  await scheduler.blocks(randomUUID());
+  expect(postMessage.mock.calls.map(([message]) => (message as ProjectionRequest).kind)).toEqual([ProjectionRequestKind.Blocks]);
   await scheduler.currentWorker.terminate();
 });

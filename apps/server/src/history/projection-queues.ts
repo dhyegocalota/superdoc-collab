@@ -6,9 +6,11 @@ type Enqueuers = { [Kind in ProjectionRequestKind]: (request: ProjectionRequests
 export function createProjectionQueues({
   reply,
   stop,
+  measure,
 }: {
   reply: (request: AnsweredRequest) => Promise<void>;
   stop: () => Promise<void>;
+  measure: () => Promise<void>;
 }): <Kind extends ProjectionRequestKind>(request: ProjectionRequestsByKind[Kind]) => void {
   let queuePromise = Promise.resolve();
   let importQueuePromise = Promise.resolve();
@@ -42,6 +44,9 @@ export function createProjectionQueues({
     [ProjectionRequestKind.Forget]: enqueueAfterImports,
     [ProjectionRequestKind.Stop]: () => {
       queuePromise = queuePromise.then(stop);
+    },
+    [ProjectionRequestKind.Measure]: () => {
+      queuePromise = queuePromise.then(measure);
     },
     [ProjectionRequestKind.Recycle]: () => {
       queuePromise = Promise.all([queuePromise, importQueuePromise, ...Object.values(bootstrapQueuePromises)]).then(stop);

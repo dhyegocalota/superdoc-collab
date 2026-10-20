@@ -35,6 +35,7 @@ export const READY_BOOTSTRAP: BootstrapReading = {
   stateBytes: STATE_BYTES,
   estimatedMs: null,
   preparingSince: null,
+  fileBytes: null,
 };
 
 export function bootstrapAt(stage: BootstrapStage): BootstrapReading {

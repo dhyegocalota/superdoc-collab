@@ -69,13 +69,14 @@ export function preparingView({
   const elapsed = elapsedLabel(elapsedSeconds);
   if (!bootstrap) return { stage, detail: detailLine([UNKNOWN_PREPARING_DETAIL, elapsed]), fraction: null };
   if (bootstrap.stage === BootstrapStage.Queued) return { stage, detail: detailLine([QUEUED_DETAIL, elapsed]), fraction: null };
-  const { done, total, estimatedMs, preparingSince } = bootstrap;
+  const { done, total, estimatedMs, preparingSince, fileBytes } = bootstrap;
+  const sizeBytes = fileBytes === null ? total : fileBytes;
   const preparingSeconds = preparingElapsedSeconds({ preparingSince, startedAt, elapsedSeconds });
   const bytesFraction = done > 0 ? fractionOf({ doneBytes: done, totalBytes: total }) : null;
   const timeFraction = timeFractionOf({ estimatedMs, elapsedSeconds: preparingSeconds });
   const isBytesAhead = bytesFraction !== null && (timeFraction === null || bytesFraction >= timeFraction);
   if (isBytesAhead) return { stage, detail: detailLine([receivedDetail(done), elapsed]), fraction: bytesFraction };
-  const subject = total > 0 ? convertingDetail(total) : UNKNOWN_PREPARING_DETAIL;
+  const subject = sizeBytes > 0 ? convertingDetail(sizeBytes) : UNKNOWN_PREPARING_DETAIL;
   if (timeFraction !== null && estimatedMs !== null) {
     const estimatedSeconds = estimatedSecondsOf(estimatedMs);
     return {

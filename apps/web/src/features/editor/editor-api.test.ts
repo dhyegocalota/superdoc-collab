@@ -18,6 +18,17 @@ test.each([
   expect(opened.bootstrap.preparingSince).toBe(expected);
 });
 
+test.each([
+  ['an answer with no fileBytes reads null', undefined, null],
+  ['an answer with fileBytes keeps it', 9_961_472, 9_961_472],
+])('%s', async (_, fileBytes, expected) => {
+  const { fileBytes: _absent, ...progress } = READY_BOOTSTRAP;
+  const bootstrap = fileBytes === undefined ? progress : { ...progress, fileBytes };
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: { ...openedAs(DocumentRole.Editor), bootstrap } }));
+  const opened = await openDocument(DOCUMENT_ID);
+  expect(opened.bootstrap.fileBytes).toBe(expected);
+});
+
 test('a 403 throws DocumentUnavailableError, so it never offers a retry', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ body: {}, status: HttpStatus.Forbidden }));
   const failure = await openDocument(DOCUMENT_ID).catch((caught: unknown) => caught);

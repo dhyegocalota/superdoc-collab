@@ -49,6 +49,10 @@ export async function inspectDocx(bytes: Uint8Array): Promise<DocxVerdict> {
   }
 }
 
+export function declaredDocumentXmlBytes(bytes: Uint8Array): number {
+  throw new Error('declaredDocumentXmlBytes is not implemented');
+}
+
 export async function isDocx(bytes: Uint8Array): Promise<boolean> {
   return (await inspectDocx(bytes)) === DocxVerdict.Accepted;
 }

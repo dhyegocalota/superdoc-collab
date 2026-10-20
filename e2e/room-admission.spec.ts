@@ -2,6 +2,7 @@ import type { APIResponse, Browser, Page } from '@playwright/test';
 import {
   ApiPath,
   AppRoute,
+  BOOTSTRAP_LIGHT_MAX_BYTES,
   BOOTSTRAP_STATE_BYTES_RATIO,
   BootstrapStage,
   DEMO_USERS,
@@ -19,7 +20,7 @@ import {
 } from '../libs/types/src';
 import { buildSeedDocx } from '../libs/history/src';
 import { EDITOR_READY_TIMEOUT_MS, editorText, readEditorText, readShareLinks, sameOriginHeaders, uploadDocument } from './editor';
-import { buildBrokenDocx, buildLargeDocx } from './fixtures/large-docx';
+import { buildBrokenDocx, buildDeflatedLargeDocx, buildLargeDocx } from './fixtures/large-docx';
 import {
   type OpenedContext,
   acceptInvite,
@@ -42,6 +43,7 @@ const LARGE_TEST_TIMEOUT_MS = 360_000;
 const STAGE_POLL_INTERVALS_MS = [250];
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 const JOINER_SENT_BYTES_LIMIT = BYTES_PER_MEGABYTE;
+const ZIP_OVERHEAD_BYTES = 4096;
 const PROGRESS_STAGES = [BootstrapStage.Queued, BootstrapStage.Preparing];
 
 type OpenAnswer = { status: number; roomMode: RoomMode | null; stage: BootstrapStage | null };
@@ -112,7 +114,8 @@ test('an uploaded document is answered Join with the bootstrap in progress to ev
   answers.forEach((answer) => expect([answer.status, answer.roomMode]).toEqual([HttpStatus.Ok, RoomMode.Join]));
   answers.forEach((answer) => expect(PROGRESS_STAGES).toContain(answer.stage));
   const progress = (await readOpenAnswer(await dani.page.request.get(documentApiPath({ documentId })))).bootstrap;
-  expect(progress).toMatchObject({ total: buffer.byteLength * BOOTSTRAP_STATE_BYTES_RATIO, stateBytes: null });
+  expect(progress.documentXmlBytes).toBeGreaterThan(buffer.byteLength - ZIP_OVERHEAD_BYTES);
+  expect(progress).toMatchObject({ total: progress.documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO, stateBytes: null });
   expect(progress.done).toBeLessThan(progress.total);
   const ready = await waitUntilReady({ page: bruno.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
   expect(ready.bootstrap.done).toBe(ready.bootstrap.total);
@@ -192,4 +195,17 @@ test('a 10 MB DOCX is built by the server and the uploader joins a snapshot', as
   await caio.page.reload();
   await expect(caio.page.getByTestId(EDITOR_TEST_ID)).toBeVisible();
   await expect(editorText(caio.page).filter({ hasText: LARGE_PARAGRAPH }).first()).toBeVisible({ timeout: LARGE_READY_TIMEOUT_MS });
+});
+
+test('a deflated heavy DOCX is prepared by the size of its XML: the heavy lane, the long timeout, then ready', async ({ browser }) => {
+  test.setTimeout(LARGE_TEST_TIMEOUT_MS);
+  const mira = await invitedPerson({ browser, name: 'Mira' });
+  const buffer = buildDeflatedLargeDocx(LARGE_PARAGRAPH);
+  expect(buffer.byteLength).toBeLessThan(BYTES_PER_MEGABYTE);
+  const documentId = await uploadDocument({ page: mira.page, buffer });
+  const progress = (await readOpenAnswer(await mira.page.request.get(documentApiPath({ documentId })))).bootstrap;
+  expect(progress.documentXmlBytes).toBeGreaterThan(BOOTSTRAP_LIGHT_MAX_BYTES);
+  expect(progress.total).toBe(progress.documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO);
+  const ready = await waitUntilReady({ page: mira.page, documentId, timeout: LARGE_READY_TIMEOUT_MS });
+  expect(ready.bootstrap.stage).toBe(BootstrapStage.Ready);
 });

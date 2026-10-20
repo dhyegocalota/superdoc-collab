@@ -35,6 +35,7 @@ const BOOTSTRAP_REQUEST = {
   url: 'ws://127.0.0.1:1/collaboration/bootstrap',
   token: 'bootstrap-token',
   lane: BootstrapLane.Heavy,
+  documentXmlBytes: SMALL_FILE_BYTES,
 } as const;
 
 function storesWith(
@@ -247,7 +248,7 @@ test('a bootstrap that outlives its timeout releases the host before it rejects'
 const TIMEOUT_MARGIN_MS = 1;
 
 test.each([SMALL_FILE_BYTES, MAX_UPLOAD_BYTES])(
-  'a bootstrap of a %i byte file is cut at the floor plus the margin times the measured rate',
+  'a bootstrap of a document with %i bytes of XML is cut at the floor plus the margin times the measured rate, whatever the size of the file',
   async (documentXmlBytes) => {
     vi.useFakeTimers();
     const timeoutMs =
@@ -255,11 +256,11 @@ test.each([SMALL_FILE_BYTES, MAX_UPLOAD_BYTES])(
     const handle = createProjectionHandler(
       storesWith(
         async () => null,
-        () => documentXmlBytes,
+        () => SMALL_FILE_BYTES,
         () => new Promise<void>(() => undefined),
       ),
     );
-    const outcome = handle(BOOTSTRAP_REQUEST).catch((error: unknown) => error);
+    const outcome = handle({ ...BOOTSTRAP_REQUEST, documentXmlBytes }).catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(timeoutMs - TIMEOUT_MARGIN_MS);
     const settledEarly = await Promise.race([outcome, Promise.resolve(null)]);
     expect(settledEarly).toBeNull();

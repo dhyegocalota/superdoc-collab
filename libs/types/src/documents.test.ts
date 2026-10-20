@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { BOOTSTRAP_TIMEOUT_FLOOR_MS } from './constants';
 import {
+  BOOTSTRAP_HOST_TIMEOUT_MS,
   BOOTSTRAP_LIGHT_MAX_BYTES,
   BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   bootstrapMemoryShortMessage,
@@ -41,8 +42,16 @@ describe('documents contracts', () => {
     expect(largestPreparableMegabytes(BOOTSTRAP_MEMORY_RESERVE_MEGABYTES - 1)).toBe(0);
   });
 
+  test('a limit that holds no document at all has its own refusal', () => {
+    expect(bootstrapMemoryShortMessage(0)).toBe('This server has too little memory to prepare documents.');
+  });
+
+  test('the host timeout outlasts the bootstrap timeout of the largest document the XML cap admits', () => {
+    expect(BOOTSTRAP_HOST_TIMEOUT_MS).toBeGreaterThan(bootstrapTimeoutMsOf(MAX_DOCUMENT_XML_BYTES));
+  });
+
   test('the refusal states the largest file in whole megabytes', () => {
-    expect(bootstrapMemoryShortMessage(8)).toBe('This server can prepare files up to 8 MB.');
+    expect(bootstrapMemoryShortMessage(8)).toBe('This server can prepare documents with up to 8 MB of text and layout.');
   });
 
   test('the state of a document at the XML cap fits the socket message cap, so no admitted document closes with 1009', () => {

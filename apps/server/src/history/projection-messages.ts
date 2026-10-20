@@ -22,7 +22,14 @@ export enum ProjectionRequestKind {
   Measure = 'measure',
 }
 
-export type BootstrapRequest = { documentId: string; filePath: string; url: string; token: string; lane: BootstrapLane };
+export type BootstrapRequest = {
+  documentId: string;
+  filePath: string;
+  url: string;
+  token: string;
+  lane: BootstrapLane;
+  documentXmlBytes: number;
+};
 
 export type ProjectionRequest =
   | { kind: ProjectionRequestKind.Project; documentId: string }

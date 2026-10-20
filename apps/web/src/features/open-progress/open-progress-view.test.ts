@@ -66,7 +66,7 @@ test('preparing with progress is a determinate bar naming the bytes received', (
 
 test('preparing with no progress yet names the file size on an indeterminate bar', () => {
   const view = preparing({ stage: BootstrapStage.Preparing, done: 0, total: TOTAL_BYTES });
-  expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Converting a 9.5 MB file · 12 s', fraction: null });
+  expect(view).toEqual({ stage: OpenStage.Preparing, detail: 'Converting 9.5 MB of text and layout · 12 s', fraction: null });
 });
 
 test('bytes received beyond the estimated total fill the bar and no more', () => {
@@ -77,7 +77,7 @@ test('bytes received beyond the estimated total fill the bar and no more', () =>
 test('an estimate with no bytes yet fills the bar by the time elapsed over the estimate and names both', () => {
   expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 12 })).toEqual({
     stage: OpenStage.Preparing,
-    detail: 'Converting a 9.5 MB file · about 40 s · 12 s elapsed',
+    detail: 'Converting 9.5 MB of text and layout · about 40 s · 12 s elapsed',
     fraction: 0.3,
   });
 });
@@ -110,7 +110,7 @@ test('bytes ahead of the estimate take over the bar and the detail', () => {
 test('the estimate counts the time the server measured, so a joiner arriving mid-conversion does not start at zero', () => {
   expect(estimating({ estimatedMs: 40_000, elapsedSeconds: 5, preparingElapsedSeconds: 30 })).toEqual({
     stage: OpenStage.Preparing,
-    detail: 'Converting a 9.5 MB file · about 40 s · 30 s elapsed',
+    detail: 'Converting 9.5 MB of text and layout · about 40 s · 30 s elapsed',
     fraction: 0.75,
   });
 });

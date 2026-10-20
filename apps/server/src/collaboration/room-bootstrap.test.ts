@@ -77,6 +77,7 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     url: URL,
     token: `token-${attempt}`,
     lane: BootstrapLane.Heavy,
+    documentXmlBytes: FILE_BYTES,
   });
 });
 

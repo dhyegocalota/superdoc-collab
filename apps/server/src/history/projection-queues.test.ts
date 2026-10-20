@@ -17,6 +17,7 @@ const REQUESTS: Record<ProjectionRequestKind, ProjectionRequest> = {
     url: 'ws://127.0.0.1:1',
     token: 'token',
     lane: BootstrapLane.Heavy,
+    documentXmlBytes: 1024,
   },
   [ProjectionRequestKind.Stop]: { kind: ProjectionRequestKind.Stop },
   [ProjectionRequestKind.Recycle]: { kind: ProjectionRequestKind.Recycle },

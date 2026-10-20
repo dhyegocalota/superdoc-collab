@@ -262,7 +262,14 @@ export class RoomBootstrap {
   private async runJob({ documentId, lane, retries }: { documentId: string; lane: BootstrapLane; retries: number }): Promise<void> {
     try {
       const token = this.begin(documentId);
-      await this.run({ documentId, filePath: this.filePathOf(documentId), url: this.collaborationUrl(), token, lane });
+      await this.run({
+        documentId,
+        filePath: this.filePathOf(documentId),
+        url: this.collaborationUrl(),
+        token,
+        lane,
+        documentXmlBytes: this.documentXmlBytesOfJob(documentId),
+      });
       await this.awaitCommit(documentId);
       this.endAttempt(documentId);
     } catch (error) {

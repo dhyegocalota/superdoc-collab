@@ -50,8 +50,8 @@ import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtim
 const IMPORT_TIMEOUT_MS = 30_000;
 const TWELVE_MEGABYTES = 12 * BYTES_PER_MEGABYTE;
 const FOUR_GIGABYTES = 4096;
-const HEAVY_FILE_BYTES = 9.5 * BYTES_PER_MEGABYTE;
-const LIGHT_FILE_BYTES = 2 * BYTES_PER_MEGABYTE;
+const HEAVY_XML_BYTES = 9.5 * BYTES_PER_MEGABYTE;
+const LIGHT_XML_BYTES = 2 * BYTES_PER_MEGABYTE;
 const STREAMED_CHUNK_COUNT = 12;
 const FORBIDDEN_TITLE_FILE_NAME = `Q3 "final" (draft)'s plan*`;
 const RENAME_BODY_OVER_LIMIT_CHARACTERS = 5000;
@@ -90,6 +90,12 @@ async function createBlank({ server, cookie, title }: { server: TestServer; cook
     headers: { cookie, ...JSON_HEADERS },
     body: JSON.stringify({ title }),
   });
+}
+
+async function docxWithXmlBytes(xmlBytes: number): Promise<Uint8Array> {
+  const zip = new JSZip();
+  zip.file('word/document.xml', new Uint8Array(xmlBytes), { compression: 'DEFLATE' });
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 }
 
 async function docxBytes(text: string): Promise<Buffer> {
@@ -226,9 +232,11 @@ test('a file of exactly 10 MB is not refused for its size', async () => {
   await server.stop();
 });
 
-test('a file too large for the memory of the server to prepare is 413 with the largest size and is not stored', async () => {
+test('a document too large for the memory of the server to prepare is 413 with the largest size, however small its file, and is not stored', async () => {
   const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
-  const response = await upload({ server, cookie: owner.cookie, bytes: new Uint8Array(HEAVY_FILE_BYTES) });
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  expect(bytes.byteLength).toBeLessThan(BYTES_PER_MEGABYTE);
+  const response = await upload({ server, cookie: owner.cookie, bytes });
   expect([response.status, await response.json()]).toEqual([
     HttpStatus.PayloadTooLarge,
     { error: bootstrapMemoryShortMessage(largestPreparableMegabytes(FOUR_GIGABYTES)) },
@@ -237,18 +245,37 @@ test('a file too large for the memory of the server to prepare is 413 with the l
   await server.stop();
 });
 
-test('a file the memory of the server can prepare passes the guard and a blank create is never refused by it', async () => {
+test('a document the memory of the server can prepare passes the guard and a blank create is never refused by it', async () => {
   const { server, owner } = await signedInOwner({ memoryLimitMegabytes: FOUR_GIGABYTES });
-  const light = await upload({ server, cookie: owner.cookie, bytes: new Uint8Array(LIGHT_FILE_BYTES) });
+  vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const light = await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
   const blank = await createBlank({ server, cookie: owner.cookie, title: 'Blank' });
-  expect([light.status, blank.status]).toEqual([HttpStatus.UnsupportedMediaType, HttpStatus.Created]);
+  expect([light.status, blank.status]).toEqual([HttpStatus.Created, HttpStatus.Created]);
   await server.stop();
 });
 
-test('an unknown memory limit never refuses a file for its memory', async () => {
+test('an unknown memory limit never refuses a document for its memory', async () => {
   const { server, owner } = await signedInOwner();
-  const response = await upload({ server, cookie: owner.cookie, bytes: new Uint8Array(HEAVY_FILE_BYTES) });
-  expect(response.status).toBe(HttpStatus.UnsupportedMediaType);
+  vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
+  const response = await upload({ server, cookie: owner.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES) });
+  expect(response.status).toBe(HttpStatus.Created);
+  await server.stop();
+});
+
+test('a deflated heavy document waits in the heavy lane by its XML, and a light one of the same owner is not held behind it', async () => {
+  const { server, owner } = await signedInOwner();
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const heavy = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const running = await upload({ server, cookie: owner.cookie, bytes: heavy });
+  const queued = await upload({ server, cookie: owner.cookie, bytes: heavy });
+  const refused = await upload({ server, cookie: owner.cookie, bytes: heavy });
+  const light = await upload({ server, cookie: owner.cookie, bytes: await docxBytes('Light') });
+  expect([running.status, queued.status, refused.status, light.status]).toEqual([
+    HttpStatus.Created,
+    HttpStatus.Created,
+    HttpStatus.TooManyRequests,
+    HttpStatus.Created,
+  ]);
   await server.stop();
 });
 

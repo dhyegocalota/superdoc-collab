@@ -147,7 +147,7 @@ test('the Preparing panel names the wait, then the file being converted, then fi
   await expect(panel).toHaveAttribute('data-stage', OpenStage.Preparing);
   await expect(detail).toContainText(QUEUED_DETAIL, { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(bar).not.toHaveAttribute('aria-valuenow');
-  await expect(detail).toContainText('Converting a', { timeout: SCRIPTED_STEP_TIMEOUT_MS });
+  await expect(detail).toContainText('Converting', { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(bar).not.toHaveAttribute('aria-valuenow');
   await expect(bar).toHaveAttribute('aria-valuenow', String(0.4 * PERCENT_MULTIPLIER), { timeout: SCRIPTED_STEP_TIMEOUT_MS });
   await expect(detail).toContainText('Received');

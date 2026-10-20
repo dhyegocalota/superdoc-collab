@@ -618,6 +618,7 @@ const BOOTSTRAP_REQUEST = {
   url: 'ws://127.0.0.1:1',
   token: 'token',
   lane: BootstrapLane.Light,
+  documentXmlBytes: 1024,
 };
 
 function schedulerWithProbe(probeSource: string): ProjectionScheduler {

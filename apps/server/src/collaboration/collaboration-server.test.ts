@@ -24,6 +24,7 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
+import { HEAVY_ROOMS_FULL_REASON } from '@superdoc-collab/types';
 import {
   createCollaborationServer,
   HEAVY_ROOMS_REFUSAL_LOG,
@@ -397,9 +398,9 @@ describe('heavy room ceiling', () => {
     commitBootstrap({ services: server.services, documentId, userId: owner.id });
     const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockReturnValue(false);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toBeInstanceOf(
-      CollaborationRefusedError,
-    );
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toMatchObject({
+      reason: HEAVY_ROOMS_FULL_REASON,
+    });
     const token = signRoomToken({ secret: TEST_AUTH_SECRET, userId: owner.id, documentId, now: Date.now() });
     await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
     expect(refuses).toHaveBeenCalledWith({ documentId, userId: owner.id });
@@ -659,7 +660,7 @@ test('unloading a room reports its unload to the room memory', async () => {
 });
 
 test('an accepted update grows the room memory by its byte length', async () => {
-  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), isDueForMeasure: vi.fn(() => false), measured: vi.fn() };
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn() };
   const documentId = randomUUID();
   const hocuspocus = createCollaborationServer({
     roomMemory,
@@ -677,33 +678,6 @@ test('an accepted update grows the room memory by its byte length', async () => 
     document: new Document(documentName),
   } as unknown as Parameters<typeof hocuspocus.hooks<'onChange'>>[1]);
   expect(roomMemory.grew).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: update.byteLength });
-});
-
-test('a room that is due for a measure reports the size of its live state, and one that is not reports nothing', async () => {
-  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), isDueForMeasure: vi.fn(() => true), measured: vi.fn() };
-  const documentId = randomUUID();
-  const hocuspocus = createCollaborationServer({
-    roomMemory,
-    bootstrap: { isCommitted: () => true },
-    updateLog: { append: vi.fn() },
-    onLogged: vi.fn(),
-    onStored: vi.fn(),
-  } as unknown as Parameters<typeof createCollaborationServer>[0]);
-  const documentName = `${SUPERDOC_ROOM_PREFIX}${documentId}`;
-  const document = new Document(documentName);
-  document.getText('t').insert(0, 'live state');
-  const change = {
-    update: new Uint8Array([1]),
-    context: { userId: 'u1', documentId, actor: ClientActor.Human, bootstrapAttempt: null },
-    transactionOrigin: 'client',
-    document,
-  } as unknown as Parameters<typeof hocuspocus.hooks<'onChange'>>[1];
-  await hocuspocus.hooks('onChange', change);
-  expect(roomMemory.measured).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: Y.encodeStateAsUpdate(document).byteLength });
-  roomMemory.measured.mockClear();
-  roomMemory.isDueForMeasure.mockReturnValue(false);
-  await hocuspocus.hooks('onChange', change);
-  expect(roomMemory.measured).not.toHaveBeenCalled();
 });
 
 test('loading a room reports the size of its restored state as the size of the room', async () => {
@@ -726,4 +700,24 @@ test('loading a room reports the size of its restored state as the size of the r
   } as unknown as Parameters<typeof hocuspocus.hooks<'onLoadDocument'>>[1]);
   expect(roomMemory.loaded).toHaveBeenCalledExactlyOnceWith({ documentName, bytes: state.byteLength });
   expect(roomMemory.grew).not.toHaveBeenCalled();
+});
+
+test('a socket that disconnects gives back the place its user was admitted with, and a bootstrap socket gives back nothing', async () => {
+  const roomMemory = { grew: vi.fn(), unloaded: vi.fn(), released: vi.fn() };
+  const hocuspocus = createCollaborationServer({
+    roomMemory,
+    onLogged: vi.fn(),
+    onStored: vi.fn(),
+  } as unknown as Parameters<typeof createCollaborationServer>[0]);
+  const documentName = `${SUPERDOC_ROOM_PREFIX}${randomUUID()}`;
+  const disconnect = (bootstrapAttempt: string | null) =>
+    hocuspocus.hooks('onDisconnect', {
+      socketId: 'socket-1',
+      documentName,
+      context: { userId: 'u1', bootstrapAttempt },
+    } as unknown as Parameters<typeof hocuspocus.hooks<'onDisconnect'>>[1]);
+  await disconnect('attempt-1');
+  expect(roomMemory.released).not.toHaveBeenCalled();
+  await disconnect(null);
+  expect(roomMemory.released).toHaveBeenCalledExactlyOnceWith({ documentName, userId: 'u1' });
 });

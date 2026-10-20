@@ -1,35 +1,37 @@
 import {
-  BYTES_PER_MEGABYTE,
   HEAVY_ROOM_HEAP_BYTES_PER_STATE_BYTE,
-  HEAVY_ROOM_IDLE_MS,
   LARGE_ROOM_STATE_BYTES,
   MAX_HEAVY_ROOMS_PER_USER,
+  BOOTSTRAP_HOST_TIMEOUT_MS,
+  BYTES_PER_MEGABYTE,
+  MAX_BOOTSTRAP_WAIT_MS,
   MINUTE_MS,
   SECOND_MS,
+  SMALL_ROOMS_HEAP_SHARE,
 } from '@superdoc-collab/types';
 import { KeyedCooldown } from '../limits/keyed-cooldown';
 
 export const ROOM_MEMORY_RELEASE_DELAY_MS = SECOND_MS;
 export const ROOM_RESERVATION_TTL_MS = 30 * SECOND_MS;
-export const ROOM_REMEASURE_BYTES = 4 * BYTES_PER_MEGABYTE;
-export const IDLE_ROOM_CLOSED_MESSAGE = 'Closed the sockets of a heavy room nobody edited, to make room for another, for';
+export const ROOM_UPLOAD_RESERVATION_TTL_MS = MAX_BOOTSTRAP_WAIT_MS + BOOTSTRAP_HOST_TIMEOUT_MS;
 export const ROOM_MEMORY_RELEASED_MESSAGE = 'Released the memory of a heavy room, resident bytes before and after and pause milliseconds:';
 const RELEASE_COOLDOWN_MS = MINUTE_MS;
 const RELEASE_COOLDOWN_KEY = 'process';
 
 type Reservation = { heapBytes: number; expiresAt: number };
+type RoomPlace = { documentName: string; estimatedStateBytes: number; userId: string };
 
 export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavor: 'regular' }) => void;
 
 export type RoomMemoryRelease = {
   grew: (room: { documentName: string; bytes: number }) => void;
-  unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
-  heavyHeapBytes: () => number;
-  isBounded: () => boolean;
   loaded: (room: { documentName: string; bytes: number }) => void;
-  isDueForMeasure: (documentName: string) => boolean;
-  measured: (room: { documentName: string; bytes: number }) => void;
-  admit: (room: { documentName: string; estimatedStateBytes: number; userId: string }) => boolean;
+  unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
+  released: (socket: { documentName: string; userId: string }) => void;
+  roomsHeapBytes: () => number;
+  isBounded: () => boolean;
+  fits: (room: RoomPlace) => boolean;
+  admit: (room: RoomPlace & { ttlMs?: number }) => boolean;
   hasHeadroomFor: (estimatedStateBytes: number) => boolean;
 };
 
@@ -39,25 +41,24 @@ export function createRoomMemoryRelease({
   cooldownMs,
   now,
   roomHeapBudgetBytes,
-  closeRoom,
+  measureRoom,
 }: {
   collectGarbage: CollectGarbage | null;
   memoryUsage: () => NodeJS.MemoryUsage;
   cooldownMs: number;
   now: () => number;
   roomHeapBudgetBytes: number | null;
-  closeRoom: (documentName: string) => void;
+  measureRoom: (documentName: string) => number | null;
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
   const reservations = new Map<string, Reservation>();
-  const holders = new Map<string, Set<string>>();
-  const lastActivityAt = new Map<string, number>();
+  const holders = new Map<string, Map<string, number>>();
   const receivedSinceMeasure = new Map<string, number>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
   let isRetryPending = false;
 
-  function isHeavy(bytes: number | undefined): boolean {
-    return bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
+  function isHeavy(bytes: number): boolean {
+    return bytes > LARGE_ROOM_STATE_BYTES;
   }
 
   function heapBytesOf(stateBytes: number): number {
@@ -71,45 +72,64 @@ export function createRoomMemoryRelease({
     return reservations;
   }
 
+  function reservedHeapBytes(): number {
+    return [...liveReservations().values()].reduce((sum, { heapBytes }) => sum + heapBytes, 0);
+  }
+
+  function roomsHeapBytes(): number {
+    const loaded = [...roomBytes.values()].reduce((sum, bytes) => sum + heapBytesOf(bytes), 0);
+    return loaded + reservedHeapBytes();
+  }
+
   function heavyHeapBytes(): number {
     const loaded = [...roomBytes.values()].filter(isHeavy).reduce((sum, bytes) => sum + heapBytesOf(bytes), 0);
-    const reserved = [...liveReservations().values()].reduce((sum, { heapBytes }) => sum + heapBytes, 0);
-    return loaded + reserved;
+    return loaded + reservedHeapBytes();
   }
 
-  function addHolder({ documentName, userId }: { documentName: string; userId: string }): void {
-    const current = holders.get(documentName);
-    holders.set(documentName, new Set([...(current === undefined ? [] : current), userId]));
+  function isShortOf({ budgetBytes, estimatedStateBytes }: { budgetBytes: number; estimatedStateBytes: number }): boolean {
+    const estimatedHeapBytes = heapBytesOf(estimatedStateBytes);
+    const heavyShareBytes = budgetBytes * (1 - SMALL_ROOMS_HEAP_SHARE);
+    return roomsHeapBytes() + estimatedHeapBytes > budgetBytes || heavyHeapBytes() + estimatedHeapBytes > heavyShareBytes;
   }
 
-  function heldRoomCount(userId: string): number {
-    const reserved = liveReservations();
-    return [...holders.entries()].filter(
-      ([documentName, users]) => users.has(userId) && (isHeavy(roomBytes.get(documentName)) || reserved.has(documentName)),
-    ).length;
-  }
-
-  function touch(documentName: string): void {
-    lastActivityAt.set(documentName, now());
-  }
-
-  function isIdle(documentName: string): boolean {
-    const lastAt = lastActivityAt.get(documentName);
-    return lastAt === undefined || now() - lastAt >= HEAVY_ROOM_IDLE_MS;
-  }
-
-  function closeIdleRooms(except: string): void {
-    [...roomBytes.entries()]
-      .filter(([documentName, bytes]) => documentName !== except && isHeavy(bytes) && isIdle(documentName))
+  function remeasureRoomsWithUpdates(): void {
+    [...receivedSinceMeasure.entries()]
+      .filter(([, received]) => received > 0)
       .forEach(([documentName]) => {
-        console.info(`${IDLE_ROOM_CLOSED_MESSAGE} ${documentName}`);
-        closeRoom(documentName);
+        const bytes = measureRoom(documentName);
+        if (bytes === null) return;
+        roomBytes.set(documentName, bytes);
+        receivedSinceMeasure.set(documentName, 0);
       });
   }
 
   function hasHeadroomFor(estimatedStateBytes: number): boolean {
     if (roomHeapBudgetBytes === null) return true;
-    return heavyHeapBytes() + heapBytesOf(estimatedStateBytes) <= roomHeapBudgetBytes;
+    if (!isShortOf({ budgetBytes: roomHeapBudgetBytes, estimatedStateBytes })) return true;
+    remeasureRoomsWithUpdates();
+    return !isShortOf({ budgetBytes: roomHeapBudgetBytes, estimatedStateBytes });
+  }
+
+  function isHeld(documentName: string): boolean {
+    const bytes = roomBytes.get(documentName);
+    return (bytes !== undefined && isHeavy(bytes)) || liveReservations().has(documentName);
+  }
+
+  function addHolder({ documentName, userId }: { documentName: string; userId: string }): void {
+    const sockets = holders.get(documentName);
+    const known = sockets === undefined ? undefined : sockets.get(userId);
+    holders.set(documentName, new Map([...(sockets === undefined ? [] : sockets), [userId, known === undefined ? 1 : known + 1]]));
+  }
+
+  function heldRoomCount(userId: string): number {
+    return [...holders.entries()].filter(([documentName, sockets]) => sockets.has(userId) && isHeld(documentName)).length;
+  }
+
+  function fits({ documentName, estimatedStateBytes, userId }: RoomPlace): boolean {
+    if (roomHeapBudgetBytes === null) return true;
+    if (isHeld(documentName)) return true;
+    if (heldRoomCount(userId) >= MAX_HEAVY_ROOMS_PER_USER) return false;
+    return hasHeadroomFor(estimatedStateBytes);
   }
 
   function retryAfter({
@@ -148,45 +168,42 @@ export function createRoomMemoryRelease({
       const received = receivedSinceMeasure.get(documentName);
       roomBytes.set(documentName, known === undefined ? bytes : known + bytes);
       receivedSinceMeasure.set(documentName, received === undefined ? bytes : received + bytes);
-      touch(documentName);
     },
-    unloaded({ documentName, isReloaded }) {
-      const wasHeavy = isHeavy(roomBytes.get(documentName));
-      [roomBytes, reservations, holders, lastActivityAt, receivedSinceMeasure].forEach((tracked) => tracked.delete(documentName));
-      if (!wasHeavy || collectGarbage === null) return;
-      setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
-    },
-    heavyHeapBytes,
     loaded({ documentName, bytes }) {
       reservations.delete(documentName);
       roomBytes.set(documentName, bytes);
       receivedSinceMeasure.set(documentName, 0);
-      touch(documentName);
     },
-    isDueForMeasure(documentName) {
-      const received = receivedSinceMeasure.get(documentName);
-      return received !== undefined && received > ROOM_REMEASURE_BYTES;
+    unloaded({ documentName, isReloaded }) {
+      const bytes = roomBytes.get(documentName);
+      const wasHeavy = bytes !== undefined && isHeavy(bytes);
+      [roomBytes, reservations, holders, receivedSinceMeasure].forEach((tracked) => tracked.delete(documentName));
+      if (!wasHeavy || collectGarbage === null) return;
+      setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
-    measured({ documentName, bytes }) {
-      roomBytes.set(documentName, bytes);
-      receivedSinceMeasure.set(documentName, 0);
-      touch(documentName);
+    released({ documentName, userId }) {
+      const sockets = holders.get(documentName);
+      const known = sockets === undefined ? undefined : sockets.get(userId);
+      if (sockets === undefined || known === undefined) return;
+      const remaining = new Map(sockets);
+      if (known > 1) remaining.set(userId, known - 1);
+      if (known <= 1) remaining.delete(userId);
+      if (remaining.size > 0) return void holders.set(documentName, remaining);
+      holders.delete(documentName);
+      if (!roomBytes.has(documentName)) reservations.delete(documentName);
     },
+    roomsHeapBytes,
     isBounded: () => roomHeapBudgetBytes !== null,
-    admit({ documentName, estimatedStateBytes, userId }) {
+    fits,
+    admit({ documentName, estimatedStateBytes, userId, ttlMs = ROOM_RESERVATION_TTL_MS }) {
       if (roomHeapBudgetBytes === null) return true;
-      const isHeld = isHeavy(roomBytes.get(documentName)) || liveReservations().has(documentName);
-      if (isHeld) {
+      if (isHeld(documentName)) {
         addHolder({ documentName, userId });
         return true;
       }
-      if (heldRoomCount(userId) >= MAX_HEAVY_ROOMS_PER_USER) return false;
-      if (!hasHeadroomFor(estimatedStateBytes)) {
-        closeIdleRooms(documentName);
-        return false;
-      }
+      if (!fits({ documentName, estimatedStateBytes, userId })) return false;
       addHolder({ documentName, userId });
-      reservations.set(documentName, { heapBytes: heapBytesOf(estimatedStateBytes), expiresAt: now() + ROOM_RESERVATION_TTL_MS });
+      reservations.set(documentName, { heapBytes: heapBytesOf(estimatedStateBytes), expiresAt: now() + ttlMs });
       return true;
     },
     hasHeadroomFor,
@@ -195,10 +212,10 @@ export function createRoomMemoryRelease({
 
 export function createProcessRoomMemoryRelease({
   roomHeapBudgetMegabytes,
-  closeRoom,
+  measureRoom,
 }: {
   roomHeapBudgetMegabytes: number | null;
-  closeRoom: (documentName: string) => void;
+  measureRoom: (documentName: string) => number | null;
 }): RoomMemoryRelease {
   const collectGarbage = typeof globalThis.gc === 'function' ? (globalThis.gc as CollectGarbage) : null;
   return createRoomMemoryRelease({
@@ -206,7 +223,7 @@ export function createProcessRoomMemoryRelease({
     memoryUsage: () => process.memoryUsage(),
     cooldownMs: RELEASE_COOLDOWN_MS,
     now: () => Date.now(),
-    closeRoom,
     roomHeapBudgetBytes: roomHeapBudgetMegabytes === null ? null : roomHeapBudgetMegabytes * BYTES_PER_MEGABYTE,
+    measureRoom,
   });
 }

@@ -36,6 +36,7 @@ import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
 import type { HeavyRoomAdmission } from './heavy-room-admission';
+import { HeavyRoomsFullError } from './heavy-rooms-full-error';
 import { createProcessRoomMemoryRelease, type RoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade, isBootstrapUpgrade } from './upgrade-path';
@@ -141,8 +142,8 @@ export function createCollaborationServer({
   roomModes,
   onLogged,
   onStored,
-  roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, closeRoom: () => undefined }),
-  heavyRooms = { admits: () => true, hasHeadroomFor: () => true },
+  roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, measureRoom: () => null }),
+  heavyRooms = { admits: () => true },
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -153,7 +154,7 @@ export function createCollaborationServer({
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
   roomMemory?: RoomMemoryRelease;
-  heavyRooms?: HeavyRoomAdmission;
+  heavyRooms?: Pick<HeavyRoomAdmission, 'admits'>;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();
@@ -182,7 +183,7 @@ export function createCollaborationServer({
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
     if (!heavyRooms.admits({ documentId, userId })) {
       console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
-      throw new CollaborationAuthenticationError();
+      throw new HeavyRoomsFullError();
     }
     const answer = roomModes.resolve({ documentId, userId });
     if (answer.isSpent) {
@@ -271,9 +272,6 @@ export function createCollaborationServer({
       if (!isWriteAllowed({ roomBootstrap, bootstrap, context: connectionContext, document }))
         return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
       roomMemory.grew({ documentName: document.name, bytes: update.byteLength });
-      if (roomMemory.isDueForMeasure(document.name)) {
-        roomMemory.measured({ documentName: document.name, bytes: Y.encodeStateAsUpdate(document).byteLength });
-      }
       const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isKnownCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });
@@ -283,7 +281,9 @@ export function createCollaborationServer({
       if (bootstrapAttempt !== null) roomBootstrap.received({ documentId, bytes: update.byteLength });
       onLogged(documentId);
     },
-    async onDisconnect({ socketId }) {
+    async onDisconnect({ socketId, documentName, context }) {
+      const { userId, bootstrapAttempt } = context as CollaborationContext;
+      if (bootstrapAttempt === null) roomMemory.released({ documentName, userId });
       dropLogCooldown.forget(socketId);
       impersonationTimers.clear(socketId);
     },

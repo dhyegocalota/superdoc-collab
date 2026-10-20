@@ -170,7 +170,7 @@ export class VersionsService {
 
   // NB ADR 0044: a build of a document above LARGE_ROOM_STATE_BYTES spends LARGE_VERSION_LOAD_WEIGHT loads of the minute.
   private spendBudget({ documentId, userId }: VersionLoadRequest): void {
-    const isLargeDocument = this.updateLog.byteLength(documentId) > LARGE_ROOM_STATE_BYTES;
+    const isLargeDocument = this.updateLog.estimatedStateBytes(documentId) > LARGE_ROOM_STATE_BYTES;
     const weight = isLargeDocument ? LARGE_VERSION_LOAD_WEIGHT : 1;
     Array.from({ length: weight }).forEach(() => this.loadBudget.record(userId));
   }

@@ -1,4 +1,10 @@
-import { MAX_BOOTSTRAP_WAIT_MS, roomHeapBudgetMegabytes, OPEN_UNCOMMITTED_PER_MINUTE, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import {
+  MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
+  roomHeapBudgetMegabytes,
+  OPEN_UNCOMMITTED_PER_MINUTE,
+  UPLOADS_PER_MINUTE,
+} from '@superdoc-collab/types';
 import { describe, expect, test } from 'vitest';
 import { LLM_MAX_CALLS_PER_HOUR, LLM_MAX_CONCURRENT_JOBS } from './environment';
 import { InvalidEnvironmentIntegerError, InvalidOriginError, MissingEnvironmentVariableError, loadEnvironment } from './environment';
@@ -37,6 +43,7 @@ describe('loadEnvironment', () => {
       memoryLimitMegabytes: null,
       maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
       roomHeapBudgetMegabytes: null,
+      heavyConversionsPerHour: MAX_HEAVY_CONVERSIONS_PER_HOUR,
     });
   });
   test.each(Object.keys(complete))('names %s when it is missing', (name) => {
@@ -150,6 +157,16 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_BOOTSTRAP_WAIT_MS is %s', (value) => {
     const name = 'MAX_BOOTSTRAP_WAIT_MS';
+    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
+  });
+  test('reads the hourly heavy conversions of an owner when it is set and keeps the shared constant otherwise', () => {
+    expect(loadEnvironment({ ...complete, MAX_HEAVY_CONVERSIONS_PER_HOUR: '50' }).heavyConversionsPerHour).toBe(50);
+    expect(loadEnvironment({ ...complete, MAX_HEAVY_CONVERSIONS_PER_HOUR: '' }).heavyConversionsPerHour).toBe(
+      MAX_HEAVY_CONVERSIONS_PER_HOUR,
+    );
+  });
+  test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_HEAVY_CONVERSIONS_PER_HOUR is %s', (value) => {
+    const name = 'MAX_HEAVY_CONVERSIONS_PER_HOUR';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test('derives the room heap budget from the memory limit and the server heap, and lets ROOM_HEAP_BUDGET_MEGABYTES override it', () => {

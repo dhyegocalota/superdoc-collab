@@ -78,6 +78,7 @@ export type AppServices = {
   heavyRooms: HeavyRoomAdmission;
   openBudget: OpenBudget;
   uploadBudget: KeyedSlidingWindow;
+  heavyUploadBudget: KeyedSlidingWindow;
   shareLinks: ShareLinksRepository;
   updateLog: UpdateLog;
   agentActions: AgentActionsLog;

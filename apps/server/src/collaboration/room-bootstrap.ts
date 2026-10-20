@@ -4,6 +4,7 @@ import {
   BOOTSTRAP_MS_PER_MEGABYTE,
   BOOTSTRAP_PROGRESS_ENTRIES,
   BOOTSTRAP_RATE_CLAMP_MULTIPLE,
+  BOOTSTRAP_RATE_MIN_OWNERS,
   BOOTSTRAP_RATE_SAMPLES,
   BOOTSTRAP_QUEUE_RETRY_AFTER_MS,
   BOOTSTRAP_RETRY_COOLDOWN_MS,
@@ -346,7 +347,7 @@ export class RoomBootstrap {
   }
 
   private rateMsPerMegabyte(): number {
-    if (this.conversionRates.size === 0) return BOOTSTRAP_MS_PER_MEGABYTE;
+    if (this.conversionRates.size < BOOTSTRAP_RATE_MIN_OWNERS) return BOOTSTRAP_MS_PER_MEGABYTE;
     const rates = [...this.conversionRates.values()];
     const measured = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
     return Math.min(

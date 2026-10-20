@@ -1,5 +1,6 @@
 import {
   MAX_BOOTSTRAP_WAIT_MS,
+  MAX_HEAVY_CONVERSIONS_PER_HOUR,
   roomHeapBudgetMegabytes,
   OPEN_UNCOMMITTED_PER_MINUTE,
   presentOrNull,
@@ -78,6 +79,7 @@ export type Environment = {
   memoryLimitMegabytes: number | null;
   maxBootstrapWaitMs: number;
   roomHeapBudgetMegabytes: number | null;
+  heavyConversionsPerHour: number;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -152,6 +154,11 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
     memoryLimitMegabytes,
+    heavyConversionsPerHour: limitFrom({
+      name: 'MAX_HEAVY_CONVERSIONS_PER_HOUR',
+      value: source.MAX_HEAVY_CONVERSIONS_PER_HOUR,
+      fallback: MAX_HEAVY_CONVERSIONS_PER_HOUR,
+    }),
     maxBootstrapWaitMs: limitFrom({
       name: 'MAX_BOOTSTRAP_WAIT_MS',
       value: source.MAX_BOOTSTRAP_WAIT_MS,

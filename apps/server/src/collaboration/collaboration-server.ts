@@ -263,7 +263,7 @@ export function createCollaborationServer({
       if (!isWriteAllowed({ roomBootstrap, bootstrap, context: connectionContext, document }))
         return warnOncePerConnection({ context: connectionContext, warned: refusedConnections });
       roomMemory.grew({ documentName: document.name, bytes: update.byteLength });
-      const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isCommitted(documentId);
+      const isCommittingUpdate = bootstrapAttempt !== null && isBootstrapCommitted({ document }) && !bootstrap.isKnownCommitted(documentId);
       if (isCommittingUpdate) {
         bootstrap.commit({ documentId, connectionUserId: userId, connectionActor: actor, update, document });
         return onLogged(documentId);

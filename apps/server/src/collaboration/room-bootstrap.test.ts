@@ -56,6 +56,8 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     total: ESTIMATED_BYTES,
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
+    fileBytes: FILE_BYTES,
+    preparingSince: null,
   });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
@@ -64,6 +66,8 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     total: ESTIMATED_BYTES,
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
+    fileBytes: FILE_BYTES,
+    preparingSince: expect.any(Number),
   });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
   expect({ userId, documentId }).toEqual({ userId: OWNER_ID, documentId: DOCUMENT_ID });
@@ -112,6 +116,8 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
     total: ESTIMATED_BYTES,
     stateBytes: STATE_BYTES,
     estimatedMs: ESTIMATED_MS,
+    fileBytes: FILE_BYTES,
+    preparingSince: null,
   });
   pending[0]!.resolve();
   await Promise.resolve();
@@ -127,6 +133,8 @@ test('a commit nobody asked for is ready with nothing to process', () => {
     total: 0,
     stateBytes: STATE_BYTES,
     estimatedMs: null,
+    fileBytes: 0,
+    preparingSince: null,
   });
 });
 
@@ -143,6 +151,8 @@ test('a failed run is reported once, stays failed within the cooldown and is not
     total: ESTIMATED_BYTES,
     stateBytes: null,
     estimatedMs: ESTIMATED_MS,
+    fileBytes: FILE_BYTES,
+    preparingSince: null,
   });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
@@ -402,22 +412,86 @@ test('an owner is asked to wait only while a bootstrap of theirs is queued in th
   expect(bootstrap.queueWaitMs({ ownerId: BRUNO, fileBytes: LARGE_FILE_BYTES })).toBeNull();
 });
 
-test('a job that completes in a number of seconds per megabyte moves the estimate of the next jobs to the average of the completions', async () => {
+const HEAVY_MEGABYTES = 4;
+const FIRST_RATE_MS = 2000;
+const SECOND_RATE_MS = 4000;
+
+async function completedHeavyConversion({
+  bootstrap,
+  pending,
+  documentId,
+  elapsedMs,
+  advance,
+}: {
+  bootstrap: RoomBootstrap;
+  pending: Pending[];
+  documentId: string;
+  elapsedMs: number;
+  advance: (milliseconds: number) => void;
+}): Promise<void> {
+  const index = pending.length;
+  bootstrap.request(documentId);
+  await vi.waitFor(() => expect(pending).toHaveLength(index + 1));
+  advance(elapsedMs);
+  bootstrap.ready({ documentId, stateBytes: STATE_BYTES });
+  pending[index]!.resolve();
+}
+
+test('completed conversions of heavy files move the estimate of the next jobs to the average rate per megabyte', async () => {
   let currentMs = 0;
-  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, fileBytesOf: () => BYTES_PER_MEGABYTE });
-  const firstDocumentId = 'document-first';
-  const secondDocumentId = 'document-second';
-  const thirdDocumentId = 'document-third';
-  const COMPLETION_MS = [2000, 4000];
-  expect(bootstrap.request(firstDocumentId).estimatedMs).toBe(BOOTSTRAP_MS_PER_MEGABYTE);
+  const advance = (milliseconds: number) => void (currentMs += milliseconds);
+  const { bootstrap, pending } = bootstrapWithPendingRuns({
+    now: () => currentMs,
+    fileBytesOf: () => HEAVY_MEGABYTES * BYTES_PER_MEGABYTE,
+  });
+  expect(bootstrap.request('document-first').estimatedMs).toBe(HEAVY_MEGABYTES * BOOTSTRAP_MS_PER_MEGABYTE);
   await vi.waitFor(() => expect(pending).toHaveLength(1));
-  currentMs += COMPLETION_MS[0]!;
-  bootstrap.ready({ documentId: firstDocumentId, stateBytes: STATE_BYTES });
+  advance(FIRST_RATE_MS * HEAVY_MEGABYTES);
+  bootstrap.ready({ documentId: 'document-first', stateBytes: STATE_BYTES });
   pending[0]!.resolve();
-  bootstrap.request(secondDocumentId);
-  await vi.waitFor(() => expect(pending).toHaveLength(2));
-  currentMs += COMPLETION_MS[1]!;
-  bootstrap.ready({ documentId: secondDocumentId, stateBytes: STATE_BYTES });
-  pending[1]!.resolve();
-  expect(bootstrap.request(thirdDocumentId).estimatedMs).toBe(3000);
+  await completedHeavyConversion({
+    bootstrap,
+    pending,
+    documentId: 'document-second',
+    elapsedMs: SECOND_RATE_MS * HEAVY_MEGABYTES,
+    advance,
+  });
+  expect(bootstrap.request('document-third').estimatedMs).toBe(((FIRST_RATE_MS + SECOND_RATE_MS) / 2) * HEAVY_MEGABYTES);
+});
+
+test('a 9.5 MB file is estimated at the seeded rate and then at the rate its last conversion measured', async () => {
+  let currentMs = 0;
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs });
+  const megabytes = FILE_BYTES / BYTES_PER_MEGABYTE;
+  expect(bootstrap.request('document-first').estimatedMs).toBeCloseTo(megabytes * BOOTSTRAP_MS_PER_MEGABYTE);
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  currentMs += 50_000;
+  bootstrap.ready({ documentId: 'document-first', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(bootstrap.progressOf('document-first')?.stage).toBe(BootstrapStage.Ready));
+  expect(bootstrap.request('document-second').estimatedMs).toBeCloseTo(50_000);
+});
+
+test('the conversion of a small file never moves the rate, whatever its fixed cost', async () => {
+  let currentMs = 0;
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs, fileBytesOf: () => SMALL_FILE_BYTES });
+  bootstrap.request('document-small');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  currentMs += 1000;
+  bootstrap.ready({ documentId: 'document-small', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(bootstrap.progressOf('document-small')?.stage).toBe(BootstrapStage.Ready));
+  const nextEstimate = bootstrap.request('document-next').estimatedMs;
+  expect(nextEstimate).toBeCloseTo((SMALL_FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE);
+});
+
+test('preparingSince is the clock when Preparing began and null before and after it', async () => {
+  let currentMs = 1_000_000;
+  const { bootstrap, pending } = bootstrapWithPendingRuns({ now: () => currentMs });
+  expect(bootstrap.request(DOCUMENT_ID).preparingSince).toBeNull();
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingSince).toBe(1_000_000);
+  currentMs += 5000;
+  bootstrap.ready({ documentId: DOCUMENT_ID, stateBytes: STATE_BYTES });
+  expect(bootstrap.progressOf(DOCUMENT_ID)!.preparingSince).toBeNull();
 });

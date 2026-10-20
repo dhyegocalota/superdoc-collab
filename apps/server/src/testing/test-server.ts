@@ -68,6 +68,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
     uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
+    bootstrapHostHeapMegabytes: null,
   };
 }
 
@@ -118,6 +119,7 @@ export async function startTestServer({
     openUncommittedPerMinute: OPEN_UNCOMMITTED_PER_MINUTE,
     uploadsPerMinute: UPLOADS_PER_MINUTE,
     projectionWorkerHeapMegabytes: null,
+    bootstrapHostHeapMegabytes: null,
   };
   try {
     const running = await startServer({

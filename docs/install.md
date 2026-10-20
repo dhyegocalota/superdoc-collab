@@ -87,7 +87,8 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 | `LLM_MAX_CALLS_PER_HOUR` | `60` | Model calls per rolling hour, for the whole server |
 | `OPEN_UNCOMMITTED_PER_MINUTE` | `30` | Documents one user may open for the first time per rolling minute |
 | `UPLOADS_PER_MINUTE` | `30` | Uploads and blank creates one user may make per rolling minute |
-| `PROJECTION_WORKER_HEAP_MEGABYTES` | none | Old-generation heap cap in megabytes for the projection worker thread. The container entrypoint sets half of the memory limit it reads from the cgroup and starts the server at 70% of it; unset keeps Node's default |
+| `PROJECTION_WORKER_HEAP_MEGABYTES` | none | Old-generation heap cap in megabytes for the projection worker thread. The container entrypoint sets 20% of the memory limit it reads from the cgroup, starts the server at 40% of it and gives each of the two SDK hosts `BOOTSTRAP_HOST_HEAP_MEGABYTES` at 20% (the five caps sum to 100% of the limit); unset keeps Node's default |
+| `BOOTSTRAP_HOST_HEAP_MEGABYTES` | none | Old-generation heap cap in megabytes for each of the two SDK host processes that convert a DOCX (one per bootstrap lane, both can run at once). Set by the container entrypoint; unset keeps Node's default |
 | `SEED_DEMO_USERS` | none, required, `true` or `false` | Tests only: `true` seeds four demo users and a test administrator on start. Production sets `false` ([ADR 0020](adr/0020-invite-only-accounts-with-a-first-claim-admin.md)) |
 | `DEMO_PASSWORD` | `superdoc-demo` in `.env.example` | Tests only: the seeded accounts' password, required when `SEED_DEMO_USERS=true` |
 

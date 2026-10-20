@@ -47,7 +47,7 @@ Added on 2026-10-19. Each row has its red commit before its green one, in `plan.
 
 ## Whole suite
 
-- [x] `pnpm test:e2e` — evidence: `.pr-media/gate/e2e-bootstrap-4.log`, 156 passed and 1 failed in 7.3 minutes. The failure is `final-visuals.spec.ts` "Download PDF of the uploaded brief": the exported `word/document.xml` of a server-built room lacks the `xmlns:r`, `xmlns:wp` and `xmlns:a` declarations, so the print view cannot open it. It fails the same way at a090bc25, before this slice's hardening, and passes on `main`
+- [x] `pnpm test:e2e` — evidence: `.pr-media/gate/e2e-bootstrap-4.log`, 156 passed and 1 failed in 7.3 minutes. The failure is `final-visuals.spec.ts` "Download PDF of the uploaded brief": the exported `word/document.xml` of a server-built room lacks the `xmlns:r`, `xmlns:wp` and `xmlns:a` declarations, so the print view cannot open it. It fails the same way at a090bc25, before this slice's hardening, and passes on `main` Fixed afterwards in `1fdcc380`: the cause was the joiner's blank.docx declaring only xmlns:w, not the SDK conversion; the file and the two others rerun green (39 passed).
 
 ## Prove it for real — Playwright MCP
 

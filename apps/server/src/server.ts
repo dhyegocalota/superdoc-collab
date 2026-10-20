@@ -228,6 +228,7 @@ function createServices({
     databaseDirectory: environment.databaseDirectory,
     projectionWorkerFile,
     workerHeapMegabytes: environment.projectionWorkerHeapMegabytes,
+    hostHeapMegabytes: environment.bootstrapHostHeapMegabytes,
   });
   const invites = new InvitesRepository({ database, appOrigin: environment.appOrigin, now });
   const passwordResetLinks = new PasswordResetLinkCapture();

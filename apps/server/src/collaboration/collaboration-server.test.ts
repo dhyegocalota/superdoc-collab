@@ -144,6 +144,16 @@ test('a bootstrap update on an uncommitted room never queries the log or the sna
   await server.stop();
 });
 
+test('the committing bootstrap update never scans the log or the snapshots', async () => {
+  const { server, documentId, latest } = await staleScenario();
+  const readBatch = vi.spyOn(server.services.updateLog, 'readBatch');
+  const latestSnapshot = vi.spyOn(server.services.updateLog, 'latestSnapshot');
+  await sendChange({ server, context: latest, ...updateWith({ committed: true }) });
+  expect(server.services.runtime.roomMode(documentId)).toBe(RoomMode.Join);
+  expect([readBatch.mock.calls.length, latestSnapshot.mock.calls.length]).toEqual([0, 0]);
+  await server.stop();
+});
+
 test('an appended bootstrap update reports its bytes as received and a stale one does not', async () => {
   const { server, stale, latest } = await staleScenario();
   const received = vi.spyOn(server.services.roomBootstrap, 'received');

@@ -3,8 +3,9 @@ set -eu
 
 CGROUP_V2_LIMIT_FILE=${CGROUP_V2_LIMIT_FILE-/sys/fs/cgroup/memory.max}
 CGROUP_V1_LIMIT_FILE=${CGROUP_V1_LIMIT_FILE-/sys/fs/cgroup/memory/memory.limit_in_bytes}
-SERVER_HEAP_PERCENT=70
-WORKER_HEAP_PERCENT=50
+SERVER_HEAP_PERCENT=40
+WORKER_HEAP_PERCENT=20
+HOST_HEAP_PERCENT=20
 BYTES_PER_MEGABYTE=1048576
 UNLIMITED_CGROUP_BYTES=4611686018427387904
 
@@ -44,5 +45,6 @@ fi
 limit_megabytes=$((limit_bytes / BYTES_PER_MEGABYTE))
 server_heap_megabytes=$((limit_megabytes * SERVER_HEAP_PERCENT / 100))
 export PROJECTION_WORKER_HEAP_MEGABYTES=$((limit_megabytes * WORKER_HEAP_PERCENT / 100))
+export BOOTSTRAP_HOST_HEAP_MEGABYTES=$((limit_megabytes * HOST_HEAP_PERCENT / 100))
 echo "memory limit $limit_megabytes MB, heap $server_heap_megabytes MB"
 exec node --max-old-space-size="$server_heap_megabytes" --expose-gc dist/main.js

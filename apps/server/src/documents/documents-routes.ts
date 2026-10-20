@@ -69,7 +69,6 @@ function mountCreation({ routes, services }: RouteMount): void {
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
     const userId = context.var.user.id;
     const waitMs = uploadBudget.waitMs(userId);
-    uploadBudget.record(userId);
     if (waitMs === null) return null;
     return retryLater({
       context,
@@ -104,6 +103,7 @@ function mountCreation({ routes, services }: RouteMount): void {
     const queueRefusal = refusalWhenQueueFull({ context, fileBytes: bytes.byteLength });
     if (queueRefusal) return queueRefusal;
     const userId = context.var.user.id;
+    uploadBudget.record(userId);
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions });
     return context.json(documents.summary({ documentId, userId }), HttpStatus.Created);
   }

@@ -91,14 +91,6 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
-  function closeOnInflatedBreach(this: WebSocket, frame: RawData): void {
-    const isOverBudget = messageLimit.exceedsInflatedBudget({ socket: this, frame });
-    const isOverBeforeAnswer = messageLimit.exceedsPreAuthenticationBudget({ socket: this, frame });
-    if (!isOverBudget && !isOverBeforeAnswer) return;
-    console.warn(SOCKET_INFLATED_BUDGET_LOG);
-    this.removeAllListeners(MESSAGE_EVENT);
-    this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
-  }
   function markAnsweredOnFirstSend(webSocket: WebSocket): void {
     const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
     webSocket.send = ((...parameters: unknown[]) => {
@@ -106,12 +98,22 @@ export function attachCollaboration({
       return send(...parameters);
     }) as WebSocket['send'];
   }
-  function withholdOverclaims(webSocket: WebSocket): void {
+  function withholdOverclaims({ webSocket, isBootstrapSocket }: { webSocket: WebSocket; isBootstrapSocket: boolean }): void {
     const emit = webSocket.emit.bind(webSocket);
     webSocket.emit = (event: string | symbol, ...parameters: unknown[]): boolean => {
       const isMessage = event === MESSAGE_EVENT;
       const isReceivedAfterClose = isMessage && webSocket.readyState !== WebSocket.OPEN;
       if (isReceivedAfterClose) return false;
+      const isInflationChecked = isMessage && !isBootstrapSocket;
+      const isOverBudget = isInflationChecked && messageLimit.exceedsInflatedBudget({ socket: webSocket, frame: parameters[0] as RawData });
+      const isOverBeforeAnswer =
+        isInflationChecked && messageLimit.exceedsPreAuthenticationBudget({ socket: webSocket, frame: parameters[0] as RawData });
+      if (isOverBudget || isOverBeforeAnswer) {
+        console.warn(SOCKET_INFLATED_BUDGET_LOG);
+        webSocket.removeAllListeners(MESSAGE_EVENT);
+        webSocket.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
+        return false;
+      }
       const isOverclaim = isMessage && messageLimit.claimsTooManyEntries(parameters[0] as RawData);
       if (!isOverclaim) return emit(event, ...parameters);
       console.warn(SOCKET_AWARENESS_ENTRIES_LOG);
@@ -135,9 +137,8 @@ export function attachCollaboration({
     sockets.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
-      if (!isBootstrapSocket) webSocket.on(MESSAGE_EVENT, closeOnInflatedBreach);
       markAnsweredOnFirstSend(webSocket);
-      withholdOverclaims(webSocket);
+      withholdOverclaims({ webSocket, isBootstrapSocket });
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
       hocuspocus.handleConnection(webSocket, request);
     });

@@ -46,6 +46,7 @@ function runBy({ author, inserted, lastServerTime }: { author: { id: string }; i
     authorKeys: [author.id],
     inserted,
     deleted: '',
+    commented: false,
     firstServerTime: lastServerTime,
     lastServerTime,
     versionSequence: lastServerTime,

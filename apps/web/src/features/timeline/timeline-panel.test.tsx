@@ -40,6 +40,7 @@ import {
   CLEAR_SELECTION_LABEL,
   FILTER_LABEL,
   LOADING_TIMELINE_LABEL,
+  IMPORTED_COMMENT_LABEL,
   NO_EDITS_IN_BIN_MESSAGE,
   NO_EDITS_YET_MESSAGE,
   RESIZE_PANEL_LABEL,
@@ -448,6 +449,7 @@ test('a selected bin lists its runs with cut snippets', async () => {
         inserted: 'hello',
         deleted: 'x'.repeat(SNIPPET_MAX_CHARACTERS + 80),
         lastServerTime: 1,
+        commented: false,
         versionSequence: 7,
       },
     ],
@@ -472,6 +474,7 @@ test('an imported run offers no version button because it has no logged sequence
         inserted: 'imported text',
         deleted: '',
         lastServerTime: 1,
+        commented: false,
         versionSequence: 0,
       },
     ],
@@ -481,6 +484,31 @@ test('an imported run offers no version button because it has no logged sequence
   renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
   expect(await screen.findByText('imported text')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: VIEW_EDIT_VERSION_LABEL })).not.toBeInTheDocument();
+});
+
+test('an imported comment is labelled as a comment, not as inserted text', async () => {
+  const edits: BinEdits = {
+    binStart: baseTimeline.bins[1]!.start,
+    binMs: baseTimeline.binMs,
+    runs: [
+      {
+        blockId: 'block-1',
+        bandId: baseTimeline.bands[0]!.id,
+        authorKeys: [`${IMPORTED_KEY_PREFIX}dana`],
+        inserted: 'Please cite a source',
+        deleted: '',
+        commented: true,
+        lastServerTime: 1,
+        versionSequence: 0,
+      },
+    ],
+    authors: { [`${IMPORTED_KEY_PREFIX}dana`]: { id: null, name: 'Dana', actor: ClientActor.Human } },
+  };
+  mockTimelineApi({ edits });
+  renderPanel({ route: `${ROUTE}?at=${baseTimeline.bins[1]!.start}` });
+  const comment = await screen.findByText(IMPORTED_COMMENT_LABEL);
+  expect(comment.closest('blockquote')).toHaveTextContent('Please cite a source');
+  expect(document.querySelector('ins')).toBeNull();
 });
 
 test('a selected bin without runs says so', async () => {
@@ -656,6 +684,7 @@ test('bin edits mark insertions and deletions without quotes or padding', async 
         inserted: ' More money',
         deleted: 'old ',
         lastServerTime: 1,
+        commented: false,
         versionSequence: 7,
       },
     ],

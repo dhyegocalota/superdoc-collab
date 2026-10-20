@@ -24,6 +24,7 @@ SuperDoc facts about the browser UI (editing surface, focus, zoom, iframes) live
 - v2 gives no ProseMirror access and no version-history API. (ADR 0001)
 - The `diff.capture/compare/apply` payload is opaque. (ADR 0001)
 - `trackChanges.list()` returns author, ISO date, inserted/deleted text, `imported: true` and the room's `blockId` scheme; it works in the browser and in Node via `@superdoc/sdk`. (poc/RESULTS.md, poc/tests/node/t10-imported-tracked-changes.test.ts)
+- `comments.list()` returns `creatorName`, `createdTime` (epoch milliseconds), `text`, `parentCommentId` for a reply (no `target`), `trackedChange: true` for a tracked-change card, and `target.segments[].blockId` in the same scheme as `trackChanges.list()`. (libs/history/src/imported-comments.ts, docs/features/import-comments/spec.md)
 - The room `Y.Doc` is an operation journal. Top-level maps: `meta`, `package`, `operations`, `checkpoints`, `shards`, `content`, `root-op-evidence`. Transactions carry `createdByClient` and `createdAtMs`; `author` is always `headless-kernel`, so identity comes from the transport. (poc/RESULTS.md)
 - The room grows about 2.8 KB per keystroke by itself. (poc/RESULTS.md)
 

@@ -21,6 +21,7 @@ const EVENTS: TimelineEvent[] = Array.from({ length: EVENT_COUNT }, (_, index) =
   authorKeys: ['ana'],
   inserted: 'x',
   deleted: '',
+  commented: false,
 }));
 
 test('the zone math runs once per bin, not once per event', () => {

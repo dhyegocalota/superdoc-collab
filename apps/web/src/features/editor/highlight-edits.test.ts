@@ -18,7 +18,7 @@ type MatchInput = {
 type CreateInput = { text: string; externalId: string; target: unknown };
 
 function run({ blockId, inserted = '', deleted = '' }: { blockId: string; inserted?: string; deleted?: string }): EditRunView {
-  return { blockId, bandId: 'band-0', authorKeys: ['ana'], inserted, deleted, lastServerTime: 1 };
+  return { blockId, bandId: 'band-0', authorKeys: ['ana'], inserted, deleted, lastServerTime: 1, commented: false };
 }
 
 function stubDocument({ matchesByBlock, failCreateAt = [] }: { matchesByBlock: Record<string, number>; failCreateAt?: number[] }) {

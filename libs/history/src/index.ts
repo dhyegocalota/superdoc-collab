@@ -3,6 +3,7 @@ export * from './document-content';
 export * from './document-history';
 export * from './docx-signature';
 export * from './edit-events';
+export * from './imported-comments';
 export * from './imported-revisions';
 export * from './migrations';
 export * from './projection';

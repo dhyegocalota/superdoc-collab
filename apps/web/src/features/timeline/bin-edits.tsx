@@ -13,7 +13,7 @@ import { formatBinRange } from '@/lib/format-date-time';
 import { AuthorNames } from './author-names';
 import { maxBandVolume } from './max-band-volume';
 import { binEditsQueryKey, fetchBinEdits, TIMELINE_POLL_MS } from './timeline-api';
-import { NO_EDITS_IN_BIN_MESSAGE, VIEW_EDIT_VERSION_LABEL } from './timeline-copy';
+import { IMPORTED_COMMENT_LABEL, NO_EDITS_IN_BIN_MESSAGE, VIEW_EDIT_VERSION_LABEL } from './timeline-copy';
 import { TopicChip } from './topic-chip';
 import { useTimelineSearch } from './use-timeline-search';
 
@@ -61,7 +61,12 @@ export function BinEdits({ documentId, timeline, bin, filter }: BinEditsProps) {
             <AuthorNames authors={data!.authors} authorKeys={run.authorKeys} />
           </p>
         </div>
-        {inserted && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
+        {run.commented && (
+          <blockquote className="border-l-2 pl-2 text-sm">
+            <span className="text-xs text-muted-foreground">{IMPORTED_COMMENT_LABEL}</span> {snippetOf(inserted)}
+          </blockquote>
+        )}
+        {inserted && !run.commented && <ins className="rounded-sm bg-inserted px-1 text-sm no-underline">{snippetOf(inserted)}</ins>}
         {deleted && <del className="rounded-sm bg-deleted px-1 text-sm">{snippetOf(deleted)}</del>}
         {!isImported && (
           <Button type="button" variant="outline" size="xs" onClick={() => viewVersionAfter(run)}>

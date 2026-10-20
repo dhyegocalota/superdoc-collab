@@ -26,6 +26,7 @@ export type StoredEditEvent = Omit<ProjectedEdit, 'yjsClientIds' | 'connectionUs
 };
 export type ImportedRevision = {
   revisionId: string;
+  kind: BlockChangeKind;
   authorName: string;
   serverTime: number;
   blockId: string;
@@ -154,7 +155,7 @@ export class ReadModel {
           connectionActor: ClientActor.Human,
           authorName: revision.authorName,
           blockId: revision.blockId,
-          kind: BlockChangeKind.Modified,
+          kind: revision.kind,
           inserted: revision.inserted,
           deleted: revision.deleted,
           imported: 1,

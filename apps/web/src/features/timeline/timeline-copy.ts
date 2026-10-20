@@ -22,6 +22,7 @@ export const SHOWING_WHOLE_DOCUMENT_MESSAGE = 'Showing the whole document';
 export const CLEAR_SELECTION_LABEL = 'Clear selection';
 export const VIEW_VERSION_LABEL = 'View version';
 export const VIEW_EDIT_VERSION_LABEL = 'View version after this edit';
+export const IMPORTED_COMMENT_LABEL = 'Comment';
 export const LOADING_TIMELINE_LABEL = 'Loading the timeline';
 export const VERSION_FRAME_TITLE = 'Document version';
 export const RESIZE_PANEL_LABEL = 'Resize edits panel';

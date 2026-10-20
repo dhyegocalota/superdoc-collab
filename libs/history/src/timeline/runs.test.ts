@@ -27,6 +27,7 @@ function typed({
     authorKeys: [author],
     inserted: character,
     deleted: '',
+    commented: false,
   }));
 }
 
@@ -38,6 +39,7 @@ function runOf({ author, inserted, deleted }: { author: string; inserted: string
     authorKeys: [author],
     inserted,
     deleted,
+    commented: false,
     firstServerTime: 0,
     lastServerTime: 0,
     versionSequence: 0,
@@ -62,9 +64,18 @@ test('keystrokes of one author in one block and bin join into one run', () => {
 test('a run opens the version after its last inserting event, not after a later delete', () => {
   const [run] = groupIntoRuns({
     events: [
-      { sequence: 10, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: 'Added', deleted: '' },
-      { sequence: 11, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: ' edited', deleted: '' },
-      { sequence: 12, serverTime: 2, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'Added edited' },
+      { sequence: 10, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: 'Added', deleted: '', commented: false },
+      { sequence: 11, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: ' edited', deleted: '', commented: false },
+      {
+        sequence: 12,
+        serverTime: 2,
+        blockId: 'b1',
+        bandId: 'b1',
+        authorKeys: ['ana'],
+        inserted: '',
+        deleted: 'Added edited',
+        commented: false,
+      },
     ],
     binMs: BIN_MS,
     timeZone: UTC,
@@ -72,11 +83,26 @@ test('a run opens the version after its last inserting event, not after a later 
   expect(run!.versionSequence).toBe(11);
 });
 
+test('a comment never merges with an edit run of the same author, block and bin', () => {
+  const runs = groupIntoRuns({
+    events: [
+      { sequence: 0, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: 'Added', deleted: '', commented: false },
+      { sequence: 0, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: 'Cite it', deleted: '', commented: true },
+    ],
+    binMs: BIN_MS,
+    timeZone: UTC,
+  });
+  expect(runs.map((run) => [run.inserted, run.commented])).toEqual([
+    ['Added', false],
+    ['Cite it', true],
+  ]);
+});
+
 test('a run of only deletions opens the version after its last event', () => {
   const [run] = groupIntoRuns({
     events: [
-      { sequence: 20, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'a' },
-      { sequence: 21, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'b' },
+      { sequence: 20, serverTime: 0, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'a', commented: false },
+      { sequence: 21, serverTime: 1, blockId: 'b1', bandId: 'b1', authorKeys: ['ana'], inserted: '', deleted: 'b', commented: false },
     ],
     binMs: BIN_MS,
     timeZone: UTC,

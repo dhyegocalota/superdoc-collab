@@ -9,10 +9,10 @@ vi.mock('@/features/editor/highlight-edits', () => ({ highlightEdits: vi.fn(), c
 
 const document = {} as EditorDocument;
 const FIRST_RUNS: EditRunView[] = [
-  { blockId: 'b1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'first edit', deleted: '', lastServerTime: 1 },
+  { blockId: 'b1', bandId: 'band-0', authorKeys: ['ana'], inserted: 'first edit', deleted: '', lastServerTime: 1, commented: false },
 ];
 const SECOND_RUNS: EditRunView[] = [
-  { blockId: 'b2', bandId: 'band-0', authorKeys: ['ana'], inserted: 'second edit', deleted: '', lastServerTime: 2 },
+  { blockId: 'b2', bandId: 'band-0', authorKeys: ['ana'], inserted: 'second edit', deleted: '', lastServerTime: 2, commented: false },
 ];
 const ALL_SKIPPED: HighlightResult = { commentIds: [], skippedCount: 1, targetCount: 1 };
 

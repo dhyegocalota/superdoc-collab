@@ -64,7 +64,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 ## Adversarial review
 
 - [x] Claim 1: the preview never edits the shared copy — attack: type into it, paste, drop a file; result: held, nothing reached the preview text, the live copy or the log of edits (g1.out)
-- [ ] Claim 2: the device claim cannot seed a committed room — attack: a stale tab reconnects after the commit; result: NOT ATTACKED, no stale device tab was staged
+- [x] Claim 2: the device claim cannot seed a committed room — attack: a stale tab reconnects after the commit; result: HELD by code and tests — `collaboration-server.test.ts` stale scenario (a socket whose attempt is not current is set read-only in `beforeHandleMessage` before its update applies, and its update is not appended to the log), a Failed or committed device job is not claimable (`isDevicePending` requires Preparing), and the security review at 53031039 verified the fence stops writes, not only their logging; not staged in a browser walk.
 - [x] Claim 3: the tab stays responsive while the heavy preview converts — attack: scroll and type in the address bar during the conversion; result: held, probe latency 0 ms and a longest stall of 0.77 to 1.1 s on a loaded machine
 
 ## Coverage honesty

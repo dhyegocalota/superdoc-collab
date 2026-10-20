@@ -62,6 +62,21 @@ The worker is not where a step spends its time. Every step, first or later, show
 - The poll wastes up to 1 s per step (the `Retry-After` is whole seconds); the room apply holds the server's event loop for 1.2 to 1.9 s per frame. Neither is worth a change before the render cost moves.
 - A step to the version the cache already holds answers 200 in 0.3 to 0.6 s and still takes 14 to 21 s to render.
 
+### The browser side of a version step (foreground page, one page per context, instrumented viewer, same document)
+
+| From the key press | Step 1 | Step 2 | Step 3 |
+|--------------------|--------|--------|--------|
+| Viewer frame builds its editor (after the 200 and the frame's own page load) | 2.4 s | 3.4 s | 3.0 s |
+| 36.6 MB state frame received on the socket | 5.8 s | 10.1 s | 7.9 s |
+| First text run in the viewer | 14.9 s | 20.1 s | 17.3 s |
+| Collaboration ready reported to the timeline | 16.0 s | 21.1 s | 18.4 s |
+
+- Socket transfer is 3.5 to 6.7 s after the viewer starts, most of it the server's room apply and encode on a loaded machine; deflate is already on and brings the frame to 5.2 MB in 0.1 s.
+- `Y.applyUpdate` of the 36.6 MB state in the browser takes 0.5 to 0.6 s on its own (three runs in a bare page). The 9 to 10 s between the frame and the first text run is therefore SuperDoc building the 56,800-paragraph document and laying it out, about 8.4 s of it.
+- The timeline learns the version is ready 1.1 s after the first text run.
+- The earlier headless walk that saw no text run in 200 s waited for an iframe whose address held the `at` value of the page address. That value is a server time in milliseconds, not a sequence, so no frame ever matched; the frames were rendering.
+- No cheap win: the socket already deflates, and reusing the live state for the latest version needs a viewer that builds from a document the live editor already laid out, which SuperDoc does not expose.
+
 ## Failure modes
 
 | What | Signal | Back out |

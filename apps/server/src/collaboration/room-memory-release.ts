@@ -22,7 +22,10 @@ export type RoomMemoryRelease = {
   unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
   heavyHeapBytes: () => number;
   isBounded: () => boolean;
-  admit: (room: { documentName: string; estimatedStateBytes: number }) => boolean;
+  loaded: (room: { documentName: string; bytes: number }) => void;
+  isDueForMeasure: (documentName: string) => boolean;
+  measured: (room: { documentName: string; bytes: number }) => void;
+  admit: (room: { documentName: string; estimatedStateBytes: number; userId: string }) => boolean;
   hasHeadroomFor: (estimatedStateBytes: number) => boolean;
 };
 
@@ -32,12 +35,14 @@ export function createRoomMemoryRelease({
   cooldownMs,
   now,
   roomHeapBudgetBytes,
+  closeRoom,
 }: {
   collectGarbage: CollectGarbage | null;
   memoryUsage: () => NodeJS.MemoryUsage;
   cooldownMs: number;
   now: () => number;
   roomHeapBudgetBytes: number | null;
+  closeRoom: (documentName: string) => void;
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
   const reservations = new Map<string, Reservation>();
@@ -112,6 +117,15 @@ export function createRoomMemoryRelease({
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
     heavyHeapBytes,
+    loaded({ documentName, bytes }) {
+      throw new Error(`loaded is not implemented ${documentName} ${bytes} ${typeof closeRoom}`);
+    },
+    isDueForMeasure(documentName) {
+      throw new Error(`isDueForMeasure is not implemented ${documentName}`);
+    },
+    measured({ documentName, bytes }) {
+      throw new Error(`measured is not implemented ${documentName} ${bytes}`);
+    },
     isBounded: () => roomHeapBudgetBytes !== null,
     admit({ documentName, estimatedStateBytes }) {
       if (roomHeapBudgetBytes === null) return true;
@@ -125,13 +139,20 @@ export function createRoomMemoryRelease({
   };
 }
 
-export function createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes }: { roomHeapBudgetMegabytes: number | null }): RoomMemoryRelease {
+export function createProcessRoomMemoryRelease({
+  roomHeapBudgetMegabytes,
+  closeRoom,
+}: {
+  roomHeapBudgetMegabytes: number | null;
+  closeRoom: (documentName: string) => void;
+}): RoomMemoryRelease {
   const collectGarbage = typeof globalThis.gc === 'function' ? (globalThis.gc as CollectGarbage) : null;
   return createRoomMemoryRelease({
     collectGarbage,
     memoryUsage: () => process.memoryUsage(),
     cooldownMs: RELEASE_COOLDOWN_MS,
     now: () => Date.now(),
+    closeRoom,
     roomHeapBudgetBytes: roomHeapBudgetMegabytes === null ? null : roomHeapBudgetMegabytes * BYTES_PER_MEGABYTE,
   });
 }

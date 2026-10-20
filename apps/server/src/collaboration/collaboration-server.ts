@@ -141,7 +141,7 @@ export function createCollaborationServer({
   roomModes,
   onLogged,
   onStored,
-  roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null }),
+  roomMemory = createProcessRoomMemoryRelease({ roomHeapBudgetMegabytes: null, closeRoom: () => undefined }),
   heavyRooms = { admits: () => true, hasHeadroomFor: () => true },
 }: {
   auth: Auth;
@@ -180,7 +180,7 @@ export function createCollaborationServer({
     }),
   };
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
-    if (!heavyRooms.admits(documentId)) {
+    if (!heavyRooms.admits({ documentId, userId })) {
       console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
       throw new CollaborationAuthenticationError();
     }

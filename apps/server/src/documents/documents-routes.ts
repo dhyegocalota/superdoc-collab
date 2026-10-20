@@ -100,7 +100,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
 
   function refusalWhenBusy({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
     if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
-    const waitMs = runtime.bootstrapWaitMs({ documentXmlBytes });
+    const waitMs = runtime.bootstrapWaitMs({ ownerUserId: context.var.user.id, documentXmlBytes });
     if (waitMs <= maxBootstrapWaitMs) return null;
     return retryLater({
       context,
@@ -207,7 +207,7 @@ function mountOpening({ routes, services }: RouteMount): void {
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
-    if (!heavyRooms.admits(documentId)) {
+    if (!heavyRooms.admits({ documentId, userId })) {
       return retryLater({
         context,
         body: { error: HEAVY_ROOMS_FULL_MESSAGE },

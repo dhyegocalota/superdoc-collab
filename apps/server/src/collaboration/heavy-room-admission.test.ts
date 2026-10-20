@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest';
 import { createHeavyRoomAdmission } from './heavy-room-admission';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
+const USER_ID = 'user-ana';
 const DOCUMENT_ID = '11111111-1111-4111-8111-111111111111';
 const HEAVY_XML_BYTES = LARGE_ROOM_STATE_BYTES / BOOTSTRAP_STATE_BYTES_RATIO + 1;
 const LIGHT_XML_BYTES = LARGE_ROOM_STATE_BYTES / BOOTSTRAP_STATE_BYTES_RATIO;
@@ -24,6 +25,9 @@ function admissionWith({
     grew: vi.fn(),
     unloaded: vi.fn(),
     heavyHeapBytes: vi.fn(),
+    loaded: vi.fn(),
+    isDueForMeasure: vi.fn(),
+    measured: vi.fn(),
     isBounded: vi.fn(() => isBounded),
     admit: vi.fn(() => isAdmitted),
     hasHeadroomFor: vi.fn(() => hasHeadroom),
@@ -38,29 +42,30 @@ function admissionWith({
 
 test('a heavy document is asked of the room memory with the state its XML would make, under its room name', () => {
   const { admission, roomMemory } = admissionWith({ isAdmitted: false, documentXmlBytes: HEAVY_XML_BYTES });
-  expect(admission.admits(DOCUMENT_ID)).toBe(false);
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(false);
   expect(roomMemory.admit).toHaveBeenCalledWith({
     documentName: `${SUPERDOC_ROOM_PREFIX}${DOCUMENT_ID}`,
     estimatedStateBytes: HEAVY_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO,
+    userId: USER_ID,
   });
 });
 
 test('a light document is admitted without taking a place', () => {
   const { admission, roomMemory } = admissionWith({ isAdmitted: false, documentXmlBytes: LIGHT_XML_BYTES });
-  expect(admission.admits(DOCUMENT_ID)).toBe(true);
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
   expect(roomMemory.admit).not.toHaveBeenCalled();
 });
 
 test('without a budget nothing is asked and the stored file is not even read', () => {
   const { admission, documentXmlBytesOf, roomMemory } = admissionWith({ isBounded: false, documentXmlBytes: HEAVY_XML_BYTES });
-  expect(admission.admits(DOCUMENT_ID)).toBe(true);
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
   expect(documentXmlBytesOf).not.toHaveBeenCalled();
   expect(roomMemory.admit).not.toHaveBeenCalled();
 });
 
 test('a document still being prepared is never refused, so the queue shows where it stands', () => {
   const { admission, roomMemory } = admissionWith({ isAdmitted: false, documentXmlBytes: HEAVY_XML_BYTES, isInFlight: true });
-  expect(admission.admits(DOCUMENT_ID)).toBe(true);
+  expect(admission.admits({ documentId: DOCUMENT_ID, userId: USER_ID })).toBe(true);
   expect(roomMemory.admit).not.toHaveBeenCalled();
 });
 

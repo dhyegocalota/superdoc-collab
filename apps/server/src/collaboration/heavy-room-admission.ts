@@ -3,7 +3,7 @@ import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { RoomMemoryRelease } from './room-memory-release';
 
 export type HeavyRoomAdmission = {
-  admits: (documentId: string) => boolean;
+  admits: (parameters: { documentId: string; userId: string }) => boolean;
   hasHeadroomFor: (parameters: { documentXmlBytes: number }) => boolean;
 };
 
@@ -17,7 +17,7 @@ export function createHeavyRoomAdmission({
   isInFlight: (documentId: string) => boolean;
 }): HeavyRoomAdmission {
   return {
-    admits(documentId) {
+    admits({ documentId, userId }) {
       if (isInFlight(documentId)) return true;
       if (!roomMemory.isBounded()) return true;
       const documentXmlBytes = documentXmlBytesOf(documentId);
@@ -25,6 +25,7 @@ export function createHeavyRoomAdmission({
       return roomMemory.admit({
         documentName: `${SUPERDOC_ROOM_PREFIX}${documentId}`,
         estimatedStateBytes: documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO,
+        userId,
       });
     },
     hasHeadroomFor({ documentXmlBytes }) {

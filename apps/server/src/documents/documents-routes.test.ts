@@ -853,7 +853,7 @@ test('opening a document the server cannot hold as a large room is 503 with Retr
   vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
   const heavy: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Heavy' })).json();
   const light: DocumentSummary = await (await createBlank({ server, cookie: owner.cookie, title: 'Light' })).json();
-  const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockImplementation((documentId) => documentId !== heavy.id);
+  const refuses = vi.spyOn(server.services.heavyRooms, 'admits').mockImplementation(({ documentId }) => documentId !== heavy.id);
   const refused = await request({ server, cookie: owner.cookie, path: pathOf({ documentId: heavy.id }) });
   expect([refused.status, await refused.json()]).toEqual([HttpStatus.ServiceUnavailable, { error: HEAVY_ROOMS_FULL_MESSAGE }]);
   expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(HEAVY_ROOMS_RETRY_AFTER_MS / SECOND_MS);

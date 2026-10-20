@@ -121,8 +121,8 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
-  predictedWaitMs({ documentXmlBytes }: { documentXmlBytes: number }): number {
-    const lane = bootstrapLaneOf(documentXmlBytes);
+  predictedWaitMs(parameters: { documentXmlBytes: number; ownerId: string }): number {
+    const lane = bootstrapLaneOf(parameters.documentXmlBytes);
     return this.runningRemainingMs(lane) + this.estimatedMsOfJobs(this.queues[lane].turnOrder());
   }
 

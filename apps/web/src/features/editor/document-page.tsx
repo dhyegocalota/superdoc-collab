@@ -306,6 +306,9 @@ export function DocumentPage() {
         startedAt={startedAt}
         isProgressShown={isProgressShown}
         isSwapping={!isPreviewReplacingPage}
+        swappingViewAt={(elapsedSeconds) =>
+          editorOpenView({ loadProgress, stateBytes: bootstrap === null ? null : bootstrap.stateBytes, elapsedSeconds })
+        }
         onScrollFraction={(fraction) => {
           previewScrollFraction.current = fraction;
         }}

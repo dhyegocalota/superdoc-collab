@@ -10,7 +10,7 @@ import { ExceptionOutcome, exceptionOutcome } from '@/features/editor/superdoc-e
 import { previewSuperdocOptions } from '@/features/editor/superdoc-options';
 import { FITTED_PAGE_CLASS } from '@/features/editor/superdoc-zoom';
 import { EDITOR_OPEN_STAGES } from '@/features/open-progress/open-stage';
-import { TickingOpenProgressPanel } from '@/features/open-progress/ticking-open-progress-panel';
+import { TickingOpenProgressPanel, type OpenProgressViewAt } from '@/features/open-progress/ticking-open-progress-panel';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { cn } from '@/lib/utils';
 import { PREVIEW_BADGE_MESSAGE, PREVIEW_FAILED_MESSAGE, PREVIEW_OPENING_SHARED_MESSAGE } from './local-preview-copy';
@@ -33,6 +33,7 @@ export type LocalPreviewProps = {
   startedAt: number;
   isProgressShown: boolean;
   isSwapping: boolean;
+  swappingViewAt: OpenProgressViewAt;
   onScrollFraction: (fraction: number) => void;
 };
 
@@ -44,6 +45,7 @@ export function LocalPreview({
   startedAt,
   isProgressShown,
   isSwapping,
+  swappingViewAt,
   onScrollFraction,
 }: LocalPreviewProps) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);

@@ -65,7 +65,7 @@ import {
   TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
 import { discardLocalFile, keepLocalFile, localFileOf } from '@/features/local-preview/local-file-store';
-import { DEVICE_REFUSAL_COPY, PREVIEW_BADGE_MESSAGE, PREVIEW_OPENING_SHARED_MESSAGE } from '@/features/local-preview/local-preview-copy';
+import { DEVICE_REFUSAL_COPY } from '@/features/local-preview/local-preview-copy';
 import { DeviceRefusal } from '@/features/local-preview/device-guard';
 import { superdocStub } from '@/testing/superdoc-stub';
 import { PREPARING_HERE_DETAIL } from '@/features/open-progress/open-progress-copy';
@@ -1099,7 +1099,7 @@ test('while the shared copy is being prepared the uploader reads the kept file a
   keepLocalFile({ documentId: DOCUMENT_ID, file });
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(PREVIEW_BADGE_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByTestId('local-preview')).toBeInTheDocument();
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const preview = configOfCall(0);
   expect([preview.documentMode, preview.documents[0]!.data, preview.documents[0]!.v2Collaboration]).toEqual([
@@ -1119,17 +1119,18 @@ test(
       bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Preparing),
     });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-    await screen.findByText(PREVIEW_BADGE_MESSAGE);
+    await screen.findByTestId('local-preview');
     isBootstrapped = true;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
     expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
     expect(superDocDestroy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('local-preview')).toBeInTheDocument();
-    expect(screen.getByText(PREVIEW_OPENING_SHARED_MESSAGE)).toBeInTheDocument();
+    expect(screen.getAllByTestId(PROGRESS_TEST_ID)).toHaveLength(1);
+    expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveAttribute('data-stage', OpenStage.Downloading);
     paintFirstParagraph();
     await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
     expect(superDocDestroy).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(PREVIEW_OPENING_SHARED_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
     expect(localFileOf(DOCUMENT_ID)).toBeNull();
   },
   TEST_TIMEOUT_MS,
@@ -1139,7 +1140,7 @@ test('a document with no kept file waits without a preview', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await screen.findByTestId('waiting-title-skeleton');
-  expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 

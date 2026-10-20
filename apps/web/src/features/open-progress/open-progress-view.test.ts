@@ -4,6 +4,7 @@ import { bootstrapAt } from '@/testing/opened-document';
 import {
   downloadingView,
   editorOpenView,
+  preparingHereView,
   preparingView,
   renderingView,
   uploadingView,
@@ -241,4 +242,12 @@ test('a joiner is told whose device prepares the document, before and after byte
   });
   expect(receiving.detail).toBe("Being prepared on Ana's device · Received 4.8 MB · 12 s");
   expect(receiving.fraction).toBe(0.5);
+});
+
+test('the creator of a device job reads that it prepares on this device, with the elapsed counter and no bar', () => {
+  expect(preparingHereView({ elapsedSeconds: 12 })).toEqual({
+    stage: OpenStage.Preparing,
+    detail: 'Preparing on this device · 12 s',
+    fraction: null,
+  });
 });

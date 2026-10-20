@@ -46,6 +46,8 @@ export function bytesProgressDetail({ doneBytes, totalBytes }: { doneBytes: numb
   return `${formatByteCount(doneBytes)} of ${formatByteCount(totalBytes)}`;
 }
 
+export const PREPARING_HERE_DETAIL = 'Preparing on this device';
+
 export function preparedOnDeviceDetail(ownerName: string): string {
   return `Being prepared on ${ownerName}'s device`;
 }

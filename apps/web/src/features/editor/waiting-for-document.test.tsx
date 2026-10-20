@@ -18,7 +18,14 @@ import { bootstrapAt, DOCUMENT_ID, DOCUMENT_TITLE, summaryAs } from '@/testing/o
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { BACK_TO_DOCUMENTS_LABEL, DOCUMENT_LOAD_ERROR_MESSAGE } from './editor-copy';
 import { DocumentReadiness } from './use-opened-document';
-import { LOAD_RETRY_HINT, PREPARATION_FAILED_HINT, PREPARATION_FAILED_MESSAGE, TRY_AGAIN_LABEL } from './waiting-copy';
+import {
+  DEVICE_STOPPED_HINT,
+  deviceStoppedMessage,
+  LOAD_RETRY_HINT,
+  PREPARATION_FAILED_HINT,
+  PREPARATION_FAILED_MESSAGE,
+  TRY_AGAIN_LABEL,
+} from './waiting-copy';
 import { WaitingForDocument, type WaitingProgress, type WaitingReadiness } from './waiting-for-document';
 
 const CACHED_LIST: DocumentsList = { mine: [], shared: [summaryAs(DocumentRole.Reader)] };
@@ -142,4 +149,15 @@ test('without a cached title a skeleton takes its place', () => {
 test('a joiner is told whose device prepares the document', () => {
   renderWaiting({ readiness: DocumentReadiness.Waiting, progress: { ...SHOWN_PROGRESS, preparedOnDeviceOf: 'Ana' } });
   expect(screen.getByTestId('open-progress-detail')).toHaveTextContent("Being prepared on Ana's device");
+});
+
+test('a device job that stopped says whose device stopped, not that the file may be damaged', () => {
+  renderWaiting({
+    readiness: DocumentReadiness.Failed,
+    progress: { ...HIDDEN_PROGRESS, bootstrap: bootstrapAt(BootstrapStage.Failed), preparedOnDeviceOf: 'Ana' },
+  });
+  expect(screen.getByRole('alert')).toHaveTextContent(deviceStoppedMessage('Ana'));
+  expect(screen.getByText(DEVICE_STOPPED_HINT)).toBeInTheDocument();
+  expect(screen.queryByText(PREPARATION_FAILED_HINT)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: TRY_AGAIN_LABEL })).not.toBeInTheDocument();
 });

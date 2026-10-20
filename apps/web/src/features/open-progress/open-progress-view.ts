@@ -111,6 +111,10 @@ export function preparingView({
   return { stage, detail: detailLine([subject, elapsed]), fraction: null };
 }
 
+export function preparingHereView({ elapsedSeconds }: { elapsedSeconds: number }): OpenProgressView {
+  throw new Error(`preparingHereView is not implemented for ${elapsedSeconds}`);
+}
+
 export function downloadingView({ stateBytes, elapsedSeconds }: { stateBytes: number | null; elapsedSeconds: number }): OpenProgressView {
   const received = stateBytes === null ? UNKNOWN_DOWNLOAD_DETAIL : receivingDetail(stateBytes);
   return { stage: OpenStage.Downloading, detail: detailLine([received, elapsedLabel(elapsedSeconds)]), fraction: null };

@@ -64,8 +64,10 @@ import {
   TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
 import { discardLocalFile, keepLocalFile, localFileOf } from '@/features/local-preview/local-file-store';
-import { DEVICE_REFUSAL_COPY, PREVIEW_BADGE_MESSAGE } from '@/features/local-preview/local-preview-copy';
+import { DEVICE_REFUSAL_COPY, PREVIEW_BADGE_MESSAGE, PREVIEW_OPENING_SHARED_MESSAGE } from '@/features/local-preview/local-preview-copy';
 import { DeviceRefusal } from '@/features/local-preview/device-guard';
+import { superdocStub } from '@/testing/superdoc-stub';
+import { PREPARING_HERE_DETAIL } from '@/features/open-progress/open-progress-copy';
 import { PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
@@ -1094,8 +1096,13 @@ test(
     isBootstrapped = true;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
     expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
-    expect(superDocDestroy).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
+    expect(superDocDestroy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('local-preview')).toBeInTheDocument();
+    expect(screen.getByText(PREVIEW_OPENING_SHARED_MESSAGE)).toBeInTheDocument();
+    paintFirstParagraph();
+    await waitFor(() => expect(superDocDestroy).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument();
+    expect(screen.queryByText(PREVIEW_OPENING_SHARED_MESSAGE)).not.toBeInTheDocument();
     expect(localFileOf(DOCUMENT_ID)).toBeNull();
   },
   TEST_TIMEOUT_MS,
@@ -1130,4 +1137,48 @@ test('pin: a wide screen opened on a device job as its creator mounts the editor
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   expect(screen.queryByText(DEVICE_REFUSAL_COPY[DeviceRefusal.NarrowViewport])).not.toBeInTheDocument();
+});
+
+function giveScroll({ element, scrollHeight, scrollTop }: { element: HTMLElement; scrollHeight: number; scrollTop: number }): void {
+  Object.defineProperty(element, 'scrollHeight', { value: scrollHeight, configurable: true });
+  Object.defineProperty(element, 'clientHeight', { value: SCROLL_VIEWPORT_HEIGHT, configurable: true });
+  element.scrollTop = scrollTop;
+}
+
+const SCROLL_VIEWPORT_HEIGHT = 500;
+
+test(
+  'the live editor opens where the preview was scrolled to, as a fraction of the document',
+  async () => {
+    keepLocalFile({ documentId: DOCUMENT_ID, file: new File([new Uint8Array([1, 2, 3])], 'plan.docx') });
+    let isBootstrapped = false;
+    mockDocumentApi({
+      opened: openedAs(DocumentRole.Owner, RoomMode.Join),
+      bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Preparing),
+    });
+    renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+    const preview = await screen.findByTestId('local-preview');
+    giveScroll({ element: preview, scrollHeight: 2000, scrollTop: 750 });
+    isBootstrapped = true;
+    await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
+    const live = screen.getByTestId('document-editor');
+    giveScroll({ element: live, scrollHeight: 3000, scrollTop: 0 });
+    paintFirstParagraph();
+    await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+    expect(live.scrollTop).toBe(1250);
+  },
+  TEST_TIMEOUT_MS,
+);
+
+test('the creator of a device job reads Preparing on this device with the counter until the editor is ready, painted or not', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(panel).toHaveTextContent(PREPARING_HERE_DETAIL);
+  paintFirstParagraph();
+  await new Promise((resolve) => setTimeout(resolve, PAINT_MARGIN_MS));
+  expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
+  act(() => constructedConfig().onReady?.({ superdoc: superdocStub() }));
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
 });

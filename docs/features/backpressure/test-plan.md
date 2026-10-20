@@ -15,6 +15,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 - [x] Confirmed the fifth round fails for the right reason (f4af63e4): the retry tests ran a fourth start (`expected 5 to be 4`), `holdsMaximum` and `refusalOf` returned the stubbed answer, the route sent the budget sentence for the share of the user, and the hook never reloaded.
 
+- [x] Confirmed the editor page probe fails for the right reason (e9bd1f84): the stub passed the failure through, so the 503 cases returned `access-denied` with no sentence and the banner ignored the sentence it was given.
+
 ## Unit
 
 - [x] `owner-round-robin-queue.test.ts::the turn order lists the items in the order they would be shifted and leaves the queue as it was` — input: three owners; expected: `['ana-1','bruno-1','carla-1','ana-2','ana-3']`, then the drain equals it — evidence: lane/testing4 04cc4c15, server vitest 468 passed (33 files), web 55 passed (4 files), libs/types 78 passed, repository-shape entrypoint 15 passed
@@ -49,7 +51,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] `room-memory-release.test.ts::one owner holds at most one reservation made for an upload` and `::releasing a reservation frees its heap` — input: two upload reservations of one owner, a load, a release; expected: the second refused, allowed again after the load or the release, a loaded room untouched
 - [ ] `room-bootstrap.test.ts::the end of a bootstrap is reported once` — input: a committed, a failed and a forgotten job; expected: `onEnded` for each
 - [ ] `room-memory-release.test.ts::rooms are measured again at most once per cooldown` — input: five short admissions, then the cooldown; expected: one measure, then one more
-- [ ] `use-connection-state.test.ts` — input: access denied while the member keeps access, with the session ended, with the document unavailable; expected: the heavy rooms reason, access denied, access denied
+- [ ] `use-refusal-probe.test.tsx`, `connection-banner.test.tsx` and `document-page.test.tsx` — input: an access denial answered by a 503 with each sentence, by 403, 404, 200, 500 and a network failure; expected: the banner shows the sentence of the 503 and no reason before the answer, the access denied line otherwise
 - [x] Edge: `documents.test.ts` — the budget is the smaller of the container and the heap formulas, null with neither; a document is heavy above 4 MB of XML — evidence: lane/testing4 04cc4c15, server vitest 468 passed (33 files), web 55 passed (4 files), libs/types 78 passed, repository-shape entrypoint 15 passed
 - [x] `tools/repository-shape/src/entrypoint.test.ts` — input: an 8 GB limit; expected: the server sees `SERVER_HEAP_MEGABYTES=3276` — evidence: lane/testing4 04cc4c15, server vitest 468 passed (33 files), web 55 passed (4 files), libs/types 78 passed, repository-shape entrypoint 15 passed
 

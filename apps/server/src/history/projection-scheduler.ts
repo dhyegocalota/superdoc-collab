@@ -71,7 +71,7 @@ export class ProjectionScheduler {
   private readonly projectionWorkerFile: URL | null;
   private readonly workerHeapMegabytes: number | null;
   private readonly recycleQuietMs: number;
-  private recycleTimer: NodeJS.Timeout | null = null;
+  private measureTimer: NodeJS.Timeout | null = null;
   private readonly recycleCooldown: KeyedCooldown;
   private readonly inFlight = new Set<string>();
   private readonly pendingImports = new Map<string, string>();
@@ -207,13 +207,40 @@ export class ProjectionScheduler {
   }
 
   private settle(reply: ProjectionReply): void {
-    if (reply.kind === ProjectionRequestKind.Measure) return;
+    if (reply.kind === ProjectionRequestKind.Measure) return this.recycleWhenHeavy(reply.retainedHeapBytes);
+    this.armMeasure();
     if (reply.kind === ProjectionReplyKind.Failed) return this.settleFailure(reply);
     if (isServedReply(reply)) return this.waitingRequests.resolve(reply);
     if (reply.kind === ProjectionRequestKind.Bootstrap) return this.settleBootstrap(reply);
     if (reply.kind === ProjectionRequestKind.Forget) return this.settleForget(reply.documentId);
     if (reply.kind === ProjectionRequestKind.Import) return this.settleImport(reply);
     return this.settleProject(reply);
+  }
+
+  private armMeasure(): void {
+    if (this.measureTimer) clearTimeout(this.measureTimer);
+    this.measureTimer = setTimeout(() => this.measureWhenIdle(), this.recycleQuietMs);
+    this.measureTimer.unref();
+  }
+
+  private measureWhenIdle(): void {
+    this.measureTimer = null;
+    if (!this.isRecyclable()) return;
+    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Measure });
+  }
+
+  private isRecyclable(): boolean {
+    const isRunning = !this.isRecycling && !this.stoppingPromise && !this.isDegraded;
+    return isRunning && this.isIdle() && this.recycleCooldown.remainingMs(RECYCLE_COOLDOWN_KEY) === 0;
+  }
+
+  private recycleWhenHeavy(retainedHeapBytes: number): void {
+    const isHeavy = retainedHeapBytes > LARGE_DOCUMENT_HEAP_BYTES;
+    if (!isHeavy || !this.isRecyclable()) return;
+    this.recycleCooldown.start(RECYCLE_COOLDOWN_KEY);
+    this.isRecycling = true;
+    console.info(`${WORKER_RECYCLED_MESSAGE} ${retainedHeapBytes}`);
+    this.currentWorker.postMessage({ kind: ProjectionRequestKind.Recycle });
   }
 
   private isIdle(): boolean {

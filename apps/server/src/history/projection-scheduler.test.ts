@@ -788,7 +788,7 @@ test('a bootstrap posted while the worker is being recycled is held, never poste
   });
   const heavyWorker = scheduler.currentWorker;
   const postMessage = vi.spyOn(heavyWorker, 'postMessage');
-  (scheduler as unknown as { recycleWhenIdle: (retainedHeapBytes: number) => void }).recycleWhenIdle(LARGE_DOCUMENT_HEAP_BYTES + 1);
+  (scheduler as unknown as { recycleWhenHeavy: (retainedHeapBytes: number) => void }).recycleWhenHeavy(LARGE_DOCUMENT_HEAP_BYTES + 1);
   await expect(scheduler.bootstrap(BOOTSTRAP_REQUEST)).resolves.toBeUndefined();
   const postedKinds = postMessage.mock.calls.map(([message]) => (message as ProjectionRequest).kind);
   expect(postedKinds).not.toContain(ProjectionRequestKind.Bootstrap);

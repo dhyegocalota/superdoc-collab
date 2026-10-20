@@ -1,6 +1,6 @@
 # Device first: a capable device prepares every heavy upload, and the panel stays until the editor is usable
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-20 (requirement 38). Measured in production on an 8 GB server: the uploader of the 9.5 MB document saw a read-only preview at about 10 s and could edit only after about 3 min, because the server converted the file again (1.5 to 2 min) and the browser then downloaded, applied and laid out 36 MB of state. Before PR #81 the uploader's browser was the source of the room and the document was editable at about 1 min.
 **ADRs:** [0049](../../adr/0049-the-uploader-previews-locally-and-a-refused-file-is-prepared-on-the-device.md), [0048](../../adr/0048-the-server-bootstraps-the-room-after-the-upload.md)

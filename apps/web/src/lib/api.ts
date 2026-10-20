@@ -9,6 +9,8 @@ export class DocumentUnavailableError extends ApiRequestError {}
 
 export class AuthenticationError extends ApiRequestError {}
 
+export class ServerBusyError extends ApiRequestError {}
+
 export function requestFailedMessage({ subject, status }: { subject: string; status: number }): string {
   return `${subject} failed with status ${status}.`;
 }

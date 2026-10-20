@@ -23,7 +23,12 @@ export type WaitingProgress = { bootstrap: BootstrapProgress | null; answeredAt:
 export type WaitingReadiness = DocumentReadiness.Waiting | DocumentReadiness.Failed | DocumentReadiness.Unavailable;
 
 type WaitingActions = { onRetry: () => void };
-type WaitingForDocumentProps = WaitingActions & { documentId: string; readiness: WaitingReadiness; progress: WaitingProgress };
+type WaitingForDocumentProps = WaitingActions & {
+  documentId: string;
+  readiness: WaitingReadiness;
+  progress: WaitingProgress;
+  failure: Error | null;
+};
 
 const TITLE_SKELETON_TEST_ID = 'waiting-title-skeleton';
 const PAGE_LINE_WIDTHS = ['w-2/5', 'w-full', 'w-11/12', 'w-full', 'w-4/5', 'w-full', 'w-3/5'];
@@ -114,7 +119,7 @@ const CARD_BY_READINESS: Record<WaitingReadiness, (input: CardInput) => ReactEle
   [DocumentReadiness.Unavailable]: () => <UnavailableCard />,
 };
 
-export function WaitingForDocument({ documentId, readiness, progress, onRetry }: WaitingForDocumentProps) {
+export function WaitingForDocument({ documentId, readiness, progress, failure, onRetry }: WaitingForDocumentProps) {
   const queryClient = useQueryClient();
   const title = cachedTitleOf({ documentList: queryClient.getQueryData<DocumentsList>(DOCUMENTS_QUERY_KEY), documentId });
 

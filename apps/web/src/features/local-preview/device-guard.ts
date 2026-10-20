@@ -1,4 +1,8 @@
-import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES, DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
+import {
+  DEVICE_FIRST_MIN_MEMORY_GIGABYTES,
+  DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES,
+  DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES,
+} from '@superdoc-collab/types';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 
 export enum DeviceRefusal {
@@ -19,8 +23,15 @@ export function deviceRefusalOf({
   return null;
 }
 
-export function isDeviceFirst(_: { isPhoneLayout: boolean; deviceMemoryGigabytes: number | null }): boolean {
-  throw new Error('isDeviceFirst is not implemented');
+export function isDeviceFirst({
+  isPhoneLayout,
+  deviceMemoryGigabytes,
+}: {
+  isPhoneLayout: boolean;
+  deviceMemoryGigabytes: number | null;
+}): boolean {
+  if (isPhoneLayout || deviceMemoryGigabytes === null) return false;
+  return deviceMemoryGigabytes >= DEVICE_FIRST_MIN_MEMORY_GIGABYTES;
 }
 
 export function canPreviewOnDevice(deviceMemoryGigabytes: number | null): boolean {

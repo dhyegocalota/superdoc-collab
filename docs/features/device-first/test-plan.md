@@ -6,7 +6,7 @@
 
 ## Unit
 
-- [x] `apps/web/src/features/documents/use-upload-document.test.tsx` — guard passed sends Device; guard failed sends Server; 413 with `canPrepareOnDevice: false` shows the refusal and no button. Evidence: red 6bcd42a0, green 022679d9.
+- [x] `apps/web/src/features/documents/use-upload-document.test.tsx` — a device-first device sends Device; a device that is not device-first (reports 4, or does not expose its memory) sends Server and is still offered the device button after a 413 at 4 GB (`device-guard.test.ts::isDeviceFirst`); 413 with `canPrepareOnDevice: false` shows the refusal and no button. Evidence: red 6bcd42a0, green 022679d9; 8 GB default: red fc832aa6, green see git log.
 - [x] `apps/server/src/documents/documents-routes.test.ts` — light upload with the flag is prepared by the server; heap-refused heavy upload with the flag is 413. Evidence: 6f756236, c180f455.
 - [x] `apps/server/src/collaboration/room-bootstrap.test.ts` — `requestOnDevice` registers a Preparing device job with the device estimate. Evidence: red 08e9a9d1, green c180f455.
 - [x] `apps/web/src/features/editor/document-page.test.tsx` — the device panel stays after the editor exists and until ready and painted; the server-path panel stays over the preview until the swap ends. Evidence: red d58e17ab and 5c21c6b8, green 88c93e7e and aca73cf4.

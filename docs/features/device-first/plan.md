@@ -4,7 +4,7 @@
 **Tier:** 🔴
 **Seam:** `useUploadDocument` (the flag), `POST /api/documents` and `storeDocument` (honour it), `RoomBootstrap` (register a device job on request), `DocumentPage` and `LocalPreview` (panel lifetime).
 **Assumptions (decided, owner can override):**
-- The web sends the flag whenever the device guard passes; the server decides by weight, so the web never parses the DOCX.
+- The web sends the flag whenever the device is device-first (wide layout, reports 8 GB); the server decides by weight, so the web never parses the DOCX.
 - The device job's estimate uses its own rate constant, not the server's measured rate.
 
 ## File map

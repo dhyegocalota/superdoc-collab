@@ -7,7 +7,7 @@ Written by the developer. The developer did not run `test-plan.md` and does not 
 - `apps/server/src/documents/documents-routes.ts`, `store-document.ts` — the device flag is honoured for a heavy file or a file the memory guard refuses; the heap refusal now also applies to an honoured flag.
 - `apps/server/src/collaboration/room-bootstrap.ts`, `collaboration-runtime.ts` — `requestOnDevice` registers a device job on request; the job estimates with `DEVICE_MS_PER_MEGABYTE`.
 - `libs/types/src/constants.ts` — `DEVICE_MS_PER_MEGABYTE`.
-- `apps/web/src/features/documents/use-upload-document.ts` — the first upload carries `preparation=device` when the device guard passes.
+- `apps/web/src/features/documents/use-upload-document.ts` — the first upload carries `preparation=device` when the device is device-first (wide layout, reports 8 GB).
 - `apps/web/src/features/editor/document-page.tsx`, `open-progress/` — the device panel shows the estimate and stays until the collaborative editor is ready and the first paragraph is painted.
 - `apps/web/src/features/local-preview/local-preview.tsx` — the panel (translucent) stays over the preview pages until the swap ends; the status line is gone except for a failed preview.
 - `apps/web/src/features/open-progress/` — the panel takes an optional minimization: a control turns the card into a thin top bar with the stage and the detail, a control on the bar maximizes it; `LocalPreview` offers it once the preview has pages; the state lives in the component.

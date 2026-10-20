@@ -84,6 +84,9 @@ export function createCollaborationRuntime({
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
     isPreparedOnDevice: (documentId) => roomBootstrap.isDeviceJob(documentId),
     reopenDeviceJob: (parameters) => {
+      if (!roomBootstrap.canReopenDevice(parameters)) return false;
+      const isRoomHeld = roomsOf(parameters.documentId).length > 0;
+      if (isRoomHeld) return true;
       roomBootstrap.reopenDevice(parameters);
       return false;
     },

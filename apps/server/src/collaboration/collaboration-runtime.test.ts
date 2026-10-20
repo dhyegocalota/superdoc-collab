@@ -41,6 +41,7 @@ function fakeRoomBootstrap({
     isInFlight: vi.fn(() => isInFlight),
     isDeviceJob: vi.fn(() => isDeviceJob),
     reopenDevice: vi.fn(),
+    canReopenDevice: vi.fn(() => true),
     isDeviceCreator: vi.fn(({ userId }: { userId: string }) => userId === deviceCreatorId),
   };
 }

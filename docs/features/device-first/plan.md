@@ -32,9 +32,14 @@ G1, G2, then G3.
 - [x] **Step 4:** the device panel shows the estimate and stays until the editor is ready and painted. Evidence: d58e17ab (red), 88c93e7e.
 - [x] **Step 5:** the server-path panel sits over the preview pages until the swap ends; the status line is removed. Evidence: 5c21c6b8 (red), aca73cf4.
 
+- [x] **Step 7:** the panel minimizes to a thin bar with the stage and the estimate and maximizes back, on both paths. Evidence: 7917ef9d (red), 02048eaf.
+- [x] **Step 8:** the device path mounts the preview from the kept file while the Create editor converts, freezes it at the first painted paragraph and drops it when the editor is usable. Evidence: 0a809e3b (red), ee0157f6.
+
 ### G3
 
 - [x] **Step 6:** E2E case and measurements; docs. Evidence: `e2e/device-first.spec.ts` green, measured table in the spec.
+- [x] **Step 9:** E2E for the preview on the device path, the minimize control, the swap keeping text, and the memory figures of the overlap and of the Create editor alone. Evidence: fc9a847e, 7cda2569; measured table in the spec.
+- [x] **Step 10:** the memory figures put the overlap above 4 GB, so the device-path preview mounts only on a device that reports 8 GB. Evidence: 7cda2569 (red), 171f936c.
 
 ## Failure modes
 

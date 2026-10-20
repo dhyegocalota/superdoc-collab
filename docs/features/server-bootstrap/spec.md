@@ -47,7 +47,19 @@ The 9.5 MB heavy document, uploaded as ana, with the entrypoint split (server 40
 | Light SDK host | 0.18 GB |
 | Total | 3.92 GB, over the 4 GB limit with the kernel's own use |
 
-The host cannot be capped: `BUN_JSC_forceRAMSize` only sizes its collector, and a Bun binary takes no Node heap flag. So the split stays as it is and the guard below keeps a file the container cannot hold out of the bootstrap. The old browser-side creator cost the server only about 690 MB for the same file; the move of the conversion to the server is what made the production limit matter.
+The host cannot be capped: `BUN_JSC_forceRAMSize` only sizes its collector, and a Bun binary takes no Node heap flag. So the split stays as it is and the guard below keeps a file the container cannot hold out of the bootstrap.
+
+Sweep of the split and the limit, same file and same walk (upload, blank create while it converts, open, three edits, two versions), sampled every 0.5 s inside the container. No split fits 4 GB; 5 GB holds the document with 0.7 GB to spare.
+
+| Limit | Server, worker, host split | Heavy host peak | Server peak | Container peak | Outcome |
+|-------|----------------------------|-----------------|-------------|----------------|---------|
+| 4 GB | 40, 20, 20 | 2.19 GB | 1.95 GB and rising | 4.09 GB | OOM-killed at 111 s, at the handoff |
+| 4 GB | 40, 20, 10 | 2.17 GB | 1.97 GB and rising | 4.10 GB | OOM-killed at 128 s, at the handoff |
+| 4 GB | 30, 25, 10 | 2.18 GB | 2.14 GB and rising | 4.10 GB | OOM-killed at 143 s, at the handoff |
+| 5 GB | 40, 20, 20 | 2.15 GB | 3.52 GB | 4.40 GB | walk completes |
+| 6 GB | 40, 20, 20 | 2.20 GB | 3.81 GB | 5.20 GB | walk completes |
+
+The host's peak is the same at 10% and 20% of the limit, so its fraction buys nothing and the split cannot move memory to where the handoff needs it: for about ten seconds the host still holds 2.2 GB while the server takes the 36 MB of state and grows past 2 GB. At 6 GB the highest total came later, while the host lingered at 1.5 GB for 14 s as the server projected the first version. The light host peaked at 0.12 to 0.22 GB while the heavy one converted, and the blank document was ready 0.5 to 1.1 s after its create in every run. The projection worker retained 671 MB after the heavy job in both runs that completed (the `Recycled the projection worker` line), 82% of its 819 MB cap at 4 GB, which is why the worker stays at 20% and the guard, not the split, protects a small container. The old browser-side creator cost the server only about 690 MB for the same file; the move of the conversion to the server is what made the production limit matter.
 
 Guard formula: the server refuses a file when `documentXmlBytes × BOOTSTRAP_RESIDENT_BYTES_PER_UPLOAD_BYTE` exceeds `MEMORY_LIMIT_MEGABYTES − BOOTSTRAP_MEMORY_RESERVE_MEGABYTES`. The ratio is 413 resident bytes per DOCX byte (3.92 GB over 9.5 MB, rounded up) and the reserve is 512 MB for everything else the server does. The largest preparable file is `floor((limit − reserve) / 413)` megabytes: 8 MB at 4 GB, 18 MB at 8 GB (so every file within the 10 MB upload cap). The entrypoint exports the cgroup limit as `MEMORY_LIMIT_MEGABYTES`; without a known limit nothing is refused for memory.
 

@@ -63,7 +63,9 @@ import {
   TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
 import { discardLocalFile, keepLocalFile, localFileOf } from '@/features/local-preview/local-file-store';
-import { PREVIEW_BADGE_MESSAGE } from '@/features/local-preview/local-preview-copy';
+import { DEVICE_REFUSAL_COPY, PREVIEW_BADGE_MESSAGE } from '@/features/local-preview/local-preview-copy';
+import { DeviceRefusal } from '@/features/local-preview/device-guard';
+import { PHONE_VIEWPORT_WIDTH, stubViewportWidth, WIDE_VIEWPORT_WIDTH } from '@/testing/viewport';
 import { DocumentPage } from './document-page';
 import { getUnsyncedEditsSnapshot } from './unsynced-edits-store';
 import { SuperDocExceptionCode } from './superdoc-exceptions';
@@ -1085,4 +1087,27 @@ test('a document with no kept file waits without a preview', async () => {
   await screen.findByTestId('waiting-title-skeleton');
   expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+const DEVICE_OWNER_NAME = 'Ada';
+
+function openedOnDevice(): OpenedDocument {
+  return { ...openedAs(DocumentRole.Owner, RoomMode.Create), preparedOnDeviceOf: DEVICE_OWNER_NAME };
+}
+
+test('a phone opened on a device job as its creator is refused with the reason and Back, and converts nothing', async () => {
+  stubViewportWidth(PHONE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByText(DEVICE_REFUSAL_COPY[DeviceRefusal.NarrowViewport])).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: BACK_TO_DOCUMENTS_LABEL })).toHaveAttribute('href', '/documents');
+  expect(SuperDoc).not.toHaveBeenCalled();
+});
+
+test('pin: a wide screen opened on a device job as its creator mounts the editor to convert', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  expect(screen.queryByText(DEVICE_REFUSAL_COPY[DeviceRefusal.NarrowViewport])).not.toBeInTheDocument();
 });

@@ -23,6 +23,7 @@ export type DocumentRuntime = {
   bootstrapRoom: (documentId: string) => BootstrapProgress;
   bootstrapBlankRoom: (documentId: string) => BootstrapProgress;
   bootstrapQueueWaitMs: (parameters: { ownerUserId: string; documentXmlBytes: number }) => number | null;
+  bootstrapWaitMs: (parameters: { documentXmlBytes: number }) => number;
   closeUserConnections: (parameters: { documentId: string; userId: string }) => void;
   closeConnectionsOfUser: (userId: string) => void;
   onlineUserIds: (documentId: string) => Set<string>;
@@ -78,6 +79,7 @@ export function createCollaborationRuntime({
     bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
     bootstrapQueueWaitMs: ({ ownerUserId, documentXmlBytes }) => roomBootstrap.queueWaitMs({ ownerId: ownerUserId, documentXmlBytes }),
+    bootstrapWaitMs: (parameters) => roomBootstrap.predictedWaitMs(parameters),
     closeUserConnections: ({ documentId, userId }) => {
       const revokedConnections = connectionsOf(documentId).filter(
         (connection) => (connection.context as CollaborationContext).userId === userId,

@@ -809,40 +809,36 @@ test('refused uploads spend nothing of the minute, and a good upload after them 
 
 const HEAVY_ESTIMATED_MS = (HEAVY_XML_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE;
 
-async function heavyUploadsOf({ server, names }: { server: TestServer; names: string[] }): Promise<Response[]> {
+async function heavyUploadsOf({ server, user, count }: { server: TestServer; user: TestUser; count: number }): Promise<Response[]> {
   vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  vi.spyOn(server.services.runtime, 'bootstrapQueueWaitMs').mockReturnValue(null);
   const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
-  const users = await names.reduce<Promise<TestUser[]>>(
-    async (signedIn, name) => [...(await signedIn), await signedInUser({ server, name })],
-    Promise.resolve([]),
-  );
-  return users.reduce<Promise<Response[]>>(
-    async (answers, user) => [...(await answers), await upload({ server, cookie: user.cookie, bytes })],
+  return Array.from({ length: count }).reduce<Promise<Response[]>>(
+    async (answers) => [...(await answers), await upload({ server, cookie: user.cookie, bytes })],
     Promise.resolve([]),
   );
 }
 
 test('a heavy upload that would wait past the ceiling is 503 with the predicted wait, stores nothing, and a blank or light create is still served', async () => {
   const server = await startTestServer({ maxBootstrapWaitMs: SECOND_MS });
-  const [first] = await heavyUploadsOf({ server, names: ['Ana'] });
-  const bruno = await signedInUser({ server, name: 'Bruno' });
-  const refused = await upload({ server, cookie: bruno.cookie, bytes: await docxWithXmlBytes(HEAVY_XML_BYTES) });
-  expect([first!.status, refused.status]).toEqual([HttpStatus.Created, HttpStatus.ServiceUnavailable]);
-  expect(await refused.json()).toEqual({ error: bootstrapBusyMessage(HEAVY_ESTIMATED_MS) });
-  expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(HEAVY_ESTIMATED_MS / SECOND_MS - 5);
-  expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBeLessThanOrEqual(Math.ceil(HEAVY_ESTIMATED_MS / SECOND_MS));
-  expect((await listOf({ server, cookie: bruno.cookie })).mine).toEqual([]);
+  const user = await signedInUser({ server, name: 'Ana' });
+  const [accepted, refused] = await heavyUploadsOf({ server, user, count: 2 });
+  expect([accepted!.status, refused!.status]).toEqual([HttpStatus.Created, HttpStatus.ServiceUnavailable]);
+  expect(await refused!.json()).toEqual({ error: bootstrapBusyMessage(HEAVY_ESTIMATED_MS) });
+  expect(Number(refused!.headers.get(RETRY_AFTER_HEADER))).toBeGreaterThan(HEAVY_ESTIMATED_MS / SECOND_MS - 5);
+  expect(Number(refused!.headers.get(RETRY_AFTER_HEADER))).toBeLessThanOrEqual(Math.ceil(HEAVY_ESTIMATED_MS / SECOND_MS));
+  expect((await listOf({ server, cookie: user.cookie })).mine).toHaveLength(1);
   expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(1);
-  vi.spyOn(server.services.runtime, 'bootstrapRoom').mockImplementation(() => COMMITTED_WITHOUT_BOOTSTRAP);
-  const blank = await createBlank({ server, cookie: bruno.cookie, title: 'Blank' });
-  const light = await upload({ server, cookie: bruno.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
+  const blank = await createBlank({ server, cookie: user.cookie, title: 'Blank' });
+  const light = await upload({ server, cookie: user.cookie, bytes: await docxWithXmlBytes(LIGHT_XML_BYTES) });
   expect([blank.status, light.status]).toEqual([HttpStatus.Created, HttpStatus.Created]);
   await server.stop();
 });
 
 test('heavy uploads wait their turn up to the ceiling and the first one past it is refused', async () => {
   const server = await startTestServer({ maxBootstrapWaitMs: 2 * HEAVY_ESTIMATED_MS });
-  const answers = await heavyUploadsOf({ server, names: ['Ana', 'Bruno', 'Carla', 'Dani'] });
+  const user = await signedInUser({ server, name: 'Ana' });
+  const answers = await heavyUploadsOf({ server, user, count: 4 });
   expect(answers.map((answer) => answer.status)).toEqual([
     HttpStatus.Created,
     HttpStatus.Created,

@@ -1,11 +1,16 @@
 import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
+  bootstrapBusyMessage,
+  bootstrapLaneOf,
+  BootstrapLane,
   bootstrapMemoryShortMessage,
   DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
+  HEAVY_ROOMS_FULL_MESSAGE,
+  HEAVY_ROOMS_RETRY_AFTER_MS,
   HttpStatus,
   isPreparable,
   isTabId,
@@ -93,6 +98,18 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
     });
   }
 
+  function refusalWhenBusy({ context, documentXmlBytes }: { context: Context<SignedIn>; documentXmlBytes: number }): Response | null {
+    if (bootstrapLaneOf(documentXmlBytes) !== BootstrapLane.Heavy) return null;
+    const waitMs = runtime.bootstrapWaitMs({ documentXmlBytes });
+    if (waitMs <= maxBootstrapWaitMs) return null;
+    return retryLater({
+      context,
+      body: { error: bootstrapBusyMessage(waitMs) },
+      status: HttpStatus.ServiceUnavailable,
+      retryAfterSeconds: secondsRoundedUp(waitMs),
+    });
+  }
+
   function refusalWhenMemoryShort({
     context,
     documentXmlBytes,
@@ -121,6 +138,8 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
   }): Promise<Response> {
     const queueRefusal = refusalWhenQueueFull({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
     if (queueRefusal) return queueRefusal;
+    const busyRefusal = refusalWhenBusy({ context, documentXmlBytes: declaredDocumentXmlBytes(bytes) });
+    if (busyRefusal) return busyRefusal;
     const userId = context.var.user.id;
     uploadBudget.record(userId);
     const documentId = await storeDocument({ documents, storage, runtime, ownerUserId: userId, title, bytes, importRevisions, isBlank });
@@ -169,13 +188,21 @@ function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWai
 }
 
 function mountOpening({ routes, services }: RouteMount): void {
-  const { documents, runtime } = services;
+  const { documents, runtime, heavyRooms } = services;
 
   routes.get('/:documentId', (context) => {
     const documentId = context.req.param('documentId');
     const userId = context.var.user.id;
     const role = requireDocumentRole({ documents, documentId, userId, minimumRole: DocumentRole.Reader });
     const summary = documents.summary({ documentId, userId });
+    if (heavyRooms.isRefused(documentId)) {
+      return retryLater({
+        context,
+        body: { error: HEAVY_ROOMS_FULL_MESSAGE },
+        status: HttpStatus.ServiceUnavailable,
+        retryAfterSeconds: secondsRoundedUp(HEAVY_ROOMS_RETRY_AFTER_MS),
+      });
+    }
     const answer = runtime.roomModeFor({ documentId, userId });
     if (answer.isSpent) {
       console.warn(`${OPEN_RATE_LIMITED_MESSAGE} ${documentId}`);

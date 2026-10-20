@@ -1,3 +1,5 @@
+import { isHeavyRoomDocument } from '@superdoc-collab/types';
+import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { RoomMemoryRelease } from './room-memory-release';
 
 export type HeavyRoomAdmission = { isRefused: (documentId: string) => boolean };
@@ -11,7 +13,8 @@ export function createHeavyRoomAdmission({
 }): HeavyRoomAdmission {
   return {
     isRefused(documentId) {
-      throw new Error(`isRefused is not implemented ${documentId} ${typeof roomMemory} ${typeof documentXmlBytesOf}`);
+      if (!roomMemory.isAtCeiling(`${SUPERDOC_ROOM_PREFIX}${documentId}`)) return false;
+      return isHeavyRoomDocument(documentXmlBytesOf(documentId));
     },
   };
 }

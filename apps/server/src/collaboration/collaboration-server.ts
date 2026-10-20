@@ -180,6 +180,10 @@ export function createCollaborationServer({
     }),
   };
   function admitToCommittedRoom({ documentId, userId }: { documentId: string; userId: string }): void {
+    if (heavyRooms.isRefused(documentId)) {
+      console.warn(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
+      throw new CollaborationAuthenticationError();
+    }
     const answer = roomModes.resolve({ documentId, userId });
     if (answer.isSpent) {
       console.warn(`${OPEN_BUDGET_LOG} ${documentId}`);

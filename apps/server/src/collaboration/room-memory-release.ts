@@ -32,6 +32,14 @@ export function createRoomMemoryRelease({
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
   let isRetryPending = false;
 
+  function isHeavy(bytes: number | undefined): boolean {
+    return bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
+  }
+
+  function heavyRoomCount(): number {
+    return [...roomBytes.values()].filter(isHeavy).length;
+  }
+
   function retryAfter({
     remainingMs,
     release,
@@ -67,17 +75,16 @@ export function createRoomMemoryRelease({
       roomBytes.set(documentName, known === undefined ? bytes : known + bytes);
     },
     unloaded({ documentName, isReloaded }) {
-      const bytes = roomBytes.get(documentName);
+      const wasHeavy = isHeavy(roomBytes.get(documentName));
       roomBytes.delete(documentName);
-      const isHeavy = bytes !== undefined && bytes > LARGE_ROOM_STATE_BYTES;
-      if (!isHeavy || collectGarbage === null) return;
+      if (!wasHeavy || collectGarbage === null) return;
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
-    heavyRoomCount() {
-      throw new Error('heavyRoomCount is not implemented');
-    },
+    heavyRoomCount,
     isAtCeiling(documentName) {
-      throw new Error(`isAtCeiling is not implemented ${documentName} ${maxHeavyRooms}`);
+      if (maxHeavyRooms === null) return false;
+      if (isHeavy(roomBytes.get(documentName))) return false;
+      return heavyRoomCount() >= maxHeavyRooms;
     },
   };
 }

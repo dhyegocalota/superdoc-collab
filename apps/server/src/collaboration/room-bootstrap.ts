@@ -24,7 +24,10 @@ export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 
 type BootstrapJob = { progress: BootstrapProgress; attempt: string | null; failedAt: number | null; startedAt: number | null };
 
+type QueueStanding = { queuePosition: number | null; queueWaitMs: number | null };
+
 const NOTHING_TO_PROCESS_BYTES = 0;
+const NOT_QUEUED: QueueStanding = { queuePosition: null, queueWaitMs: null };
 const BLANK_COMMIT_FAILED_MESSAGE = 'Committing a blank from the cached state failed, preparing it in the lane instead for document';
 
 export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
@@ -57,7 +60,7 @@ export class RoomBootstrap {
     [BootstrapLane.Light]: new OwnerRoundRobinQueue(),
     [BootstrapLane.Heavy]: new OwnerRoundRobinQueue(),
   };
-  private readonly running: Record<BootstrapLane, boolean> = { [BootstrapLane.Light]: false, [BootstrapLane.Heavy]: false };
+  private readonly running: Record<BootstrapLane, string | null> = { [BootstrapLane.Light]: null, [BootstrapLane.Heavy]: null };
   private readonly conversionRates: number[] = [];
   private readonly commitWaiters = new Map<string, () => void>();
   private blankState: Uint8Array | null = null;
@@ -104,7 +107,7 @@ export class RoomBootstrap {
   progressOf(documentId: string): BootstrapProgress | null {
     const job = this.jobs.peek(documentId);
     if (job === null) return null;
-    return this.answerOf(job);
+    return this.answerOf({ documentId, job });
   }
 
   isInFlight(documentId: string): boolean {
@@ -118,13 +121,14 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
-  predictedWaitMs(parameters: { documentXmlBytes: number }): number {
-    throw new Error(`predictedWaitMs is not implemented ${parameters.documentXmlBytes}`);
+  predictedWaitMs({ documentXmlBytes }: { documentXmlBytes: number }): number {
+    const lane = bootstrapLaneOf(documentXmlBytes);
+    return this.runningRemainingMs(lane) + this.estimatedMsOfJobs(this.queues[lane].turnOrder());
   }
 
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
+    if (existing !== null && !this.isRetryable(existing)) return this.answerOf({ documentId, job: existing });
     const progress = this.register(documentId);
     this.enqueue(documentId);
     return progress;
@@ -132,7 +136,7 @@ export class RoomBootstrap {
 
   requestBlank(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
-    if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
+    if (existing !== null && !this.isRetryable(existing)) return this.answerOf({ documentId, job: existing });
     const ownerId = this.ownerOf(documentId);
     if (this.blankState !== null && ownerId !== null) return this.commitFromState({ documentId, ownerId, state: this.blankState });
     if (this.blankConverting === null) {
@@ -230,7 +234,7 @@ export class RoomBootstrap {
   private register(documentId: string): BootstrapProgress {
     const documentXmlBytes = this.documentXmlBytesOf(documentId);
     const total = documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO;
-    const estimatedMs = (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+    const estimatedMs = this.estimatedMsOfBytes(documentXmlBytes);
     const progress = {
       stage: BootstrapStage.Queued,
       done: 0,
@@ -277,7 +281,8 @@ export class RoomBootstrap {
     this.blankWaiting.splice(0).forEach((waitingId) => this.enqueue(waitingId));
   }
 
-  private answerOf(job: BootstrapJob): BootstrapProgress {
+  private answerOf({ documentId, job }: { documentId: string; job: BootstrapJob }): BootstrapProgress {
+    if (job.progress.stage === BootstrapStage.Queued) return { ...job.progress, ...this.queueStandingOf({ documentId, job }) };
     if (job.progress.stage !== BootstrapStage.Preparing || job.startedAt === null) return job.progress;
     return { ...job.progress, preparingElapsedMs: this.now() - job.startedAt };
   }
@@ -304,6 +309,38 @@ export class RoomBootstrap {
     return progress.documentXmlBytes;
   }
 
+  private queueStandingOf({ documentId, job }: { documentId: string; job: BootstrapJob }): QueueStanding {
+    const lane = bootstrapLaneOf(job.progress.documentXmlBytes);
+    const turnOrder = this.queues[lane].turnOrder();
+    const turn = turnOrder.indexOf(documentId);
+    if (turn === -1) return NOT_QUEUED;
+    const runningAhead = this.running[lane] === null ? 0 : 1;
+    return {
+      queuePosition: runningAhead + turn,
+      queueWaitMs: this.runningRemainingMs(lane) + this.estimatedMsOfJobs(turnOrder.slice(0, turn)),
+    };
+  }
+
+  private runningRemainingMs(lane: BootstrapLane): number {
+    const documentId = this.running[lane];
+    if (documentId === null) return 0;
+    const job = this.jobs.peek(documentId);
+    if (job === null || job.startedAt === null) return 0;
+    return Math.max(0, this.estimatedMsOfBytes(job.progress.documentXmlBytes) - (this.now() - job.startedAt));
+  }
+
+  private estimatedMsOfJobs(documentIds: string[]): number {
+    return documentIds.reduce((total, documentId) => {
+      const job = this.jobs.peek(documentId);
+      if (job === null) return total;
+      return total + this.estimatedMsOfBytes(job.progress.documentXmlBytes);
+    }, 0);
+  }
+
+  private estimatedMsOfBytes(documentXmlBytes: number): number {
+    return (documentXmlBytes / BYTES_PER_MEGABYTE) * this.rateMsPerMegabyte();
+  }
+
   private rateMsPerMegabyte(): number {
     if (this.conversionRates.length === 0) return BOOTSTRAP_MS_PER_MEGABYTE;
     return this.conversionRates.reduce((sum, rate) => sum + rate, 0) / this.conversionRates.length;
@@ -325,12 +362,12 @@ export class RoomBootstrap {
   }
 
   private pump(lane: BootstrapLane): void {
-    if (this.running[lane]) return;
+    if (this.running[lane] !== null) return;
     const next = this.queues[lane].shift();
     if (next === undefined) return;
-    this.running[lane] = true;
+    this.running[lane] = next;
     void this.runJob({ documentId: next, lane, retries: BOOTSTRAP_INTERRUPTED_RETRIES }).finally(() => {
-      this.running[lane] = false;
+      this.running[lane] = null;
       this.pump(lane);
     });
   }

@@ -1,3 +1,11 @@
+import { useEffect, useState } from 'react';
+
 export function useOpenStartedAt(documentId: string): number {
-  throw new Error('useOpenStartedAt is not implemented');
+  const [startedAt, setStartedAt] = useState(Date.now);
+
+  useEffect(() => {
+    setStartedAt(Date.now());
+  }, [documentId]);
+
+  return startedAt;
 }

@@ -1,9 +1,10 @@
 import { ConnectionFailureReason, ConnectionState, DocumentRole, OPEN_PROGRESS_DELAY_MS, VersionViewerState } from '@superdoc-collab/types';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { SuperDoc } from 'superdoc';
 import { useSession } from '@/features/auth/use-session';
 import { editorOpenView, type EditorLoadProgress } from '@/features/open-progress/open-progress-view';
 import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
+import { useOpenStartedAt } from '@/features/open-progress/use-open-started-at';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -77,7 +78,7 @@ export function DocumentPage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const hasPaintedParagraph = useHasPaintedParagraph(editorContainer);
   const isProgressShown = useDelayedReveal({ delayMs: OPEN_PROGRESS_DELAY_MS, resetKey: documentId });
-  const startedAt = useMemo(() => Date.now(), [documentId]);
+  const startedAt = useOpenStartedAt(documentId);
   const { position } = usePanelPosition();
   const isPhoneLayout = useIsPhoneLayout();
   const { timeZone } = useTimeZone();

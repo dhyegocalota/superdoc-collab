@@ -49,7 +49,11 @@ export async function openDocument(documentId: string): Promise<OpenedAnswer> {
   if (isUnavailable) throw new DocumentUnavailableError(DOCUMENT_UNAVAILABLE_MESSAGE);
   if (!response.ok) throw new ApiRequestError(DOCUMENT_LOAD_ERROR_MESSAGE);
   const opened: OpenedDocument = await response.json();
-  return { ...opened, bootstrap: { ...opened.bootstrap, preparingSince: null } };
+  const { bootstrap } = opened;
+  return {
+    ...opened,
+    bootstrap: { ...bootstrap, preparingSince: 'preparingSince' in bootstrap ? (bootstrap.preparingSince as number | null) : null },
+  };
 }
 
 export async function fetchDocumentFile({ documentId, roomMode }: { documentId: string; roomMode: RoomMode }): Promise<Blob> {

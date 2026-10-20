@@ -9,6 +9,8 @@ import { FIT_WIDTH_ZOOM } from './superdoc-zoom';
 
 const COMMENTS_LAYOUT_BY_WIDTH: CommentsLayout = 'auto';
 const COMMENTS_INLINE_BELOW_PX = 480;
+const VIRTUALIZED_PAGES_AROUND_VIEWPORT = 1;
+const VIRTUALIZED_OVERSCAN_PAGES = 0;
 const PRINT_DOCUMENT_ID = 'print';
 const PREVIEW_DOCUMENT_ID = 'preview';
 
@@ -75,6 +77,9 @@ export function superdocOptions({
     colors: paletteColors,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: FIT_WIDTH_ZOOM,
+    layoutEngineOptions: {
+      virtualization: { enabled: true, window: VIRTUALIZED_PAGES_AROUND_VIEWPORT, overscan: VIRTUALIZED_OVERSCAN_PAGES },
+    },
     ui: {
       comments: { layout: COMMENTS_LAYOUT_BY_WIDTH, responsive: { breakpoint: COMMENTS_INLINE_BELOW_PX } },
       search: true,

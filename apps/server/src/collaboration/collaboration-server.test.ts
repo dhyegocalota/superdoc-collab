@@ -24,7 +24,13 @@ import {
 } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer, type TestUser } from '../testing/test-server';
-import { createCollaborationServer, MAX_STORE_DEBOUNCE_MS, OPEN_BUDGET_LOG, UNCOMMITTED_REFUSAL_LOG } from './collaboration-server';
+import {
+  createCollaborationServer,
+  HEAVY_ROOMS_REFUSAL_LOG,
+  MAX_STORE_DEBOUNCE_MS,
+  OPEN_BUDGET_LOG,
+  UNCOMMITTED_REFUSAL_LOG,
+} from './collaboration-server';
 import type { CollaborationContext } from './collaboration-context';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
@@ -381,6 +387,33 @@ describe('collaboration admission to an uncommitted room', () => {
     await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
     expect(warn.mock.calls.flat().join(' ')).toContain(documentId);
     warn.mockRestore();
+    await server.stop();
+  });
+});
+
+describe('heavy room ceiling', () => {
+  test('a member and an agent are refused a room while the ceiling is reached for it, and admitted once it is not', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    commitBootstrap({ services: server.services, documentId, userId: owner.id });
+    const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockReturnValue(true);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).rejects.toBeInstanceOf(
+      CollaborationRefusedError,
+    );
+    const token = signRoomToken({ secret: TEST_AUTH_SECRET, userId: owner.id, documentId, now: Date.now() });
+    await expect(connectAgentToDocument({ server, token, documentId })).rejects.toBeInstanceOf(CollaborationRefusedError);
+    expect(refuses).toHaveBeenCalledWith(documentId);
+    expect(warn).toHaveBeenCalledWith(`${HEAVY_ROOMS_REFUSAL_LOG} ${documentId}`);
+    refuses.mockReturnValue(false);
+    (await connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null })).close();
+    warn.mockRestore();
+    await server.stop();
+  });
+  test('the bootstrap socket is never refused by the ceiling', async () => {
+    const { server, documentId, owner } = await documentWithOwner();
+    const refuses = vi.spyOn(server.services.heavyRooms, 'isRefused').mockReturnValue(true);
+    (await connectToDocument({ server, cookie: owner.cookie, documentId })).close();
+    expect(refuses).not.toHaveBeenCalled();
     await server.stop();
   });
 });

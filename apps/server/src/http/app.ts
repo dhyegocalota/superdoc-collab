@@ -24,6 +24,7 @@ import type { Environment } from '../config/environment';
 import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import type { OpenBudget } from '../limits/open-budget';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
+import type { HeavyRoomAdmission } from '../collaboration/heavy-room-admission';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { createDocumentsRoutes } from '../documents/documents-routes';
 import type { DocumentFileStorage } from '../documents/file-storage';
@@ -74,6 +75,7 @@ export type AppServices = {
   storage: DocumentFileStorage;
   showcase: ShowcaseDocuments;
   runtime: DocumentRuntime;
+  heavyRooms: HeavyRoomAdmission;
   openBudget: OpenBudget;
   uploadBudget: KeyedSlidingWindow;
   shareLinks: ShareLinksRepository;
@@ -163,7 +165,14 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));
   app.route(ApiPath.Documents, createVersionsRoutes({ services }));
-  app.route(ApiPath.Documents, createDocumentsRoutes({ services, memoryLimitMegabytes: environment.memoryLimitMegabytes }));
+  app.route(
+    ApiPath.Documents,
+    createDocumentsRoutes({
+      services,
+      memoryLimitMegabytes: environment.memoryLimitMegabytes,
+      maxBootstrapWaitMs: environment.maxBootstrapWaitMs,
+    }),
+  );
   app.route('/', createShareLinksRoutes({ services }));
   return app;
 }

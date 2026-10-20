@@ -65,6 +65,8 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   await vi.waitFor(() => expect(pending).toHaveLength(1));
   expect(bootstrap.progressOf(DOCUMENT_ID)).toEqual({
@@ -75,6 +77,8 @@ test('a requested bootstrap is queued with the size of the upload and then prepa
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: 0,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   const [{ userId, documentId, attempt }] = issueToken.mock.calls[0]!;
   expect({ userId, documentId }).toEqual({ userId: OWNER_ID, documentId: DOCUMENT_ID });
@@ -126,6 +130,8 @@ test('the commit makes the bootstrap ready with the whole upload done and the si
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   pending[0]!.resolve();
   await Promise.resolve();
@@ -143,6 +149,8 @@ test('a commit nobody asked for is ready with nothing to process', () => {
     estimatedMs: null,
     documentXmlBytes: 0,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
 });
 
@@ -161,6 +169,8 @@ test('a failed run is reported once, stays failed within the cooldown and is not
     estimatedMs: ESTIMATED_MS,
     documentXmlBytes: FILE_BYTES,
     preparingElapsedMs: null,
+    queuePosition: null,
+    queueWaitMs: null,
   });
   expect(error).toHaveBeenCalledExactlyOnceWith(`${BOOTSTRAP_FAILED_MESSAGE} ${DOCUMENT_ID}: Error: not a document`);
   expect(bootstrap.request(DOCUMENT_ID).stage).toBe(BootstrapStage.Failed);
@@ -610,4 +620,67 @@ test('a blank that waited and whose commit from the state throws is prepared in 
   pending[0]!.resolve();
   await vi.waitFor(() => expect(pending).toHaveLength(2));
   expect(pending[1]!.request.documentId).toBe(OTHER_DOCUMENT_ID);
+});
+
+const LARGE_ESTIMATED_MS = (LARGE_FILE_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_MS_PER_MEGABYTE;
+
+function clockedBootstrapWithOwners() {
+  const clock = { currentMs: 1_000_000 };
+  const parts = bootstrapWithPendingRuns({
+    ownerOf: (documentId) => OWNERS[documentId]!,
+    documentXmlBytesOf: (documentId) => (documentId.endsWith('light') ? SMALL_FILE_BYTES : LARGE_FILE_BYTES),
+    now: () => clock.currentMs,
+  });
+  return { ...parts, clock };
+}
+
+test('a queued document reports the documents ahead of it, the running one included, and the wait they cost', async () => {
+  const { bootstrap, pending } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'bruno-heavy', 'carla-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  const running = bootstrap.progressOf('ana-heavy')!;
+  const second = bootstrap.progressOf('bruno-heavy')!;
+  const third = bootstrap.progressOf('carla-heavy')!;
+  expect([running.queuePosition, running.queueWaitMs]).toEqual([null, null]);
+  expect(second.queuePosition).toBe(1);
+  expect(second.queueWaitMs).toBeCloseTo(LARGE_ESTIMATED_MS);
+  expect(third.queuePosition).toBe(2);
+  expect(third.queueWaitMs).toBeCloseTo(2 * LARGE_ESTIMATED_MS);
+});
+
+test('the position follows the turns of the owners, so a second document of one owner waits behind the others', async () => {
+  const { bootstrap, pending } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'ana-heavy-2', 'ana-heavy-3', 'bruno-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(['ana-heavy-2', 'bruno-heavy', 'ana-heavy-3'].map((documentId) => bootstrap.progressOf(documentId)!.queuePosition)).toEqual([
+    1, 2, 3,
+  ]);
+});
+
+test('the running document counts only what is left of its estimate, and a document that is no longer queued has no position', async () => {
+  const { bootstrap, pending, clock } = clockedBootstrapWithOwners();
+  ['ana-heavy', 'bruno-heavy'].forEach((documentId) => bootstrap.request(documentId));
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  clock.currentMs += 4000;
+  expect(bootstrap.progressOf('bruno-heavy')!.queueWaitMs).toBeCloseTo(LARGE_ESTIMATED_MS - 4000);
+  bootstrap.ready({ documentId: 'ana-heavy', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(bootstrap.progressOf('bruno-heavy')).toMatchObject({ stage: BootstrapStage.Preparing, queuePosition: null, queueWaitMs: null });
+});
+
+test('the predicted wait of a new heavy job is what is left of the running one plus every queued one, at the measured rate', async () => {
+  const { bootstrap, pending, clock } = clockedBootstrapWithOwners();
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBe(0);
+  bootstrap.request('ana-heavy');
+  await vi.waitFor(() => expect(pending).toHaveLength(1));
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBeCloseTo(LARGE_ESTIMATED_MS);
+  bootstrap.request('bruno-heavy');
+  clock.currentMs += 4000;
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBeCloseTo(2 * LARGE_ESTIMATED_MS - 4000);
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: SMALL_FILE_BYTES })).toBe(0);
+  bootstrap.ready({ documentId: 'ana-heavy', stateBytes: STATE_BYTES });
+  pending[0]!.resolve();
+  await vi.waitFor(() => expect(pending).toHaveLength(2));
+  expect(bootstrap.predictedWaitMs({ documentXmlBytes: LARGE_FILE_BYTES })).toBeGreaterThan(0);
 });

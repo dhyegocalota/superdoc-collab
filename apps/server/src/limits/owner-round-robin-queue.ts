@@ -22,6 +22,10 @@ export class OwnerRoundRobinQueue<Item> {
     });
   }
 
+  turnOrder(): Item[] {
+    throw new Error('turnOrder is not implemented');
+  }
+
   hasOwner(owner: string | null): boolean {
     return this.itemsByOwner.has(owner);
   }

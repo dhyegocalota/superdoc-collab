@@ -11,6 +11,8 @@ export type CollectGarbage = (options: { type: 'major'; execution: 'sync'; flavo
 export type RoomMemoryRelease = {
   grew: (room: { documentName: string; bytes: number }) => void;
   unloaded: (room: { documentName: string; isReloaded: () => boolean }) => void;
+  heavyRoomCount: () => number;
+  isAtCeiling: (documentName: string) => boolean;
 };
 
 export function createRoomMemoryRelease({
@@ -18,11 +20,13 @@ export function createRoomMemoryRelease({
   memoryUsage,
   cooldownMs,
   now,
+  maxHeavyRooms,
 }: {
   collectGarbage: CollectGarbage | null;
   memoryUsage: () => NodeJS.MemoryUsage;
   cooldownMs: number;
   now: () => number;
+  maxHeavyRooms: number | null;
 }): RoomMemoryRelease {
   const roomBytes = new Map<string, number>();
   const cooldown = new KeyedCooldown({ durationMs: cooldownMs, now });
@@ -69,15 +73,22 @@ export function createRoomMemoryRelease({
       if (!isHeavy || collectGarbage === null) return;
       setTimeout(() => collect({ release: collectGarbage, isReloaded }), ROOM_MEMORY_RELEASE_DELAY_MS).unref();
     },
+    heavyRoomCount() {
+      throw new Error('heavyRoomCount is not implemented');
+    },
+    isAtCeiling(documentName) {
+      throw new Error(`isAtCeiling is not implemented ${documentName} ${maxHeavyRooms}`);
+    },
   };
 }
 
-export function createProcessRoomMemoryRelease(): RoomMemoryRelease {
+export function createProcessRoomMemoryRelease({ maxHeavyRooms }: { maxHeavyRooms: number | null }): RoomMemoryRelease {
   const collectGarbage = typeof globalThis.gc === 'function' ? (globalThis.gc as CollectGarbage) : null;
   return createRoomMemoryRelease({
     collectGarbage,
     memoryUsage: () => process.memoryUsage(),
     cooldownMs: RELEASE_COOLDOWN_MS,
     now: () => Date.now(),
+    maxHeavyRooms,
   });
 }

@@ -1,4 +1,4 @@
-import { OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
+import { MAX_BOOTSTRAP_WAIT_MS, OPEN_UNCOMMITTED_PER_MINUTE, presentOrNull, UPLOADS_PER_MINUTE } from '@superdoc-collab/types';
 import { z } from 'zod';
 
 // NB ADR 0011: two process-wide caps, concurrent jobs and hourly calls; the hourly one is consumed at the model call; over a cap the job is refused, never queued.
@@ -70,6 +70,8 @@ export type Environment = {
   projectionWorkerHeapMegabytes: number | null;
   bootstrapHostHeapMegabytes: number | null;
   memoryLimitMegabytes: number | null;
+  maxBootstrapWaitMs: number;
+  maxLoadedHeavyRooms: number | null;
 };
 
 function optionalLimitFrom({ name, value }: { name: string; value: string | undefined }): number | null {
@@ -130,5 +132,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       value: source.BOOTSTRAP_HOST_HEAP_MEGABYTES,
     }),
     memoryLimitMegabytes: optionalLimitFrom({ name: 'MEMORY_LIMIT_MEGABYTES', value: source.MEMORY_LIMIT_MEGABYTES }),
+    maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
+    maxLoadedHeavyRooms: null,
   };
 }

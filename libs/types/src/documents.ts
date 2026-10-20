@@ -6,6 +6,7 @@ import {
   BOOTSTRAP_STATE_BYTES_RATIO,
   BOOTSTRAP_TIMEOUT_FLOOR_MS,
   BOOTSTRAP_TIMEOUT_MARGIN,
+  MINUTE_MS,
   SECOND_MS,
 } from './constants';
 
@@ -61,6 +62,21 @@ export const BOOTSTRAP_QUEUE_RETRY_AFTER_MS = 5 * SECOND_MS;
 export const UPLOADS_PER_MINUTE = 30;
 export const MAX_REVISIONS_IMPORT_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const LARGE_ROOM_STATE_BYTES = 16 * BYTES_PER_MEGABYTE;
+export const MAX_BOOTSTRAP_WAIT_MS = 5 * MINUTE_MS;
+export const HEAVY_ROOM_RESIDENT_MEGABYTES = 700;
+export const BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES = 2300;
+export function maxLoadedHeavyRooms(memoryLimitMegabytes: number): number {
+  const roomsMegabytes = usableMegabytesOf(memoryLimitMegabytes) - BOOTSTRAP_CONVERSION_RESIDENT_MEGABYTES;
+  return Math.max(0, Math.floor(roomsMegabytes / HEAVY_ROOM_RESIDENT_MEGABYTES));
+}
+export function isHeavyRoomDocument(documentXmlBytes: number): boolean {
+  return documentXmlBytes * BOOTSTRAP_STATE_BYTES_RATIO > LARGE_ROOM_STATE_BYTES;
+}
+export function bootstrapBusyMessage(waitMs: number): string {
+  return `The server is busy preparing other documents; try again in about ${Math.max(1, Math.ceil(waitMs / MINUTE_MS))} min`;
+}
+export const HEAVY_ROOMS_RETRY_AFTER_MS = MINUTE_MS;
+export const HEAVY_ROOMS_FULL_MESSAGE = 'The server is holding as many large documents as it can; try again in a few minutes';
 export const LARGE_DOCUMENT_HEAP_BYTES = 256 * BYTES_PER_MEGABYTE;
 export const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const DOCX_EXTENSION = '.docx';
@@ -161,4 +177,6 @@ export type BootstrapProgress = {
   estimatedMs: number | null;
   documentXmlBytes: number;
   preparingElapsedMs: number | null;
+  queuePosition: number | null;
+  queueWaitMs: number | null;
 };

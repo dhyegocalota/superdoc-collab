@@ -65,9 +65,9 @@ function contentDisposition(fileName: string): string {
 }
 
 type RouteMount = { routes: Hono<SignedIn>; services: AppServices };
-type CreationMount = RouteMount & { memoryLimitMegabytes: number | null };
+type CreationMount = RouteMount & { memoryLimitMegabytes: number | null; maxBootstrapWaitMs: number };
 
-function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount): void {
+function mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs }: CreationMount): void {
   const { documents, storage, runtime, uploadBudget } = services;
 
   function refusalWhenUploadsSpent(context: Context<SignedIn>): Response | null {
@@ -265,12 +265,14 @@ function mountReading({ routes, services }: RouteMount): void {
 export function createDocumentsRoutes({
   services,
   memoryLimitMegabytes,
+  maxBootstrapWaitMs,
 }: {
   services: AppServices;
   memoryLimitMegabytes: number | null;
+  maxBootstrapWaitMs: number;
 }): Hono<SignedIn> {
   const routes = new Hono<SignedIn>();
-  mountCreation({ routes, services, memoryLimitMegabytes });
+  mountCreation({ routes, services, memoryLimitMegabytes, maxBootstrapWaitMs });
   mountOpening({ routes, services });
   mountManagement({ routes, services });
   mountReading({ routes, services });

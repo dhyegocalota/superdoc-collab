@@ -35,6 +35,7 @@ import { awarenessEntriesOf, silenceAwarenessEntries } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
+import type { HeavyRoomAdmission } from './heavy-room-admission';
 import { createProcessRoomMemoryRelease, type RoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
 import { isAgentUpgrade, isBootstrapUpgrade } from './upgrade-path';
@@ -55,6 +56,7 @@ export const AWARENESS_IDS_LOG = 'Collaboration socket closed for holding too ma
 const REFUSED_UPDATE_LOG = 'Dropped an update from a socket that may not write to the room of';
 const REVOKED_CLOSE_LOG = 'Closed a socket admitted just before its member was removed from';
 const STALE_BOOTSTRAP_CLOSE_LOG = 'Closed a bootstrap socket whose attempt is no longer the current one of';
+export const HEAVY_ROOMS_REFUSAL_LOG = 'Refused a socket because the server holds as many heavy rooms as it can, for';
 export const UNCOMMITTED_REFUSAL_LOG = 'Refused a socket that is not the bootstrap on an uncommitted room';
 
 class MalformedAwarenessError extends Error {
@@ -139,7 +141,8 @@ export function createCollaborationServer({
   roomModes,
   onLogged,
   onStored,
-  roomMemory = createProcessRoomMemoryRelease(),
+  roomMemory = createProcessRoomMemoryRelease({ maxHeavyRooms: null }),
+  heavyRooms = { isRefused: () => false },
 }: {
   auth: Auth;
   documents: DocumentsRepository;
@@ -150,6 +153,7 @@ export function createCollaborationServer({
   onLogged: (documentId: string) => void;
   onStored: (documentId: string) => void;
   roomMemory?: RoomMemoryRelease;
+  heavyRooms?: HeavyRoomAdmission;
 }): Hocuspocus {
   const declarer = createClientDeclarer(updateLog);
   const awarenessOwners = new AwarenessOwners();

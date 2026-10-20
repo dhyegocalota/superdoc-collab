@@ -35,6 +35,8 @@ export const COMMITTED_WITHOUT_BOOTSTRAP: BootstrapProgress = {
   estimatedMs: null,
   documentXmlBytes: NOTHING_TO_PROCESS_BYTES,
   preparingElapsedMs: null,
+  queuePosition: null,
+  queueWaitMs: null,
 };
 
 export class BootstrapOwnerMissingError extends Error {
@@ -116,6 +118,10 @@ export class RoomBootstrap {
     return BOOTSTRAP_QUEUE_RETRY_AFTER_MS;
   }
 
+  predictedWaitMs(parameters: { documentXmlBytes: number }): number {
+    throw new Error(`predictedWaitMs is not implemented ${parameters.documentXmlBytes}`);
+  }
+
   request(documentId: string): BootstrapProgress {
     const existing = this.jobs.peek(documentId);
     if (existing !== null && !this.isRetryable(existing)) return this.answerOf(existing);
@@ -161,6 +167,8 @@ export class RoomBootstrap {
           estimatedMs: this.estimatedMsOf(documentId),
           documentXmlBytes: this.documentXmlBytesOfJob(documentId),
           preparingElapsedMs: null,
+          queuePosition: null,
+          queueWaitMs: null,
         },
         attempt,
         failedAt: null,
@@ -200,6 +208,8 @@ export class RoomBootstrap {
           estimatedMs: this.estimatedMsOf(documentId),
           documentXmlBytes: this.documentXmlBytesOfJob(documentId),
           preparingElapsedMs: null,
+          queuePosition: null,
+          queueWaitMs: null,
         },
         attempt,
         failedAt: null,
@@ -229,6 +239,8 @@ export class RoomBootstrap {
       estimatedMs,
       documentXmlBytes,
       preparingElapsedMs: null,
+      queuePosition: null,
+      queueWaitMs: null,
     };
     this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null } });
     return progress;

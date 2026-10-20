@@ -36,7 +36,8 @@ function pollIntervalOf(data: OpenedDocument | undefined): number {
 
 function bootstrapOf(data: OpenedDocument | undefined): BootstrapReading | null {
   if (!data) return null;
-  return { ...data.bootstrap, preparingElapsedMs: null };
+  const preparingElapsedMs = 'preparingElapsedMs' in data.bootstrap ? (data.bootstrap.preparingElapsedMs as number | null) : null;
+  return { ...data.bootstrap, preparingElapsedMs };
 }
 
 function openedDocumentQueryOptions(documentId: string) {
@@ -71,7 +72,7 @@ function useOpenedDocumentQuery({ documentId, shouldPoll }: { documentId: string
     error: query.error,
     isFetchedAfterMount: query.isFetchedAfterMount,
     bootstrap: bootstrapOf(query.data),
-    bootstrapAnsweredAt: 0,
+    bootstrapAnsweredAt: query.dataUpdatedAt,
     readiness,
     retry,
   };

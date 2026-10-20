@@ -48,7 +48,10 @@ function preparingElapsedSeconds({
   startedAt: number;
   elapsedSeconds: number;
 }): number {
-  return elapsedSeconds;
+  if (preparingElapsedMs === null) return elapsedSeconds;
+  const nowMs = startedAt + elapsedSeconds * SECOND_MS;
+  const sinceAnswerMs = Math.max(0, nowMs - answeredAt);
+  return Math.floor((preparingElapsedMs + sinceAnswerMs) / SECOND_MS);
 }
 
 function timeFractionOf({ estimatedMs, elapsedSeconds }: { estimatedMs: number | null; elapsedSeconds: number }): number | null {

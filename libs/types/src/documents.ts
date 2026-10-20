@@ -3,6 +3,7 @@ import type { AuthorColorSlot } from './author-colors';
 import {
   BYTES_PER_KILOBYTE,
   BOOTSTRAP_MS_PER_MEGABYTE,
+  BOOTSTRAP_STATE_BYTES_RATIO,
   BOOTSTRAP_TIMEOUT_FLOOR_MS,
   BOOTSTRAP_TIMEOUT_MARGIN,
   SECOND_MS,
@@ -20,20 +21,37 @@ export function bootstrapTimeoutMsOf(documentXmlBytes: number): number {
 export const BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS = 10 * SECOND_MS;
 const SOCKET_MESSAGE_UPLOAD_MULTIPLE = 8;
 export const MAX_SOCKET_MESSAGE_BYTES = SOCKET_MESSAGE_UPLOAD_MULTIPLE * MAX_UPLOAD_BYTES;
-export const DOCUMENT_XML_STATE_BYTES_RATIO = 3.7;
-export const MAX_DOCUMENT_XML_MEGABYTES = Math.floor(MAX_SOCKET_MESSAGE_BYTES / BYTES_PER_MEGABYTE / DOCUMENT_XML_STATE_BYTES_RATIO);
+export const MAX_DOCUMENT_XML_MEGABYTES = Math.floor(MAX_SOCKET_MESSAGE_BYTES / BYTES_PER_MEGABYTE / BOOTSTRAP_STATE_BYTES_RATIO);
 export const MAX_DOCUMENT_XML_BYTES = MAX_DOCUMENT_XML_MEGABYTES * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_HOST_TIMEOUT_MS = bootstrapTimeoutMsOf(MAX_DOCUMENT_XML_BYTES) + BOOTSTRAP_HOST_TIMEOUT_MARGIN_MS;
 export const BOOTSTRAP_LIGHT_MAX_BYTES = 2 * BYTES_PER_MEGABYTE;
 export const BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE = 520;
 export const BOOTSTRAP_MEMORY_RESERVE_MEGABYTES = 512;
 const BOOTSTRAP_MEMORY_NONE_MESSAGE = 'This server has too little memory to prepare documents.';
-export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {
-  const usableMegabytes = memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
-  return Math.max(0, Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE));
+const LIGHT_LANE_RESIDENT_MEGABYTES = (BOOTSTRAP_LIGHT_MAX_BYTES / BYTES_PER_MEGABYTE) * BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE;
+function usableMegabytesOf(memoryLimitMegabytes: number): number {
+  return memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES;
 }
-export function isPreparable(_parameters: { documentXmlBytes: number; memoryLimitMegabytes: number }): boolean {
-  throw new Error('isPreparable is not implemented');
+export function largestPreparableMegabytes(memoryLimitMegabytes: number): number {
+  const usableMegabytes = usableMegabytesOf(memoryLimitMegabytes);
+  const lightMegabytes = Math.min(
+    Math.floor(usableMegabytes / BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE),
+    BOOTSTRAP_LIGHT_MAX_BYTES / BYTES_PER_MEGABYTE,
+  );
+  const heavyMegabytes = Math.floor((usableMegabytes - LIGHT_LANE_RESIDENT_MEGABYTES) / BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE);
+  return Math.max(0, lightMegabytes, heavyMegabytes);
+}
+export function isPreparable({
+  documentXmlBytes,
+  memoryLimitMegabytes,
+}: {
+  documentXmlBytes: number;
+  memoryLimitMegabytes: number;
+}): boolean {
+  const residentMegabytes = (documentXmlBytes / BYTES_PER_MEGABYTE) * BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE;
+  const usableMegabytes = usableMegabytesOf(memoryLimitMegabytes);
+  if (bootstrapLaneOf(documentXmlBytes) === BootstrapLane.Light) return residentMegabytes <= usableMegabytes;
+  return residentMegabytes <= usableMegabytes - LIGHT_LANE_RESIDENT_MEGABYTES;
 }
 export function bootstrapMemoryShortMessage(largestMegabytes: number): string {
   if (largestMegabytes === 0) return BOOTSTRAP_MEMORY_NONE_MESSAGE;

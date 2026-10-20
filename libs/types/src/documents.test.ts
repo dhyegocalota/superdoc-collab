@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { BOOTSTRAP_TIMEOUT_FLOOR_MS } from './constants';
+import { BOOTSTRAP_STATE_BYTES_RATIO, BOOTSTRAP_TIMEOUT_FLOOR_MS } from './constants';
 import {
   BOOTSTRAP_HOST_TIMEOUT_MS,
   BOOTSTRAP_LIGHT_MAX_BYTES,
@@ -9,7 +9,6 @@ import {
   BootstrapLane,
   bootstrapLaneOf,
   bootstrapTimeoutMsOf,
-  DOCUMENT_XML_STATE_BYTES_RATIO,
   isPreparable,
   largestPreparableMegabytes,
   MAX_DOCUMENT_XML_BYTES,
@@ -66,6 +65,6 @@ describe('documents contracts', () => {
   });
 
   test('the state of a document at the XML cap fits the socket message cap, so no admitted document closes with 1009', () => {
-    expect(MAX_DOCUMENT_XML_BYTES * DOCUMENT_XML_STATE_BYTES_RATIO).toBeLessThanOrEqual(MAX_SOCKET_MESSAGE_BYTES);
+    expect(MAX_DOCUMENT_XML_BYTES * BOOTSTRAP_STATE_BYTES_RATIO).toBeLessThanOrEqual(MAX_SOCKET_MESSAGE_BYTES);
   });
 });

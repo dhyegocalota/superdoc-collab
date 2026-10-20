@@ -1,15 +1,13 @@
 import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
-  BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
-  BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE,
   bootstrapMemoryShortMessage,
-  BYTES_PER_MEGABYTE,
   DOCUMENT_TOO_LARGE_MESSAGE,
   DOCX_EXTENSION,
   DOCX_MIME_TYPE,
   DocumentRole,
   HttpStatus,
+  isPreparable,
   isTabId,
   largestPreparableMegabytes,
   MAX_UPLOAD_BYTES,
@@ -103,9 +101,7 @@ function mountCreation({ routes, services, memoryLimitMegabytes }: CreationMount
     documentXmlBytes: number;
   }): Response | null {
     if (memoryLimitMegabytes === null) return null;
-    const residentBytes = documentXmlBytes * BOOTSTRAP_RESIDENT_BYTES_PER_XML_BYTE;
-    const usableBytes = (memoryLimitMegabytes - BOOTSTRAP_MEMORY_RESERVE_MEGABYTES) * BYTES_PER_MEGABYTE;
-    if (residentBytes <= usableBytes) return null;
+    if (isPreparable({ documentXmlBytes, memoryLimitMegabytes })) return null;
     const message = bootstrapMemoryShortMessage(largestPreparableMegabytes(memoryLimitMegabytes));
     return context.json({ error: message }, HttpStatus.PayloadTooLarge);
   }

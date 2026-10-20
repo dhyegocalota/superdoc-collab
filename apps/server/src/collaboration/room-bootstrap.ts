@@ -22,12 +22,15 @@ import { describeError } from '../logging/describe-error';
 
 export type BootstrapRun = (request: BootstrapRequest) => Promise<void>;
 
+type DeviceClaim = { tabId: string; sockets: number };
+
 type BootstrapJob = {
   progress: BootstrapProgress;
   attempt: string | null;
   failedAt: number | null;
   startedAt: number | null;
   isDevice: boolean;
+  claim: DeviceClaim | null;
 };
 
 type QueueStanding = { queuePosition: number | null; queueWaitMs: number | null };
@@ -130,12 +133,19 @@ export class RoomBootstrap {
     return this.isDevicePending(documentId) && this.ownerOf(documentId) === userId;
   }
 
-  claimDevice({ documentId, userId }: { documentId: string; userId: string; tabId: string | null }): string | null {
+  claimDevice({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): string | null {
     const job = this.jobs.peek(documentId);
     if (job === null || !this.isDeviceCreator({ documentId, userId })) return null;
+    const { claim, attempt: claimedAttempt } = job;
+    const isClaimedByTab = claim !== null && claimedAttempt !== null && claim.tabId === tabId;
+    if (isClaimedByTab) {
+      this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets + 1 } } });
+      return claimedAttempt;
+    }
     const attempt = randomUUID();
     const progress = { ...job.progress, stage: BootstrapStage.Preparing, done: 0, preparingElapsedMs: null };
-    this.jobs.set({ key: documentId, value: { ...job, progress, attempt, failedAt: null, startedAt: this.now() } });
+    const newClaim = tabId === null ? null : { tabId, sockets: 1 };
+    this.jobs.set({ key: documentId, value: { ...job, progress, attempt, failedAt: null, startedAt: this.now(), claim: newClaim } });
     return attempt;
   }
 
@@ -143,6 +153,11 @@ export class RoomBootstrap {
     const job = this.jobs.peek(documentId);
     const isClaimedDevice = job !== null && job.isDevice && job.progress.stage === BootstrapStage.Preparing;
     if (!isClaimedDevice || !this.isCurrent({ documentId, attempt })) return;
+    const { claim } = job;
+    if (claim !== null && claim.sockets > 1) {
+      this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets - 1 } } });
+      return;
+    }
     this.fail({ documentId, error: new DeviceClosedError() });
   }
 
@@ -221,6 +236,7 @@ export class RoomBootstrap {
         failedAt: null,
         startedAt,
         isDevice: false,
+        claim: null,
       },
     });
     return this.issueToken({ userId: owner, documentId, attempt });
@@ -263,6 +279,7 @@ export class RoomBootstrap {
         failedAt: null,
         startedAt: null,
         isDevice: job !== null && job.isDevice,
+        claim: null,
       },
     });
     const commitWaiter = this.commitWaiters.get(documentId);
@@ -291,7 +308,7 @@ export class RoomBootstrap {
       queuePosition: null,
       queueWaitMs: null,
     };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false } });
+    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false, claim: null } });
     return progress;
   }
 
@@ -303,6 +320,7 @@ export class RoomBootstrap {
       failedAt: null,
       startedAt: this.now(),
       isDevice: true,
+      claim: null,
     };
     this.jobs.set({ key: documentId, value: job });
     return this.answerOf({ documentId, job });
@@ -479,6 +497,7 @@ export class RoomBootstrap {
         failedAt: this.now(),
         startedAt: null,
         isDevice: job.isDevice,
+        claim: null,
       },
     });
     console.error(`${BOOTSTRAP_FAILED_MESSAGE} ${documentId}: ${describeError(error)}`);

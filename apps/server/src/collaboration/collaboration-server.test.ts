@@ -693,8 +693,9 @@ describe('collaboration device creator', () => {
     return { server, owner, documentId };
   }
 
-  function connectAsDeviceCreator({ server, owner, documentId }: Awaited<ReturnType<typeof documentOnDevice>>) {
-    return connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null });
+  function connectAsDeviceCreator({ server, owner, documentId }: Awaited<ReturnType<typeof documentOnDevice>>, tabId?: string) {
+    const path = tabId === undefined ? undefined : `${ApiPath.Collaboration}?${TAB_QUERY_KEY}=${tabId}`;
+    return connectToDocument({ server, cookie: owner.cookie, documentId, bootstrapToken: null, path });
   }
 
   test('the owner streams the seed over its member socket, commits, and its next edits are logged as an ordinary member', async () => {
@@ -731,6 +732,24 @@ describe('collaboration device creator', () => {
     second.document.getText('t').insert(0, 'written by the current tab');
     await expect.poll(() => loggedRows({ server, documentId }).length).toBe(1);
     [first, second].forEach((client) => client.close());
+    await server.stop();
+  });
+
+  test('two sockets of one tab share the claim, both write, and the job lives until the last one leaves', async () => {
+    const scenario = await documentOnDevice();
+    const { server, documentId } = scenario;
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const tabId = randomUUID();
+    const first = await connectAsDeviceCreator(scenario, tabId);
+    const second = await connectAsDeviceCreator(scenario, tabId);
+    first.document.getText('t').insert(0, 'written by the first socket');
+    second.document.getText('t').insert(0, 'written by the second socket');
+    await expect.poll(() => loggedRows({ server, documentId }).length).toBe(2);
+    second.close();
+    await expect.poll(() => server.services.runtime.onlineTabIds({ documentId, userId: scenario.owner.id }).size).toBe(1);
+    expect(server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Preparing);
+    first.close();
+    await expect.poll(() => server.services.roomBootstrap.progressOf(documentId)?.stage).toBe(BootstrapStage.Failed);
     await server.stop();
   });
 

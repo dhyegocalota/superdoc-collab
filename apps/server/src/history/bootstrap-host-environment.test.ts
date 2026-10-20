@@ -1,3 +1,4 @@
+import { BYTES_PER_MEGABYTE } from '@superdoc-collab/types';
 import { expect, test } from 'vitest';
 import { bootstrapHostEnvironment } from './bootstrap-host-environment';
 
@@ -30,11 +31,14 @@ test('every blanked name is present as a key so it overrides the inherited value
   expect(Object.keys(environment)).toEqual(expect.arrayContaining(['AUTH_SECRET', 'OPENROUTER_API_KEY', 'DEMO_PASSWORD', 'GITHUB_TOKEN']));
 });
 
-test('a heap size caps the old generation of the host next to the options it already has', () => {
-  expect(bootstrapHostEnvironment({ source: SOURCE, heapMegabytes: 1536 }).NODE_OPTIONS).toBe('--no-warnings --max-old-space-size=1536');
-  expect(bootstrapHostEnvironment({ source: { PATH: '/usr/bin' }, heapMegabytes: 1536 }).NODE_OPTIONS).toBe('--max-old-space-size=1536');
+test('a heap size sets the memory the Bun runtime of the host sizes its collector for, in bytes', () => {
+  expect(bootstrapHostEnvironment({ source: SOURCE, heapMegabytes: 1536 }).BUN_JSC_forceRAMSize).toBe(String(1536 * BYTES_PER_MEGABYTE));
 });
 
-test('no heap size leaves the node options of the process alone', () => {
-  expect(Object.keys(bootstrapHostEnvironment({ source: SOURCE, heapMegabytes: null }))).not.toContain('NODE_OPTIONS');
+test('node options mean nothing to the host, so a heap size never touches them', () => {
+  expect(Object.keys(bootstrapHostEnvironment({ source: SOURCE, heapMegabytes: 1536 }))).not.toContain('NODE_OPTIONS');
+});
+
+test('no heap size sets no memory for the host', () => {
+  expect(Object.keys(bootstrapHostEnvironment({ source: SOURCE, heapMegabytes: null }))).not.toContain('BUN_JSC_forceRAMSize');
 });

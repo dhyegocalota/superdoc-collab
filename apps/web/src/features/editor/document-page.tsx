@@ -118,6 +118,7 @@ export function DocumentPage() {
     documentId,
     readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness,
     isLiveEditorPainted: hasPaintedParagraph || isOpenFailing,
+    isPreparingHere: false,
   });
   const previewScrollFraction = useRef<number | null>(null);
   useEffect(() => {
@@ -306,6 +307,7 @@ export function DocumentPage() {
         startedAt={startedAt}
         isProgressShown={isProgressShown}
         isSwapping={!isPreviewReplacingPage}
+        isFrozen={!isPreviewReplacingPage}
         swappingViewAt={(elapsedSeconds) =>
           editorOpenView({ loadProgress, stateBytes: bootstrap === null ? null : bootstrap.stateBytes, elapsedSeconds })
         }

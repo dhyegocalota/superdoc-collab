@@ -54,6 +54,7 @@ function renderPreview({ isProgressShown = true }: { isProgressShown?: boolean }
       startedAt={now}
       isProgressShown={isProgressShown}
       isSwapping={false}
+      isFrozen={false}
       swappingViewAt={() => LIVE_EDITOR_VIEW}
       onScrollFraction={vi.fn()}
     />,
@@ -122,6 +123,7 @@ test('while the live editor opens beneath, the panel reads the live editor progr
         startedAt={now}
         isProgressShown
         isSwapping
+        isFrozen
         swappingViewAt={() => LIVE_EDITOR_VIEW}
         onScrollFraction={vi.fn()}
       />
@@ -159,7 +161,8 @@ test('when the live editor starts the preview engine is destroyed and its painte
         answeredAt={now}
         startedAt={now}
         isProgressShown
-        isSwapping={isSwapping}
+        isSwapping
+        isFrozen={isSwapping}
         swappingViewAt={() => LIVE_EDITOR_VIEW}
         onScrollFraction={vi.fn()}
       />
@@ -194,4 +197,32 @@ test('the panel minimizes to the bar over the pages and maximizes back', () => {
   expect(screen.getByTestId(PANEL_TEST_ID)).toHaveAttribute('data-minimized', 'true');
   fireEvent.click(screen.getByRole('button', { name: MAXIMIZE_PROGRESS_LABEL }));
   expect(screen.getByTestId(PANEL_TEST_ID)).not.toHaveAttribute('data-minimized');
+});
+
+test('an overlay over the converting editor keeps its engine alive until it is frozen', async () => {
+  let freeze: () => void = () => undefined;
+  function Overlay() {
+    const [isFrozen, setIsFrozen] = useState(false);
+    freeze = () => setIsFrozen(true);
+    const now = Date.now();
+    return (
+      <LocalPreview
+        title={DOCUMENT_TITLE}
+        file={FILE}
+        bootstrap={null}
+        answeredAt={now}
+        startedAt={now}
+        isProgressShown
+        isSwapping
+        isFrozen={isFrozen}
+        swappingViewAt={() => LIVE_EDITOR_VIEW}
+        onScrollFraction={vi.fn()}
+      />
+    );
+  }
+  renderWithProviders(<Overlay />);
+  expect(superdocDestroy).not.toHaveBeenCalled();
+  expect(SuperDoc).toHaveBeenCalledTimes(1);
+  act(() => freeze());
+  expect(superdocDestroy).toHaveBeenCalledTimes(1);
 });

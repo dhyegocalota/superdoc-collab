@@ -26,6 +26,7 @@ export type LocalPreviewProps = {
   startedAt: number;
   isProgressShown: boolean;
   isSwapping: boolean;
+  isFrozen: boolean;
   swappingViewAt: OpenProgressViewAt;
   onScrollFraction: (fraction: number) => void;
 };
@@ -38,6 +39,7 @@ export function LocalPreview({
   startedAt,
   isProgressShown,
   isSwapping,
+  isFrozen,
   swappingViewAt,
   onScrollFraction,
 }: LocalPreviewProps) {

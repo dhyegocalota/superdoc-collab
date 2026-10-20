@@ -8,10 +8,12 @@ export function useLocalPreview({
   documentId,
   readiness,
   isLiveEditorPainted,
+  isPreparingHere,
 }: {
   documentId: string;
   readiness: DocumentReadiness;
   isLiveEditorPainted: boolean;
+  isPreparingHere: boolean;
 }): File | null {
   const [hasPreviewed, setHasPreviewed] = useState(false);
   const file = localFileOf(documentId);

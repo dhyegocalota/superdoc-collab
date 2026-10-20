@@ -1234,3 +1234,51 @@ test('the panel of the creator of a device job stays while the editor is synced 
   paintFirstParagraph();
   await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
 });
+
+function collaborativeEditorConfig(): SuperDocConfig {
+  const secondCall = SuperDoc.mock.calls.at(1);
+  if (!secondCall) throw new Error('The collaborative editor was not constructed');
+  return secondCall[0];
+}
+
+function deviceCreatorWithKeptFile(): File {
+  const file = new File([new Uint8Array([1, 2, 3])], 'plan.docx');
+  keepLocalFile({ documentId: DOCUMENT_ID, file });
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice(), estimatedMs: DEVICE_ESTIMATE_MS });
+  return file;
+}
+
+test('the creator of a device job reads the kept file as a read-only preview while the editor converts', async () => {
+  const file = deviceCreatorWithKeptFile();
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByTestId('local-preview')).toBeInTheDocument();
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  const preview = configOfCall(0);
+  expect([preview.documentMode, preview.documents[0]!.data, preview.documents[0]!.v2Collaboration]).toEqual([
+    DocumentMode.Viewing,
+    file,
+    undefined,
+  ]);
+  expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(screen.getAllByTestId(PROGRESS_TEST_ID)).toHaveLength(1);
+  expect(panel).toHaveTextContent(`${PREPARING_HERE_DETAIL} · about 50 s`);
+  expect(superDocDestroy).not.toHaveBeenCalled();
+});
+
+test('on the device path the preview engine is destroyed at the first painted paragraph and the layer leaves when the editor is ready', async () => {
+  deviceCreatorWithKeptFile();
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId('local-preview');
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  paintFirstParagraph();
+  await waitFor(() => expect(superDocDestroy).toHaveBeenCalledTimes(1));
+  expect(screen.getByTestId('local-preview')).toBeInTheDocument();
+  expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
+  act(() => collaborativeEditorConfig().onCollaborationReady());
+  await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+  expect(superDocDestroy).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
+  expect(localFileOf(DOCUMENT_ID)).toBeNull();
+});

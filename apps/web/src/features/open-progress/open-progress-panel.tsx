@@ -59,8 +59,8 @@ export function OpenProgressPanel({ title, stages, view, action, isTranslucent =
       >
         <CardContent role="status" aria-live="polite" className="flex flex-col gap-4">
           {(title || minimization) && (
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate font-semibold">{title}</p>
+            <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 truncate font-semibold">{title}</p>
               {minimization && (
                 <Button
                   type="button"

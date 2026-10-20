@@ -1,6 +1,6 @@
 import { BlockChangeKind, ClientActor, PREVIEW_MAX_CHARACTERS } from '@superdoc-collab/types';
 import * as Y from 'yjs';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { MigrationSet } from './migrations';
 import { findBootstrapSequence } from './document-history';
 import { projectPending } from './projection';
@@ -160,4 +160,13 @@ test('a document projected before previews existed gets its preview on the next 
   expect(readModel.previews([DOCUMENT]).size).toBe(0);
   expect(projectPending({ log, readModel, documentName: DOCUMENT })).toBe(bootstrapSequence);
   expect(readModel.previews([DOCUMENT]).get(DOCUMENT)).toBe('Hello\nWorld');
+});
+
+test('materializes the document once however many batches the run takes', () => {
+  const ana = bootstrapped(['']);
+  Array.from({ length: BATCHED_WRITES }).forEach((_, index) => writeStory({ document: ana, texts: ['x'.repeat(index + 1)] }));
+  const latestSnapshot = vi.spyOn(log, 'latestSnapshot');
+  projectPending({ log, readModel, documentName: DOCUMENT, batchSize: BATCH_SIZE });
+  expect(latestSnapshot).toHaveBeenCalledTimes(1);
+  expect(readModel.cursor(DOCUMENT)).toBe(lastLoggedSequence());
 });

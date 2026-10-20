@@ -34,6 +34,7 @@ type BootstrapJob = {
   failedAt: number | null;
   startedAt: number | null;
   isDevice: boolean;
+  isReopenable: boolean;
   claim: DeviceClaim | null;
 };
 
@@ -151,11 +152,16 @@ export class RoomBootstrap {
   }
 
   isDeviceJob(documentId: string): boolean {
-    return this.isDevicePending(documentId);
+    this.expireDevice(documentId);
+    const job = this.jobs.peek(documentId);
+    if (job === null) return false;
+    return job.isDevice && job.progress.stage !== BootstrapStage.Ready;
   }
 
   reopenDevice({ documentId, userId }: { documentId: string; userId: string }): void {
-    throw new Error(`reopenDevice is not implemented for ${documentId} ${userId}`);
+    const job = this.jobs.peek(documentId);
+    if (job === null || !job.isReopenable || this.ownerOf(documentId) !== userId) return;
+    this.registerDevice(documentId);
   }
 
   isDeviceCreator({ documentId, userId, tabId }: { documentId: string; userId: string; tabId: string | null }): boolean {
@@ -191,7 +197,7 @@ export class RoomBootstrap {
       this.jobs.set({ key: documentId, value: { ...job, claim: { ...claim, sockets: claim.sockets - 1 } } });
       return;
     }
-    this.fail({ documentId, error: new DeviceClosedError() });
+    this.fail({ documentId, error: new DeviceClosedError(), isReopenable: true });
   }
 
   progressOf(documentId: string): BootstrapProgress | null {
@@ -278,6 +284,7 @@ export class RoomBootstrap {
         failedAt: null,
         startedAt,
         isDevice: false,
+        isReopenable: false,
         claim: null,
       },
     });
@@ -322,6 +329,7 @@ export class RoomBootstrap {
         failedAt: null,
         startedAt: null,
         isDevice: job !== null && job.isDevice,
+        isReopenable: false,
         claim: null,
       },
     });
@@ -370,7 +378,10 @@ export class RoomBootstrap {
       queuePosition: null,
       queueWaitMs: null,
     };
-    this.jobs.set({ key: documentId, value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false, claim: null } });
+    this.jobs.set({
+      key: documentId,
+      value: { progress, attempt: null, failedAt: null, startedAt: null, isDevice: false, isReopenable: false, claim: null },
+    });
     return progress;
   }
 
@@ -382,6 +393,7 @@ export class RoomBootstrap {
       failedAt: null,
       startedAt: this.now(),
       isDevice: true,
+      isReopenable: false,
       claim: null,
     };
     this.jobs.set({ key: documentId, value: job });
@@ -564,7 +576,7 @@ export class RoomBootstrap {
     this.fail({ documentId, error: new DeviceExpiredError() });
   }
 
-  private fail({ documentId, error }: { documentId: string; error: unknown }): void {
+  private fail({ documentId, error, isReopenable = false }: { documentId: string; error: unknown; isReopenable?: boolean }): void {
     this.onEnded(documentId);
     const job = this.jobs.peek(documentId);
     if (job === null) return;
@@ -576,6 +588,7 @@ export class RoomBootstrap {
         failedAt: this.now(),
         startedAt: null,
         isDevice: job.isDevice,
+        isReopenable,
         claim: null,
       },
     });

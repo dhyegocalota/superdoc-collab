@@ -307,6 +307,7 @@ function mountOpening({ routes, services }: RouteMount): void {
         retryAfterSeconds: secondsRoundedUp(answer.waitMs),
       });
     }
+    runtime.reopenDeviceJob({ documentId, userId });
     const bootstrap = runtime.bootstrapRoom(documentId);
     const tab = context.req.query(TAB_QUERY_KEY);
     const tabId = tab !== undefined && isTabId(tab) ? tab : null;

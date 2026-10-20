@@ -1,4 +1,8 @@
-import { DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES } from '@superdoc-collab/types';
+import {
+  DEVICE_FIRST_MIN_MEMORY_GIGABYTES,
+  DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES,
+  DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES,
+} from '@superdoc-collab/types';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 
 export enum DeviceRefusal {
@@ -19,6 +23,22 @@ export function deviceRefusalOf({
   return null;
 }
 
+export function isDeviceFirst({
+  isPhoneLayout,
+  deviceMemoryGigabytes,
+}: {
+  isPhoneLayout: boolean;
+  deviceMemoryGigabytes: number | null;
+}): boolean {
+  if (isPhoneLayout || deviceMemoryGigabytes === null) return false;
+  return deviceMemoryGigabytes >= DEVICE_FIRST_MIN_MEMORY_GIGABYTES;
+}
+
+export function canPreviewOnDevice(deviceMemoryGigabytes: number | null): boolean {
+  if (deviceMemoryGigabytes === null) return false;
+  return deviceMemoryGigabytes >= DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES;
+}
+
 function exposedDeviceMemory(): number | null {
   const { deviceMemory } = navigator as Navigator & { deviceMemory?: number };
   if (deviceMemory === undefined) return null;
@@ -28,4 +48,13 @@ function exposedDeviceMemory(): number | null {
 export function useDeviceRefusal(): DeviceRefusal | null {
   const isPhoneLayout = useIsPhoneLayout();
   return deviceRefusalOf({ isPhoneLayout, deviceMemoryGigabytes: exposedDeviceMemory() });
+}
+
+export function useIsDeviceFirst(): boolean {
+  const isPhoneLayout = useIsPhoneLayout();
+  return isDeviceFirst({ isPhoneLayout, deviceMemoryGigabytes: exposedDeviceMemory() });
+}
+
+export function useCanPreviewOnDevice(): boolean {
+  return canPreviewOnDevice(exposedDeviceMemory());
 }

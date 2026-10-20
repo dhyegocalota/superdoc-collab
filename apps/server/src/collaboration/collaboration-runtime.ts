@@ -21,6 +21,7 @@ export type DocumentRuntime = {
   roomMode: (documentId: string) => RoomMode;
   roomModeFor: (parameters: { documentId: string; userId: string }) => RoomModeAnswer;
   bootstrapRoom: (documentId: string) => BootstrapProgress;
+  bootstrapRoomOnDevice: (documentId: string) => BootstrapProgress;
   bootstrapBlankRoom: (documentId: string) => BootstrapProgress;
   isPreparedOnDevice: (documentId: string) => boolean;
   reopenDeviceJob: (parameters: { documentId: string; userId: string }) => boolean;
@@ -81,6 +82,7 @@ export function createCollaborationRuntime({
   }
   return {
     bootstrapRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.request(id) }),
+    bootstrapRoomOnDevice: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestOnDevice(id) }),
     bootstrapBlankRoom: (documentId) => bootstrapWith({ documentId, request: (id) => roomBootstrap.requestBlank(id) }),
     isPreparedOnDevice: (documentId) => roomBootstrap.isDeviceJob(documentId),
     reopenDeviceJob: (parameters) => {

@@ -8,6 +8,7 @@ import {
   bootstrapMemoryShortMessage,
   BOOTSTRAP_MEMORY_RESERVE_MEGABYTES,
   DEMO_USERS,
+  DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES,
   DOCX_MIME_TYPE,
   documentApiPath,
   largestHoldableMegabytes,
@@ -20,7 +21,7 @@ import {
 } from '../libs/types/src';
 import { buildSeedDocx } from '../libs/history/src';
 import { FILE_INPUT_LABEL } from '../apps/web/src/features/documents/documents-copy';
-import { DEVICE_REFUSAL_COPY, DEVICE_OFFER_LABEL, PREVIEW_BADGE_MESSAGE } from '../apps/web/src/features/local-preview/local-preview-copy';
+import { DEVICE_REFUSAL_COPY, DEVICE_OFFER_LABEL } from '../apps/web/src/features/local-preview/local-preview-copy';
 import { EDITOR_READY_TIMEOUT_MS, TEXT_RUN_SELECTOR, acceptShareLink, editorText, openDocumentFileInput } from './editor';
 import { buildLargeDocx } from './fixtures/large-docx';
 import { expect, signedInContext, test } from './fixtures';
@@ -38,6 +39,7 @@ const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const SEED_PARAGRAPH = 'Paragraph read from the preview.';
 const LARGE_PARAGRAPH = 'Large document paragraph.';
 const DEVICE_PARAGRAPH = 'Paragraph prepared on the device.';
+const WEAK_DEVICE_MEMORY_GIGABYTES = DEVICE_PREPARATION_MIN_MEMORY_GIGABYTES - 1;
 const SCRIPTED_TOTAL_BYTES = 1_000_000;
 const SCRIPTED_PREPARING_ANSWERS = 12;
 const PREVIEW_PAINT_TIMEOUT_MS = 30_000;
@@ -93,6 +95,13 @@ async function uploadSeedWhilePreparing(page: Page): Promise<void> {
   const buffer = await buildSeedDocx([{ text: SEED_PARAGRAPH, trackedChanges: [] }]);
   await uploadThroughTheDialog({ page, buffer });
   await expect(page).toHaveURL(DOCUMENT_URL_PATTERN);
+}
+
+async function useWeakDevice(page: Page): Promise<void> {
+  await page.addInitScript(
+    (deviceMemory) => Object.defineProperty(navigator, 'deviceMemory', { get: () => deviceMemory }),
+    WEAK_DEVICE_MEMORY_GIGABYTES,
+  );
 }
 
 function previewText(page: Page, text: string) {
@@ -156,7 +165,7 @@ function longestGapOf(heartbeats: number[]): number {
 test('the uploader reads the document in a preview before the shared copy is ready', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await uploadSeedWhilePreparing(ana.page);
-  await expect(ana.page.getByText(PREVIEW_BADGE_MESSAGE)).toBeVisible();
+  await expect(ana.page.getByTestId(PREVIEW_SURFACE_TEST_ID)).toBeVisible();
   await expect(previewText(ana.page, SEED_PARAGRAPH)).toBeVisible({ timeout: PREVIEW_PAINT_TIMEOUT_MS });
   await expect(ana.page.getByTestId(LIVE_EDITOR_TEST_ID)).toHaveCount(0);
   await expect(ana.page.getByTestId(PREVIEW_SURFACE_TEST_ID)).toHaveCount(0, { timeout: SWAP_TIMEOUT_MS });
@@ -205,6 +214,7 @@ test('the brief opens in a preview within seconds', async ({ browser }) => {
 test('the preview of a large document opens while the panel keeps counting and the tab keeps answering', async ({ browser }) => {
   test.setTimeout(LARGE_TEST_TIMEOUT_MS);
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await useWeakDevice(ana.page);
   await recordPageLife(ana.page);
   const workers: Worker[] = [];
   ana.page.on('worker', (worker) => workers.push(worker));
@@ -285,8 +295,6 @@ test.describe('a server with no memory to prepare a file', () => {
     const bruno = await signedInContext({ browser, user: DEMO_USERS[1]!, origin });
     const buffer = await buildSeedDocx([{ text: DEVICE_PARAGRAPH, trackedChanges: [] }]);
     await uploadThroughTheDialog({ page: ana.page, buffer });
-    await expect(ana.page.getByRole('alert')).toHaveText(bootstrapMemoryShortMessage(0));
-    await ana.page.getByRole('button', { name: DEVICE_OFFER_LABEL }).click();
     await expect(ana.page).toHaveURL(DOCUMENT_URL_PATTERN);
     const documentId = DOCUMENT_URL_PATTERN.exec(ana.page.url())![1]!;
     await expect(editorText(ana.page).filter({ hasText: DEVICE_PARAGRAPH }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
@@ -358,7 +366,6 @@ test.describe('a six gigabyte server and the heavy fixture', () => {
     const ana = await signedInContext({ browser, user: DEMO_USERS[0]!, origin });
     const bruno = await signedInContext({ browser, user: DEMO_USERS[1]!, origin });
     await uploadThroughTheDialog({ page: ana.page, buffer: buildLargeDocx(LARGE_PARAGRAPH) });
-    await ana.page.getByRole('button', { name: DEVICE_OFFER_LABEL }).click();
     await expect(ana.page).toHaveURL(DOCUMENT_URL_PATTERN);
     const documentId = DOCUMENT_URL_PATTERN.exec(ana.page.url())![1]!;
     await acceptShareLink({ page: bruno.page, documentId, role: ShareLinkRole.Edit, owner: ana.page });

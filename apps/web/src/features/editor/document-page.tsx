@@ -15,7 +15,7 @@ import { useDelayedReveal } from '@/features/open-progress/use-delayed-reveal';
 import { useOpenStartedAt } from '@/features/open-progress/use-open-started-at';
 import { useHasPaintedParagraph } from '@/features/open-progress/use-has-painted-paragraph';
 import { LocalPreview } from '@/features/local-preview/local-preview';
-import { useDeviceRefusal } from '@/features/local-preview/device-guard';
+import { useCanPreviewOnDevice, useDeviceRefusal } from '@/features/local-preview/device-guard';
 import { useLocalPreview } from '@/features/local-preview/use-local-preview';
 import { UseWithAiDialog, type UseWithAiSlot } from '@/features/connected-apps/use-with-ai-dialog';
 import { TimelinePanel } from '@/features/timeline/timeline-panel';
@@ -113,11 +113,16 @@ export function DocumentPage() {
   useDocumentTitle(opened ? opened.document.title : null);
   const cachedTitle = useCachedTitle(documentId);
   const deviceGuardRefusal = useDeviceRefusal();
+  const canPreviewOnDevice = useCanPreviewOnDevice();
+  const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
+  const isDeviceEditorUsable = loadProgress.isSynced && hasPaintedParagraph;
+  const isCreatingOnDevice = isDeviceJobCreatedHere && !isDeviceEditorUsable;
   const isOpenFailing = connectionState === ConnectionState.Failed || loadProgress.hasFailed || fileError !== null;
   const previewFile = useLocalPreview({
     documentId,
     readiness: isUnavailable ? DocumentReadiness.Unavailable : readiness,
     isLiveEditorPainted: hasPaintedParagraph || isOpenFailing,
+    isPreparingHere: isDeviceJobCreatedHere && deviceGuardRefusal === null && canPreviewOnDevice,
   });
   const previewScrollFraction = useRef<number | null>(null);
   useEffect(() => {
@@ -157,7 +162,6 @@ export function DocumentPage() {
   function renderPage(): ReactNode {
     if (readiness === DocumentReadiness.Opening) return withAnnouncement(<OpeningDocument />);
     const documentReadiness = isUnavailable ? DocumentReadiness.Unavailable : readiness;
-    const isDeviceJobCreatedHere = opened !== undefined && opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null;
     const deviceRefusal = isDeviceJobCreatedHere ? deviceGuardRefusal : null;
     if (deviceRefusal !== null) {
       return withAnnouncement(
@@ -209,12 +213,11 @@ export function DocumentPage() {
     const versionBar = <VersionBar timeTravel={timeTravel} timeZone={timeZone} isLoadingRequestedVersion={isLoadingRequestedVersion} />;
     const isFailed = connectionState === ConnectionState.Failed;
     const isEditingSurfaceInert = isViewingPastVersion || isFailed;
-    const isCreatingOnDevice = opened.roomMode === RoomMode.Create && preparedOnDeviceOf !== null && superdoc === null;
-    const isOpenProgressVisible = isProgressShown && !isOpenFailing && (isCreatingOnDevice || !hasPaintedParagraph);
+    const isOpenProgressVisible = isProgressShown && !isOpenFailing && previewFile === null && (isCreatingOnDevice || !hasPaintedParagraph);
     const openProgress = isOpenProgressVisible
       ? (elapsedSeconds: number) =>
           isCreatingOnDevice
-            ? preparingHereView({ elapsedSeconds })
+            ? preparingHereView({ estimatedMs: opened.bootstrap.estimatedMs, elapsedSeconds })
             : editorOpenView({ loadProgress, stateBytes: opened.bootstrap.stateBytes, elapsedSeconds })
       : null;
 
@@ -295,6 +298,7 @@ export function DocumentPage() {
   }
 
   const isPreviewReplacingPage = previewFile !== null && readiness === DocumentReadiness.Waiting;
+  const isPreviewFrozen = !isPreviewReplacingPage && !isDeviceJobCreatedHere;
   const previewLayer =
     previewFile === null ? null : (
       <LocalPreview
@@ -305,6 +309,12 @@ export function DocumentPage() {
         startedAt={startedAt}
         isProgressShown={isProgressShown}
         isSwapping={!isPreviewReplacingPage}
+        isFrozen={isPreviewFrozen}
+        swappingViewAt={(elapsedSeconds) => {
+          if (isCreatingOnDevice)
+            return preparingHereView({ estimatedMs: bootstrap === null ? null : bootstrap.estimatedMs, elapsedSeconds });
+          return editorOpenView({ loadProgress, stateBytes: bootstrap === null ? null : bootstrap.stateBytes, elapsedSeconds });
+        }}
         onScrollFraction={(fraction) => {
           previewScrollFraction.current = fraction;
         }}

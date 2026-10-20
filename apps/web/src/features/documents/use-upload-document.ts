@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentPagePath, PreparationSource } from '@superdoc-collab/types';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useDeviceRefusal, type DeviceRefusal } from '@/features/local-preview/device-guard';
+import { useDeviceRefusal, useIsDeviceFirst, type DeviceRefusal } from '@/features/local-preview/device-guard';
 import { keepLocalFile } from '@/features/local-preview/local-file-store';
 import type { UploadProgress } from '@/lib/api';
 import { DOCUMENTS_QUERY_KEY, UploadRefusedError, uploadDocument, validateUpload } from './documents-api';
@@ -31,6 +31,7 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const deviceRefusal = useDeviceRefusal();
+  const isDeviceFirst = useIsDeviceFirst();
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const { mutate, error, variables, reset, isPending } = useMutation({
@@ -53,7 +54,7 @@ export function useUploadDocument({ onUploaded }: UseUploadDocumentOptions = {})
     const nextRejectionMessage = files.length > 1 ? ONE_FILE_AT_A_TIME_MESSAGE : validateUpload(file);
     setRejectionMessage(nextRejectionMessage);
     if (nextRejectionMessage !== null) return;
-    mutate({ file, preparation: PreparationSource.Server });
+    mutate({ file, preparation: isDeviceFirst ? PreparationSource.Device : PreparationSource.Server });
   }
 
   function clear(): void {

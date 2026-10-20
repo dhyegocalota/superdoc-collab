@@ -12,6 +12,8 @@ export const OPEN_STAGE_LABELS: Record<OpenStage, string> = {
 };
 
 export const OPEN_PROGRESS_LABEL = 'Opening the document';
+export const MINIMIZE_PROGRESS_LABEL = 'Minimize the progress';
+export const MAXIMIZE_PROGRESS_LABEL = 'Show the progress';
 
 export function stageAnnouncement({ stages, stage }: { stages: OpenStage[]; stage: OpenStage }): string {
   return `Step ${stages.indexOf(stage) + 1} of ${stages.length}: ${OPEN_STAGE_LABELS[stage]}`;

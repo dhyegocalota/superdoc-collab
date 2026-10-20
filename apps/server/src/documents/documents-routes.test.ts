@@ -53,6 +53,8 @@ import { ROOM_MODE_SCAN_BATCH_SIZE } from '../collaboration/collaboration-runtim
 const IMPORT_TIMEOUT_MS = 30_000;
 const TWELVE_MEGABYTES = 12 * BYTES_PER_MEGABYTE;
 const FOUR_GIGABYTES = 4096;
+const EIGHT_GIGABYTES = 8192;
+const EIGHT_GIGABYTE_ROOM_HEAP_MEGABYTES = 2276;
 const HEAVY_XML_BYTES = 9.5 * BYTES_PER_MEGABYTE;
 const LIGHT_XML_BYTES = 2 * BYTES_PER_MEGABYTE;
 const STREAMED_CHUNK_COUNT = 12;
@@ -293,6 +295,55 @@ test('a document the server can hold is prepared by the server even when the dev
   const opened = await openedBy({ server, user: owner, documentId: created.id });
   expect([opened.roomMode, opened.preparedOnDeviceOf]).toEqual([RoomMode.Join, null]);
   await vi.waitFor(() => expect(bootstrapRun).toHaveBeenCalledTimes(1));
+  await server.stop();
+});
+
+test('a heavy document the server can hold is prepared on the device when the device is asked for', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: EIGHT_GIGABYTES,
+    roomHeapBudgetMegabytes: EIGHT_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const created: DocumentSummary = await (
+    await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device })
+  ).json();
+  const editor = await memberWithRole({ server, documentId: created.id, role: DocumentRole.Editor });
+  const ownerAnswer = await openedBy({ server, user: owner, documentId: created.id });
+  const editorAnswer = await openedBy({ server, user: editor, documentId: created.id });
+  expect([ownerAnswer.roomMode, ownerAnswer.bootstrap.stage, editorAnswer.roomMode, editorAnswer.preparedOnDeviceOf]).toEqual([
+    RoomMode.Create,
+    BootstrapStage.Preparing,
+    RoomMode.Join,
+    created.owner.name,
+  ]);
+  expect(bootstrapRun).not.toHaveBeenCalled();
+  await server.stop();
+});
+
+test('a heavy document sent without the device flag is still prepared by the server', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: EIGHT_GIGABYTES,
+    roomHeapBudgetMegabytes: EIGHT_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bootstrapRun = vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const created: DocumentSummary = await (await upload({ server, cookie: owner.cookie, bytes })).json();
+  const opened = await openedBy({ server, user: owner, documentId: created.id });
+  expect([opened.roomMode, opened.preparedOnDeviceOf]).toEqual([RoomMode.Join, null]);
+  await vi.waitFor(() => expect(bootstrapRun).toHaveBeenCalledTimes(1));
+  await server.stop();
+});
+
+test('a heavy document the heap cannot hold is refused even when the device is asked for and the server could prepare it', async () => {
+  const { server, owner } = await signedInOwner({
+    memoryLimitMegabytes: EIGHT_GIGABYTES,
+    roomHeapBudgetMegabytes: FOUR_GIGABYTE_ROOM_HEAP_MEGABYTES,
+  });
+  const bytes = await docxWithXmlBytes(HEAVY_XML_BYTES);
+  const forced = await upload({ server, cookie: owner.cookie, bytes, preparation: PreparationSource.Device });
+  expect([forced.status, (await forced.json()).canPrepareOnDevice]).toEqual([HttpStatus.PayloadTooLarge, false]);
+  expect(readdirSync(join(server.databaseDirectory, DOCUMENT_FILES_DIRECTORY)).length).toBe(0);
   await server.stop();
 });
 

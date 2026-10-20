@@ -18,11 +18,11 @@ SuperDoc v2 runs its document runtime in a worker of its own: `Config.workerUrls
 
 | Goal | Rule |
 |------|------|
-| Local preview | After a successful upload the home keeps the `File` in memory, keyed by the new document id, and navigates. While the open answer is Queued or Preparing and a kept file exists, the editor page mounts a read-only SuperDoc built from it and a badge "Preview · the shared copy is being prepared". |
-| Swap | When the open answer turns Ready the page mounts the live editor beneath the preview and keeps the preview on screen as an overlay (its status line reads that the shared copy is opening) until the live editor has painted its first paragraph; then the preview is destroyed and the file is dropped, so there is no moment with no text on screen. No reload, no unsaved edits (the preview is read-only). The preview's scroll position is carried over as a fraction of the document height and applied when the live editor paints; while the live editor is still laying out the rest, the position is approximate. A failed preparation drops the file and shows the existing failure card. |
-| Progress | The panel's Preparing stage also reports the preview: `Opening a preview on this device · N pages so far · <server detail>`. The elapsed counter keeps ticking while the preview converts. The panel hides when the preview paints its first paragraph; the badge stays until the swap. |
+| Local preview | After a successful upload the home keeps the `File` in memory, keyed by the new document id, and navigates. While the open answer is Queued or Preparing and a kept file exists, the editor page mounts a read-only SuperDoc built from it with the open-progress panel, a translucent card, over its pages. From [device-first](../device-first/spec.md) the same preview is mounted on the device path while the Create editor converts. |
+| Swap | When the open answer turns Ready the page mounts the live editor beneath the preview and keeps the preview on screen as an overlay (the panel keeps reading the live editor's progress) until the live editor has painted its first paragraph; then the preview is destroyed and the file is dropped, so there is no moment with no text on screen. No reload, no unsaved edits (the preview is read-only). The preview's scroll position is carried over as a fraction of the document height and applied when the live editor paints; while the live editor is still laying out the rest, the position is approximate. A failed preparation drops the file and shows the existing failure card. |
+| Progress | The panel's Preparing stage also reports the preview: `Opening a preview on this device · N pages so far · <server detail>`. The elapsed counter keeps ticking while the preview converts. The panel stays over the preview's pages through the swap until the live editor has painted; once the preview shows pages the panel can be minimized to a thin top bar and maximized back, as [device-first](../device-first/spec.md) specifies. |
 | Only the uploader | The kept file lives in the uploading tab's memory. A reload, another tab or another person sees the waiting page of [open-progress](../open-progress/spec.md). |
-| Device source | When `POST /api/documents` answers 413 for the memory guard, the body carries `canPrepareOnDevice: true`. The upload surfaces (dialog, drop zone, home) show the server's message and a button "Prepare on this device". |
+| Device source | From [device-first](../device-first/spec.md) every upload from a device that passes the guard is sent for the device and the server honours it for a heavy file; the button below remains for a device that was not asked first. When `POST /api/documents` answers 413 for the memory guard, the body carries `canPrepareOnDevice: true`. The upload surfaces (dialog, drop zone, home) show the server's message and a button "Prepare on this device". |
 | Device guard | The button is replaced by an explanation when the viewport is narrow (below the large breakpoint) or `navigator.deviceMemory`, when the browser exposes it, is below 4 GB. An absent `deviceMemory` does not block. |
 | Device upload | The button sends the same file with the form field `preparation=device`. The route then skips its 413 and stores the file; the registry registers a device job only when the guard would refuse the file, so a small file sent with the flag is prepared by the server. A value outside the enum is 400. |
 | Device room | A device job is Preparing with `startedAt` set. The owner's open answer is `RoomMode.Create`; everyone else's is `Join` with `preparedOnDeviceOf` set to the owner's name. The owner's member socket claims the job's attempt, writes under the bootstrap fence and commits as a bootstrap socket does. After the commit the same socket is an ordinary member socket. |
@@ -66,7 +66,7 @@ editor page, device job, owner
 
 | Failure | Behaviour |
 |---------|-----------|
-| The preview cannot be converted | The badge becomes the editor failure message; the panel is replaced by the waiting page's Preparing card; the server's preparation continues |
+| The preview cannot be converted | One failure line replaces the panel; the server's preparation continues |
 | The server fails the preparation | Existing failure card; kept file dropped |
 | The tab reloads mid-wait | The file is gone; the waiting page shows. The server preparation is unaffected |
 | The device guard refuses | The upload message stays, the button is replaced by the reason |
@@ -118,7 +118,7 @@ Evidence that SuperDoc converts in a worker: the E2E asserts that Playwright's `
 | Question | Options | Owner's answer | Date |
 |----------|---------|----------------|------|
 | The uploader waits longer than before PR #81 | revert / preview from the bytes / bigger server | "quer dizer que fomos fazer ficar mais performático e acabamos deixando mais lento??"; decision: preview in a worker, swap without reload, hybrid source for refused files, guarded by device | 2026-10-20 |
-| Does the guard-refused file need the server at all? | device source / reject | Device source, `RoomMode.Create` for this case only | 2026-10-20 |
+| Does the guard-refused file need the server at all? | device source / reject | Device source, `RoomMode.Create` for this case only (since widened to every heavy upload from a capable device, see [device-first](../device-first/spec.md)) | 2026-10-20 |
 
 ## Test strategy summary
 

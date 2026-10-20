@@ -1,3 +1,4 @@
+import { PreparationSource } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { DocumentsRepository } from './documents-repository';
@@ -14,12 +15,14 @@ export async function storeDocument({
   bytes,
   importRevisions,
   isBlank,
+  preparation = PreparationSource.Server,
 }: DocumentStorage & {
   ownerUserId: string;
   title: string;
   bytes: Uint8Array;
   importRevisions: boolean;
   isBlank: boolean;
+  preparation?: PreparationSource;
 }): Promise<string> {
   const documentId = randomUUID();
   documents.create({ id: documentId, title, ownerUserId });
@@ -28,7 +31,9 @@ export async function storeDocument({
     throw error;
   });
   if (isBlank) runtime.bootstrapBlankRoom(documentId);
-  if (!isBlank) runtime.bootstrapRoom(documentId);
+  const isPreparedOnDevice = !isBlank && preparation === PreparationSource.Device;
+  if (!isBlank && !isPreparedOnDevice) runtime.bootstrapRoom(documentId);
+  if (isPreparedOnDevice) runtime.bootstrapRoomOnDevice(documentId);
   if (importRevisions) runtime.importRevisions(documentId);
   return documentId;
 }

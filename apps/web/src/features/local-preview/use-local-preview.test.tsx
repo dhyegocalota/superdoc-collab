@@ -7,9 +7,10 @@ import { useLocalPreview } from './use-local-preview';
 const DOCUMENT_ID = 'doc-1';
 const FILE = new File([new Uint8Array(1)], 'plan.docx');
 
-function previewAt(readiness: DocumentReadiness) {
+function previewAt(readiness: DocumentReadiness, isPreparingHere = false) {
   return renderHook(
-    ({ current, isPainted }) => useLocalPreview({ documentId: DOCUMENT_ID, readiness: current, isLiveEditorPainted: isPainted }),
+    ({ current, isPainted }) =>
+      useLocalPreview({ documentId: DOCUMENT_ID, readiness: current, isLiveEditorPainted: isPainted, isPreparingHere }),
     { initialProps: { current: readiness, isPainted: false } },
   );
 }
@@ -49,5 +50,25 @@ test('swapping to Ready after waiting keeps the file until the live editor has p
   expect(localFileOf(DOCUMENT_ID)).toBe(FILE);
   rerender({ current: DocumentReadiness.Ready, isPainted: true });
   expect(result.current).toBeNull();
+  expect(localFileOf(DOCUMENT_ID)).toBeNull();
+});
+
+test('a device job shows the kept file from the first Ready answer until the editor is usable, then drops it for good', () => {
+  keepLocalFile({ documentId: DOCUMENT_ID, file: FILE });
+  const { result, rerender } = previewAt(DocumentReadiness.Ready, true);
+  expect(result.current).toBe(FILE);
+  expect(localFileOf(DOCUMENT_ID)).toBe(FILE);
+  rerender({ current: DocumentReadiness.Ready, isPainted: true });
+  expect(result.current).toBeNull();
+  expect(localFileOf(DOCUMENT_ID)).toBeNull();
+});
+
+test('a device job with no kept file shows nothing', () => {
+  expect(previewAt(DocumentReadiness.Ready, true).result.current).toBeNull();
+});
+
+test('a device job that fails drops the kept file', () => {
+  keepLocalFile({ documentId: DOCUMENT_ID, file: FILE });
+  expect(previewAt(DocumentReadiness.Failed, true).result.current).toBeNull();
   expect(localFileOf(DOCUMENT_ID)).toBeNull();
 });

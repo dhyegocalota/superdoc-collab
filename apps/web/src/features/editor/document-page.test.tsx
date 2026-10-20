@@ -1,5 +1,6 @@
 import {
   BootstrapStage,
+  DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES,
   OPEN_PROGRESS_DELAY_MS,
   ApiPath,
   AppRoute,
@@ -65,7 +66,7 @@ import {
   TIMELINE_TOGGLE_LABEL,
 } from './editor-copy';
 import { discardLocalFile, keepLocalFile, localFileOf } from '@/features/local-preview/local-file-store';
-import { DEVICE_REFUSAL_COPY, PREVIEW_BADGE_MESSAGE, PREVIEW_OPENING_SHARED_MESSAGE } from '@/features/local-preview/local-preview-copy';
+import { DEVICE_REFUSAL_COPY } from '@/features/local-preview/local-preview-copy';
 import { DeviceRefusal } from '@/features/local-preview/device-guard';
 import { superdocStub } from '@/testing/superdoc-stub';
 import { PREPARING_HERE_DETAIL } from '@/features/open-progress/open-progress-copy';
@@ -155,6 +156,7 @@ function mockDocumentApi({
   currentMembersStatus = () => HttpStatus.Ok,
   isCurrentUserOnline = () => true,
   bootstrapStage = () => BootstrapStage.Ready,
+  estimatedMs = null,
   timeline = EMPTY_TIMELINE,
   openedAfterReload,
   reloadGate = Promise.resolve(),
@@ -170,6 +172,7 @@ function mockDocumentApi({
   currentMembersStatus?: () => HttpStatus;
   isCurrentUserOnline?: () => boolean;
   bootstrapStage?: () => BootstrapStage;
+  estimatedMs?: number | null;
   timeline?: typeof EMPTY_TIMELINE;
   openedAfterReload?: OpenedDocument;
   reloadGate?: Promise<void>;
@@ -219,7 +222,9 @@ function mockDocumentApi({
       const answeredStage = bootstrapStage();
       const answeredRoomMode = answeredStage === BootstrapStage.Ready ? reloadedBody.roomMode : RoomMode.Join;
       const answered =
-        status === HttpStatus.Ok ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: bootstrapAt(answeredStage) } : openBody;
+        status === HttpStatus.Ok
+          ? { ...reloadedBody, roomMode: answeredRoomMode, bootstrap: { ...bootstrapAt(answeredStage), estimatedMs } }
+          : openBody;
       return jsonResponse({ body: answered, status });
     }
     throw new Error(`unexpected request ${String(input)}`);
@@ -263,7 +268,12 @@ beforeEach(() => {
   SuperDoc.mockClear();
   installAuthorPalette();
 });
+function stubDeviceMemory(gigabytes: number): void {
+  Object.defineProperty(navigator, 'deviceMemory', { value: gigabytes, configurable: true });
+}
+
 afterEach(() => {
+  Reflect.deleteProperty(navigator, 'deviceMemory');
   removeAuthorPalette();
   vi.restoreAllMocks();
   superDocDestroy.mockClear();
@@ -1095,7 +1105,7 @@ test('while the shared copy is being prepared the uploader reads the kept file a
   keepLocalFile({ documentId: DOCUMENT_ID, file });
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-  expect(await screen.findByText(PREVIEW_BADGE_MESSAGE)).toBeInTheDocument();
+  expect(await screen.findByTestId('local-preview')).toBeInTheDocument();
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   const preview = configOfCall(0);
   expect([preview.documentMode, preview.documents[0]!.data, preview.documents[0]!.v2Collaboration]).toEqual([
@@ -1115,17 +1125,19 @@ test(
       bootstrapStage: () => (isBootstrapped ? BootstrapStage.Ready : BootstrapStage.Preparing),
     });
     renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
-    await screen.findByText(PREVIEW_BADGE_MESSAGE);
+    await screen.findByTestId('local-preview');
     isBootstrapped = true;
     await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2), { timeout: READY_WAIT_MS });
     expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
     expect(superDocDestroy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('local-preview')).toBeInTheDocument();
-    expect(screen.getByText(PREVIEW_OPENING_SHARED_MESSAGE)).toBeInTheDocument();
+    const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+    expect(screen.getAllByTestId(PROGRESS_TEST_ID)).toHaveLength(1);
+    expect(panel).toHaveAttribute('data-stage', OpenStage.Downloading);
     paintFirstParagraph();
     await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
     expect(superDocDestroy).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(PREVIEW_OPENING_SHARED_MESSAGE)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument();
     expect(localFileOf(DOCUMENT_ID)).toBeNull();
   },
   TEST_TIMEOUT_MS,
@@ -1135,11 +1147,12 @@ test('a document with no kept file waits without a preview', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner, RoomMode.Join), bootstrapStage: () => BootstrapStage.Preparing });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await screen.findByTestId('waiting-title-skeleton');
-  expect(screen.queryByText(PREVIEW_BADGE_MESSAGE)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument();
   expect(SuperDoc).not.toHaveBeenCalled();
 });
 
 const DEVICE_OWNER_NAME = 'Ada';
+const DEVICE_ESTIMATE_MS = 50_000;
 
 function openedOnDevice(): OpenedDocument {
   return { ...openedAs(DocumentRole.Owner, RoomMode.Create), preparedOnDeviceOf: DEVICE_OWNER_NAME };
@@ -1194,18 +1207,95 @@ test(
   TEST_TIMEOUT_MS,
 );
 
-test('the creator of a device job reads Preparing on this device with the counter until the editor is ready, painted or not', async () => {
+test('the creator of a device job reads Preparing on this device with the estimate and the counter', async () => {
   stubViewportWidth(WIDE_VIEWPORT_WIDTH);
-  SuperDoc.mockImplementationOnce(function UnreadySuperDoc() {
-    return { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
-  } as unknown as typeof SuperDoc);
-  mockDocumentApi({ opened: openedOnDevice() });
+  mockDocumentApi({ opened: openedOnDevice(), estimatedMs: DEVICE_ESTIMATE_MS });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
-  expect(panel).toHaveTextContent(PREPARING_HERE_DETAIL);
+  expect(panel).toHaveTextContent(`${PREPARING_HERE_DETAIL} · about 50 s`);
+});
+
+test('the panel of the creator of a device job stays until the collaborative editor is ready and the first paragraph is painted', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
   paintFirstParagraph();
   await new Promise((resolve) => setTimeout(resolve, PAINT_MARGIN_MS));
   expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
-  act(() => constructedConfig().onReady?.({ superdoc: superdocStub() }));
+  act(() => constructedConfig().onCollaborationReady());
   await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+test('the panel of the creator of a device job stays while the editor is synced but has painted nothing', async () => {
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  mockDocumentApi({ opened: openedOnDevice() });
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onCollaborationReady());
+  await new Promise((resolve) => setTimeout(resolve, PAINT_MARGIN_MS));
+  expect(screen.getByTestId(PROGRESS_TEST_ID)).toBeInTheDocument();
+  paintFirstParagraph();
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+});
+
+function collaborativeEditorConfig(): SuperDocConfig {
+  const secondCall = SuperDoc.mock.calls.at(1);
+  if (!secondCall) throw new Error('The collaborative editor was not constructed');
+  return secondCall[0];
+}
+
+function deviceCreatorWithKeptFile(): File {
+  const file = new File([new Uint8Array([1, 2, 3])], 'plan.docx');
+  keepLocalFile({ documentId: DOCUMENT_ID, file });
+  stubViewportWidth(WIDE_VIEWPORT_WIDTH);
+  stubDeviceMemory(DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES);
+  mockDocumentApi({ opened: openedOnDevice(), estimatedMs: DEVICE_ESTIMATE_MS });
+  return file;
+}
+
+test('the creator of a device job reads the kept file as a read-only preview while the editor converts', async () => {
+  const file = deviceCreatorWithKeptFile();
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  expect(await screen.findByTestId('local-preview')).toBeInTheDocument();
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  const preview = configOfCall(0);
+  expect([preview.documentMode, preview.documents[0]!.data, preview.documents[0]!.v2Collaboration]).toEqual([
+    DocumentMode.Viewing,
+    file,
+    undefined,
+  ]);
+  expect(configOfCall(1).documents[0]!.v2Collaboration).toBeDefined();
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(screen.getAllByTestId(PROGRESS_TEST_ID)).toHaveLength(1);
+  expect(panel).toHaveTextContent(`${PREPARING_HERE_DETAIL} · about 50 s`);
+  expect(superDocDestroy).not.toHaveBeenCalled();
+});
+
+test('on the device path the preview engine and its frozen pages are dropped at the first painted paragraph, and the panel stays until the editor is ready', async () => {
+  deviceCreatorWithKeptFile();
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  paintFirstParagraph();
+  await waitFor(() => expect(superDocDestroy).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument());
+  expect(localFileOf(DOCUMENT_ID)).toBeNull();
+  expect(screen.getByTestId(PROGRESS_TEST_ID)).toHaveTextContent(PREPARING_HERE_DETAIL);
+  act(() => collaborativeEditorConfig().onCollaborationReady());
+  await waitFor(() => expect(screen.queryByTestId(PROGRESS_TEST_ID)).not.toBeInTheDocument());
+  expect(superDocDestroy).toHaveBeenCalledTimes(1);
+});
+
+test('a device that reports less memory than the preview needs converts with no preview and drops the kept file', async () => {
+  deviceCreatorWithKeptFile();
+  stubDeviceMemory(DEVICE_PREVIEW_MIN_MEMORY_GIGABYTES - 1);
+  renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const panel = await screen.findByTestId(PROGRESS_TEST_ID, {}, { timeout: PROGRESS_WAIT_MS });
+  expect(panel).toHaveTextContent(PREPARING_HERE_DETAIL);
+  expect(screen.queryByTestId('local-preview')).not.toBeInTheDocument();
+  expect(configOfCall(0).documents[0]!.v2Collaboration).toBeDefined();
 });

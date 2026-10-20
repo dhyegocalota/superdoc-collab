@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { OpenProgressPanel, type OpenProgressView } from './open-progress-panel';
+import { OpenProgressPanel, type OpenProgressView, type PanelMinimization } from './open-progress-panel';
 import type { OpenStage } from './open-stage';
 import { useElapsedSeconds } from './use-elapsed-seconds';
 
@@ -11,9 +11,28 @@ type TickingOpenProgressPanelProps = {
   startedAt: number;
   viewAt: OpenProgressViewAt;
   action: ReactNode;
+  isTranslucent?: boolean;
+  minimization?: PanelMinimization;
 };
 
-export function TickingOpenProgressPanel({ title, stages, startedAt, viewAt, action }: TickingOpenProgressPanelProps) {
+export function TickingOpenProgressPanel({
+  title,
+  stages,
+  startedAt,
+  viewAt,
+  action,
+  isTranslucent,
+  minimization,
+}: TickingOpenProgressPanelProps) {
   const elapsedSeconds = useElapsedSeconds(startedAt);
-  return <OpenProgressPanel title={title} stages={stages} view={viewAt(elapsedSeconds)} action={action} />;
+  return (
+    <OpenProgressPanel
+      title={title}
+      stages={stages}
+      view={viewAt(elapsedSeconds)}
+      action={action}
+      isTranslucent={isTranslucent}
+      minimization={minimization}
+    />
+  );
 }

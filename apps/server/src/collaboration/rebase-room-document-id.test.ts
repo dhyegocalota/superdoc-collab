@@ -16,6 +16,24 @@ function blankStateOf(documentId: string): Uint8Array {
   return Y.encodeStateAsUpdate(document);
 }
 
+const META_KEYS = ['bootstrap', 'product', 'roomDocumentId', 'createdAt', 'createdBy', 'createdFrom', 'bootstrapState', 'storyIds'];
+
+function realisticBlankStateOf(documentId: string): Uint8Array {
+  const document = new Y.Doc();
+  const meta = document.getMap('meta');
+  meta.set('bootstrap', { claims: { 'headless-open-1': { status: 'committed' } } });
+  meta.set('product', 'superdoc-v2');
+  meta.set('roomDocumentId', documentId);
+  meta.set('createdAt', '2026-10-20T03:53:27.467Z');
+  meta.set('createdBy', { hint: 'bootstrap@superdoc-history.local', clientId: null });
+  meta.set('createdFrom', { kind: 'docx', fileName: `${documentId}.docx` });
+  meta.set('bootstrapState', 'committed');
+  meta.set('storyIds', [`${documentId}${SHARD_SUFFIX}`]);
+  document.getMap('shards').set(`${documentId}${SHARD_SUFFIX}`, { shardKind: 'story' });
+  document.getMap('content').set(`${documentId}${SHARD_SUFFIX}`, new Y.Text(PARAGRAPH));
+  return Y.encodeStateAsUpdate(document);
+}
+
 function jsonOf(state: Uint8Array): string {
   const document = new Y.Doc();
   Y.applyUpdate(document, state);
@@ -41,4 +59,14 @@ test('a state without a room document id is refused', () => {
 
 test('an id of another length is refused because the encoded lengths would break', () => {
   expect(() => rebaseRoomDocumentId({ state: blankStateOf(SOURCE_ID), documentId: 'document-plan' })).toThrow(/length/);
+});
+
+test('a rebased blank lists the same meta keys and no byte or key of the first document rides along', () => {
+  const rebased = rebaseRoomDocumentId({ state: realisticBlankStateOf(SOURCE_ID), documentId: TARGET_ID });
+  const document = new Y.Doc();
+  Y.applyUpdate(document, rebased);
+  expect([...document.getMap('meta').keys()].sort()).toEqual([...META_KEYS].sort());
+  expect(Buffer.from(rebased).includes(SOURCE_ID)).toBe(false);
+  expect(jsonOf(rebased)).toBe(jsonOf(realisticBlankStateOf(TARGET_ID)));
+  expect([...document.getMap('shards').keys(), ...document.getMap('content').keys()].every((key) => key.startsWith(TARGET_ID))).toBe(true);
 });

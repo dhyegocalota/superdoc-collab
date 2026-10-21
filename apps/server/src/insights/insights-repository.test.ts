@@ -1,10 +1,18 @@
 import { ClientActor, SELECTION_SUMMARY_FAILED_MESSAGE, TOPICS_INTERRUPTED_MESSAGE, TopicState } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { documentWithOwner } from '../testing/collaboration-client';
 
 const SELECTION_KEY = 'a'.repeat(64);
 const SENTENCE = 'Ana raised the budget.';
+const OTHER_SELECTION_KEY = 'b'.repeat(64);
+const THIRD_SELECTION_KEY = 'c'.repeat(64);
+const FIRST_SAVED_AT = 1_800_000_000_000;
+const SECOND_SAVED_AT = FIRST_SAVED_AT + 1000;
+const THIRD_SAVED_AT = SECOND_SAVED_AT + 1000;
+const FOURTH_SAVED_AT = THIRD_SAVED_AT + 1000;
+
+afterEach(() => vi.useRealTimers());
 
 test('a recompute keeps reused topic ids with their summaries and drops the rest', async () => {
   const { server, documentId } = await documentWithOwner();
@@ -197,5 +205,44 @@ test('selection summaries are deleted with their document', async () => {
   });
   server.services.documents.remove(documentId);
   expect(server.services.insightsRepository.selectionSummary({ documentId, key: SELECTION_KEY })).toBeNull();
+  await server.stop();
+});
+
+test('the latest selection summary is the newest stored sentence of any filter and skips a failure with no sentence', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const { server, documentId } = await documentWithOwner();
+  const insights = server.services.insightsRepository;
+  const stamp = { documentId, computedAtSequence: 7, topicsUpdatedAt: null };
+  const authors = [{ name: 'Ana', actor: ClientActor.Human }];
+  expect(insights.latestSelectionSummary(documentId)).toBeNull();
+  vi.setSystemTime(FIRST_SAVED_AT);
+  insights.saveSelectionSummary({ ...stamp, key: SELECTION_KEY, sentence: 'First.', authors });
+  vi.setSystemTime(SECOND_SAVED_AT);
+  insights.saveSelectionSummary({ ...stamp, key: OTHER_SELECTION_KEY, sentence: 'Second.', authors, computedAtSequence: 9 });
+  vi.setSystemTime(THIRD_SAVED_AT);
+  insights.saveSelectionFailure({ ...stamp, key: THIRD_SELECTION_KEY, failure: SELECTION_SUMMARY_FAILED_MESSAGE });
+  expect(insights.latestSelectionSummary(documentId)).toEqual({
+    sentence: 'Second.',
+    authors,
+    computedAtSequence: 9,
+    updatedAt: SECOND_SAVED_AT,
+  });
+  vi.setSystemTime(FOURTH_SAVED_AT);
+  insights.saveSelectionSummary({ ...stamp, key: SELECTION_KEY, sentence: 'First again.', authors });
+  expect(insights.latestSelectionSummary(documentId)).toMatchObject({ sentence: 'First again.', updatedAt: FOURTH_SAVED_AT });
+  await server.stop();
+});
+
+test('a document with only a failed selection has no latest summary', async () => {
+  const { server, documentId } = await documentWithOwner();
+  const insights = server.services.insightsRepository;
+  insights.saveSelectionFailure({
+    documentId,
+    key: SELECTION_KEY,
+    failure: SELECTION_SUMMARY_FAILED_MESSAGE,
+    computedAtSequence: 1,
+    topicsUpdatedAt: null,
+  });
+  expect(insights.latestSelectionSummary(documentId)).toBeNull();
   await server.stop();
 });

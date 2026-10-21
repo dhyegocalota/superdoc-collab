@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { SummaryAuthor } from './timeline';
 import { AUTHOR_COLOR_SLOT_COUNT, authorColorHash, authorColorSlot, type AuthorColorSlot } from './author-colors';
 
 export const publicFlagSchema = z.object({ isPublic: z.boolean() });
@@ -52,3 +53,5 @@ export function anonymousViewerOf(visitorId: string): PublicViewer {
 export function signedInViewerOf({ visitorId, name }: { visitorId: string; name: string }): PublicViewer {
   return { id: visitorId, name, animal: null, colorSlot: authorColorSlot(visitorId) };
 }
+
+export type LatestSummary = { sentence: string; authors: SummaryAuthor[]; computedAtSequence: number; updatedAt: number };

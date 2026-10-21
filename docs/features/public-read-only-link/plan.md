@@ -36,7 +36,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 ### G2: identity and token
 
 - [x] **Step 2:** red test for `PublicAnimal`, `anonymousVisitorName`, `publicVisitorOf` (name `Anonymous <Animal>`, animal and colour slot derived from the visitor id, stable per id); `libs/types/src/public-link.ts`. — evidence: red 32c99a86, green 2139a928
-- [ ] **Step 3:** red test for the public room token (verifies for its document and visitor, expires, refuses another document, refuses an agent or bootstrap token and is refused as one); sign and verify with their own key label.
+- [x] **Step 3:** red test for the public room token (verifies for its document and visitor, expires, refuses another document, refuses an agent or bootstrap token and is refused as one); sign and verify with their own key label. — evidence: red bcc7504d, green f376daf2
 
 ### G3: the public HTTP surface
 

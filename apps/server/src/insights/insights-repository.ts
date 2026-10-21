@@ -1,5 +1,5 @@
 import type { IdentifiedTopic } from '@superdoc-collab/history';
-import { TopicState, type SummaryAuthor, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
+import { TopicState, type LatestSummary, type SummaryAuthor, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
 import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
@@ -181,6 +181,10 @@ export class InsightsRepository {
       computedAtSequence: row.computedAtSequence,
       topicsUpdatedAt: row.topicsUpdatedAt,
     };
+  }
+
+  latestSelectionSummary(documentId: string): LatestSummary | null {
+    throw new Error(`latestSelectionSummary is not implemented for ${documentId}`);
   }
 
   saveSelectionSummary({

@@ -34,7 +34,9 @@ test.afterAll(async () => {
   await stopRestartableStack();
 });
 
-test('a keystroke in a 2,000-page document reaches the page in under 1.5 s at the start and in the middle, with no task over 1 s', async ({ browser }) => {
+test('a keystroke in a 2,000-page document reaches the page in under 1.5 s at the start and in the middle, with no task over 1 s', async ({
+  browser,
+}) => {
   test.setTimeout(TEST_TIMEOUT_MS);
   const origin = `http://127.0.0.1:${RestartablePort.TypingLatency}`;
   const uploader = await signedInContext({ browser, user: DEMO_USERS[0]!, origin });

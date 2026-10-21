@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 
 const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const WORD_DATE_UTC_NAMESPACE = 'http://schemas.microsoft.com/office/word/2023/wordml/word16du';
 const COMMENTS_CONTENT_TYPE =
   '<Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>';
 const COMMENTS_RELATIONSHIP =
@@ -35,7 +36,7 @@ function escapeXml(text: string): string {
 }
 
 function renderTrackedChange({ change, revisionId }: { change: SeedTrackedChange; revisionId: number }): string {
-  const attributes = `w:id="${revisionId}" w:author="${escapeXml(change.author)}" w:date="${change.date}"`;
+  const attributes = `w:id="${revisionId}" w:author="${escapeXml(change.author)}" w:date="${change.date}" w16du:dateUtc="${change.date}"`;
   if (change.kind === TrackedChangeKind.Insert) {
     return `<w:ins ${attributes}><w:r><w:t xml:space="preserve">${escapeXml(change.text)}</w:t></w:r></w:ins>`;
   }
@@ -66,7 +67,7 @@ export async function buildSeedDocx(paragraphs: SeedParagraph[], comments: SeedC
   const hasComments = comments.length > 0;
   const documentXml =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    `<w:document xmlns:w="${WORD_NAMESPACE}"><w:body>${body}<w:sectPr/></w:body></w:document>`;
+    `<w:document xmlns:w="${WORD_NAMESPACE}" xmlns:w16du="${WORD_DATE_UTC_NAMESPACE}"><w:body>${body}<w:sectPr/></w:body></w:document>`;
 
   const zip = new JSZip();
   zip.file(
@@ -102,4 +103,9 @@ export async function buildSeedDocx(paragraphs: SeedParagraph[], comments: SeedC
     );
   }
   return zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
+}
+
+export async function readDocumentXml(bytes: Uint8Array): Promise<string> {
+  const zip = await JSZip.loadAsync(bytes);
+  return zip.file('word/document.xml')!.async('string');
 }

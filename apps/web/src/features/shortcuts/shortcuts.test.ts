@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test } from 'vitest';
-import { ShortcutActionKind, ShortcutGroup, ShortcutId, shortcutOf, SHORTCUTS, type KeyCombination } from './shortcuts';
+import { ShortcutActionKind, ShortcutGroup, ShortcutId, ShortcutModifier, shortcutOf, SHORTCUTS, type KeyCombination } from './shortcuts';
 
 const CATALOG_DECLARATION_PATH = resolve('node_modules/superdoc/dist/superdoc/src/public/ui/commands.d.ts');
 const CATALOG_ID_PATTERN = /readonly id: "([^"]+)"/g;
@@ -102,4 +102,16 @@ test('the clipboard keys are native and Insert footnote is an app entry', () => 
   });
   expect(shortcutOf(ShortcutId.InsertFootnote)).toMatchObject({ group: ShortcutGroup.Review, action: { kind: ShortcutActionKind.App } });
   expect(shortcutOf(ShortcutId.InsertFootnote).keys.other.code).toBe('KeyF');
+});
+
+test('align right is Mod+Alt+R and no key takes the browser reload', () => {
+  const { mac, other } = shortcutOf(ShortcutId.AlignRight).keys;
+  [mac, other].forEach((combination) => {
+    expect(combination.code).toBe('KeyR');
+    expect([...combination.modifiers].sort()).toEqual([ShortcutModifier.Alt, ShortcutModifier.Mod].sort());
+  });
+  const reloadKeys = SHORTCUTS.flatMap(({ keys }) => [keys.mac, keys.other]).filter(
+    ({ code, modifiers }) => code === 'KeyR' && modifiers.includes(ShortcutModifier.Mod) && !modifiers.includes(ShortcutModifier.Alt),
+  );
+  expect(reloadKeys).toEqual([]);
 });

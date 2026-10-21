@@ -109,12 +109,14 @@ type SuperDocConfig = {
   onPaginationUpdate: (payload: { totalPages: number }) => void;
 };
 
-const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
+const { SuperDoc, superDocDestroy, superDocExport, repairExportedDocx } = vi.hoisted(() => {
   const superDocDestroy = vi.fn();
   const superDocExport = vi.fn(() => Promise.resolve(new Blob()));
+  const repairExportedDocx = vi.fn((exported: Blob) => Promise.resolve(exported));
   return {
     superDocDestroy,
     superDocExport,
+    repairExportedDocx,
     SuperDoc: vi.fn(function SuperDocStub(config: SuperDocConfig) {
       const instance = { destroy: superDocDestroy, export: superDocExport, on: vi.fn(), off: vi.fn() };
       config.onReady?.({ superdoc: instance });
@@ -125,6 +127,7 @@ const { SuperDoc, superDocDestroy, superDocExport } = vi.hoisted(() => {
 
 vi.mock('superdoc', () => ({ SuperDoc }));
 vi.mock('superdoc/style.css', () => ({}));
+vi.mock('./repair-exported-docx', () => ({ repairExportedDocx }));
 
 const DOCUMENT_PATH = documentApiPath({ documentId: DOCUMENT_ID });
 const OPEN_PATH = `${DOCUMENT_PATH}?${TAB_QUERY_KEY}=${tabId()}`;
@@ -279,7 +282,21 @@ afterEach(() => {
   vi.restoreAllMocks();
   superDocDestroy.mockClear();
   superDocExport.mockClear();
+  repairExportedDocx.mockClear();
 });
+
+function captureDownloads(): { fileNames: string[]; blobs: Blob[] } {
+  const downloads = { fileNames: [] as string[], blobs: [] as Blob[] };
+  URL.createObjectURL = vi.fn((blob: Blob) => {
+    downloads.blobs.push(blob);
+    return 'blob:download';
+  });
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    downloads.fileNames.push(this.download);
+  });
+  return downloads;
+}
 
 test('the editor opens SuperDoc with its telemetry disabled', async () => {
   mockDocumentApi({ opened: openedAs(DocumentRole.Owner) });
@@ -440,9 +457,17 @@ test('the header download exports the live document and a reader can use it', as
   mockDocumentApi({ opened: openedAs(DocumentRole.Reader, RoomMode.Join) });
   renderWithProviders(<DocumentPage />, { route: documentPagePath(DOCUMENT_ID) });
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  const downloads = captureDownloads();
+  const exported = new Blob(['exported']);
+  const repaired = new Blob(['repaired']);
+  superDocExport.mockResolvedValueOnce(exported);
+  repairExportedDocx.mockResolvedValueOnce(repaired);
   await userEvent.click(await screen.findByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
+  await waitFor(() => expect(downloads.blobs).toEqual([repaired]));
   expect(superDocExport).toHaveBeenCalledTimes(1);
-  expect(superDocExport).toHaveBeenCalledWith(expect.objectContaining({ triggerDownload: true }));
+  expect(superDocExport).toHaveBeenCalledWith(expect.objectContaining({ triggerDownload: false }));
+  expect(repairExportedDocx).toHaveBeenCalledWith(exported);
+  expect(downloads.fileNames).toEqual([`${DOCUMENT_TITLE}.docx`]);
 });
 
 test('a failed export shows an alert instead of an unhandled rejection', async () => {
@@ -947,12 +972,14 @@ test('an edit made while the connection is lost blocks leaving and Stay keeps th
 });
 
 test('the dialog Download exports the document', async () => {
+  const downloads = captureDownloads();
   const config = await openAsWhileLost(DocumentRole.Owner);
   act(() => config.onEditorUpdate());
   await userEvent.click(await screen.findByRole('link', { name: HOME_LINK_LABEL }));
   const dialog = await screen.findByRole('alertdialog');
   await userEvent.click(within(dialog).getByRole('button', { name: DOWNLOAD_BUTTON_LABEL }));
-  expect(superDocExport).toHaveBeenCalledWith({ exportedName: DOCUMENT_TITLE, triggerDownload: true });
+  await waitFor(() => expect(downloads.fileNames).toEqual([`${DOCUMENT_TITLE}.docx`]));
+  expect(superDocExport).toHaveBeenCalledWith({ triggerDownload: false });
 });
 
 test('a synced report releases the exit prevention', async () => {

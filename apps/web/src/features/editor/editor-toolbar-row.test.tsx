@@ -1,11 +1,19 @@
 import { DocumentRole } from '@superdoc-collab/types';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { SUMMARIZE_EDITS_LABEL, SUMMARIZING_LABEL } from '@/features/timeline/timeline-copy';
+import { ACCENT_COLOR_LABEL, EDITOR_THEME_PRESET_LABELS, THEME_LABEL } from './editor-copy';
+import { EditorThemePreset, PRESET_ACCENTS } from './editor-theme';
 import { EditorToolbarRow } from './editor-toolbar-row';
 
 const TOOLBAR_CONTAINER_TEST_ID = 'toolbar-container';
+const CUSTOM_ACCENT = '#336699';
+
+afterEach(() => {
+  localStorage.clear();
+  document.documentElement.classList.remove('sd-theme-editor');
+});
 
 function renderRow({
   role = DocumentRole.Editor,
@@ -75,6 +83,7 @@ test('the row is absent for a reader', () => {
   );
   expect(screen.queryByTestId(TOOLBAR_CONTAINER_TEST_ID)).toBeNull();
   expect(screen.queryByRole('button', { name: SUMMARIZE_EDITS_LABEL })).toBeNull();
+  expect(screen.queryByRole('button', { name: THEME_LABEL })).toBeNull();
 });
 
 test('a failed connection makes the whole row inert, Summarize included', () => {
@@ -85,4 +94,26 @@ test('a failed connection makes the whole row inert, Summarize included', () => 
 test('a past version keeps the row itself live', () => {
   renderRow({ isToolbarInert: true });
   expect(screen.getByTestId('editor-toolbar-row')).not.toHaveAttribute('inert');
+});
+
+test('the Theme button opens the five presets and the accent picker, and a preset applies', async () => {
+  renderRow();
+  await userEvent.click(screen.getByRole('button', { name: THEME_LABEL }));
+  Object.values(EditorThemePreset).forEach((preset) => {
+    expect(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[preset] })).toBeInTheDocument();
+  });
+  expect(screen.getByLabelText(ACCENT_COLOR_LABEL)).toHaveAttribute('type', 'color');
+  expect(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Default] })).toBeChecked();
+  await userEvent.click(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Ocean] }));
+  expect(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Ocean] })).toBeChecked();
+  expect(screen.getByLabelText(ACCENT_COLOR_LABEL)).toHaveValue(PRESET_ACCENTS[EditorThemePreset.Ocean].light);
+});
+
+test('picking an accent colour unchecks every preset and applies the colour', () => {
+  renderRow();
+  fireEvent.click(screen.getByRole('button', { name: THEME_LABEL }));
+  fireEvent.input(screen.getByLabelText(ACCENT_COLOR_LABEL), { target: { value: CUSTOM_ACCENT } });
+  expect(screen.getByLabelText(ACCENT_COLOR_LABEL)).toHaveValue(CUSTOM_ACCENT);
+  expect(screen.queryAllByRole('radio', { checked: true })).toHaveLength(0);
+  expect(document.documentElement).toHaveClass('sd-theme-editor');
 });

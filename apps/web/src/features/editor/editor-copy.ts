@@ -1,6 +1,7 @@
 import { ShareLinkRole } from '@superdoc-collab/types';
 import { APP_NAME } from '../../lib/app-copy';
 import { DownloadFormat } from './download-format';
+import { EditorThemePreset } from './editor-theme';
 
 export const TITLE_LABEL = 'Title';
 export const SAVE_TITLE_LABEL = 'Save';
@@ -111,3 +112,13 @@ export const ADD_COMMENT_DESCRIPTION = 'The comment is attached to the selected 
 export const COMMENT_TEXT_LABEL = 'Comment';
 export const ADD_COMMENT_SUBMIT_LABEL = 'Comment';
 export const ADD_COMMENT_FAILED_MESSAGE = 'The comment could not be added.';
+
+export const THEME_LABEL = 'Theme';
+export const ACCENT_COLOR_LABEL = 'Accent color';
+export const EDITOR_THEME_PRESET_LABELS: Record<EditorThemePreset, string> = {
+  [EditorThemePreset.Default]: 'Default',
+  [EditorThemePreset.Ocean]: 'Ocean',
+  [EditorThemePreset.Forest]: 'Forest',
+  [EditorThemePreset.Sunset]: 'Sunset',
+  [EditorThemePreset.Mono]: 'Mono',
+};

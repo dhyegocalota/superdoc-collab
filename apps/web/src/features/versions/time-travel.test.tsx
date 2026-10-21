@@ -6,6 +6,7 @@ import {
   documentPagePath,
   DocumentResource,
   DocumentRole,
+  DAY_MS,
   HttpStatus,
   MEMBERS_REFRESH_MS,
   RoomMode,
@@ -210,6 +211,14 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
   superDocDestroy.mockClear();
+});
+
+test('a bin older than the version it opens says the document is shown as uploaded', async () => {
+  const uploadedLater = { ...versionOf(42), serverTime: BIN_STARTS[4]! + DAY_MS };
+  mockDocumentApi({ versions: { 42: [{ status: HttpStatus.Ok, body: uploadedLater }] } });
+  renderWithProviders(<DocumentPage />, { route: `${PAGE_ROUTE}?at=${BIN_STARTS[1]}` });
+  sendFromFrame({ frame: (await screen.findByTitle(VERSION_FRAME_TITLE, {}, SLOW_WAIT)) as HTMLIFrameElement });
+  expect(await screen.findByText(/^Document as uploaded,/)).toBeVisible();
 });
 
 test('an at link opens the version in a same-origin frame and Back to live removes it', async () => {

@@ -148,6 +148,10 @@ export class ProjectionScheduler {
     return this.forget(documentId).then(() => this.importRevisions({ documentId, filePath }));
   }
 
+  isImporting(documentId: string): boolean {
+    return this.pendingImports.has(documentId);
+  }
+
   isRebuilding(documentId: string): boolean {
     return this.rebuildingDocuments.has(documentId);
   }

@@ -176,3 +176,14 @@ test('a second document waiting while another owner is being prepared is 429 wit
   expect(await refused.json()).toEqual({ error: BOOTSTRAP_QUEUE_WAITING_MESSAGE });
   await server.stop();
 });
+
+test('a blank document is created while the owner already has one waiting to be prepared', async () => {
+  const server = await startTestServer();
+  const user = await signedInUser({ server, name: 'Ana' });
+  vi.spyOn(server.services.scheduler, 'bootstrap').mockReturnValue(new Promise(() => undefined));
+  const bytes = await docxWithXmlBytes(LIGHT_XML_BYTES);
+  const [running, waiting] = [await upload({ server, cookie: user.cookie, bytes }), await upload({ server, cookie: user.cookie, bytes })];
+  const blank = await createBlank({ server, cookie: user.cookie, title: 'Blank' });
+  expect([running.status, waiting.status, blank.status]).toEqual([HttpStatus.Created, HttpStatus.Created, HttpStatus.Created]);
+  await server.stop();
+});

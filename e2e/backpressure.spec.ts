@@ -3,6 +3,7 @@ import {
   AppRoute,
   BootstrapStage,
   DEMO_USERS,
+  DEVICE_FIRST_MIN_MEMORY_GIGABYTES,
   DOCX_MIME_TYPE,
   HEAVY_ROOMS_FULL_MESSAGE,
   HttpStatus,
@@ -32,8 +33,17 @@ const SENTENCE_TIMEOUT_MS = 5 * SECOND_MS;
 const CONNECTION_BANNER_TEST_ID = 'connection-banner';
 const JSON_CONTENT_TYPE = 'application/json';
 const BUSY_MESSAGE_PATTERN = /The server is busy preparing other documents; try again in about \d+ min/;
+const SERVER_PREPARED_DEVICE_MEMORY_GIGABYTES = DEVICE_FIRST_MIN_MEMORY_GIGABYTES / 2;
 
 let origin: string;
+
+async function useServerPreparedDevice(page: Page): Promise<void> {
+  await page.addInitScript(
+    (deviceMemory) => Object.defineProperty(navigator, 'deviceMemory', { get: () => deviceMemory }),
+    SERVER_PREPARED_DEVICE_MEMORY_GIGABYTES,
+  );
+}
+
 let firstId: string;
 let secondId: string;
 
@@ -74,6 +84,7 @@ test('a second heavy upload shows its place in the queue and a third past the wa
   const first = await signedInContext({ browser, user: ana!, origin });
   const second = await signedInContext({ browser, user: bruno!, origin });
   const third = await signedInContext({ browser, user: carla!, origin });
+  await useServerPreparedDevice(third.page);
   firstId = await uploadDocument({ page: first.page, buffer });
   secondId = await uploadDocument({ page: second.page, buffer });
   await third.page.goto(AppRoute.Documents);

@@ -1,5 +1,6 @@
 import {
   AgentActionKind,
+  BlockChangeKind,
   ClientActor,
   type BinEdits,
   DocumentResource,
@@ -22,7 +23,7 @@ import { expect, test } from 'vitest';
 import { connectToDocument, documentWithOwner } from '../testing/collaboration-client';
 import { TimelinePipelineCache } from './timeline-pipeline-cache';
 import { INVALID_TIMELINE_QUERY_MESSAGE } from './timeline-query';
-import { commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks, zonedQuery } from '../testing/timeline-client';
+import { bootstrappedDocument, commitBulkEvents, readTimeline, twoAuthorsInTwoBlocks, zonedQuery } from '../testing/timeline-client';
 import { signedInUser, type TestServer } from '../testing/test-server';
 
 const AFTER_LAST_BIN_COUNT = 5;
@@ -416,5 +417,30 @@ test('a bin opens the sequence of its own last event, not the mark of its minute
   });
   const filledBins = timeline.bins.filter((bin) => Object.keys(bin.byBand).length > 0);
   expect(filledBins.map((bin) => bin.versionSequence)).toEqual([1, 2, 3]);
+  await server.stop();
+});
+
+const IMPORTED_TIME = Date.UTC(2026, 1, 13, 10);
+
+test('a bin of only imported events opens the document as uploaded, the bootstrap mark', async () => {
+  const { server, owner } = await documentWithOwner();
+  const { documentId, sequence } = await bootstrappedDocument({ server, owner });
+  server.services.readModel.commitImported({
+    documentName: documentId,
+    revisions: [
+      {
+        revisionId: 'comment:0',
+        kind: BlockChangeKind.Commented,
+        authorName: 'Dana Reviewer',
+        serverTime: IMPORTED_TIME,
+        blockId: 'b0',
+        inserted: 'Please cite a source',
+        deleted: '',
+      },
+    ],
+  });
+  const timeline = await readTimeline({ server, documentId, cookie: owner.cookie });
+  const importedBin = timeline.bins.find((bin) => bin.start <= IMPORTED_TIME && IMPORTED_TIME < bin.end);
+  expect(importedBin!.versionSequence).toBe(sequence);
   await server.stop();
 });

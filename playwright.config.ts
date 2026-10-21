@@ -19,19 +19,38 @@ const SERVER_START_TIMEOUT_MS = 300_000;
 const TEST_TIMEOUT_MS = 120_000;
 const CONTINUOUS_INTEGRATION_WORKERS = 4;
 const LOCAL_WORKERS = CONTINUOUS_INTEGRATION_WORKERS;
+const HEAVY_PROJECT_WORKERS = 1;
+const IGNORED_SPECS = ['**/_*'];
+const HEAVY_SPECS = [
+  '**/backpressure.spec.ts',
+  '**/device-first.spec.ts',
+  '**/local-preview.spec.ts',
+  '**/open-progress.spec.ts',
+  '**/room-admission.spec.ts',
+];
 
 if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-collab-e2e-'));
 const DATABASE_DIR = process.env.E2E_DATABASE_DIR;
 
 export default defineConfig({
   testDir: 'e2e',
-  testIgnore: ['**/_*'],
+  testIgnore: IGNORED_SPECS,
   timeout: TEST_TIMEOUT_MS,
   workers: process.env.CI ? CONTINUOUS_INTEGRATION_WORKERS : LOCAL_WORKERS,
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: ORIGIN, trace: 'retain-on-failure', timezoneId: E2E_TIME_ZONE },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', testIgnore: [...IGNORED_SPECS, ...HEAVY_SPECS], use: { ...devices['Desktop Chrome'] } },
+    // NB ADR 0048: the server converts one heavy document at a time per lane, so the specs that upload one run one at a time, after the rest.
+    {
+      name: 'heavy',
+      testMatch: HEAVY_SPECS,
+      workers: HEAVY_PROJECT_WORKERS,
+      dependencies: ['chromium'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
   webServer: [
     {
       command: FAKE_OPENROUTER_COMMAND,

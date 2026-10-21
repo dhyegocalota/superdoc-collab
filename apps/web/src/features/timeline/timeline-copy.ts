@@ -129,6 +129,10 @@ export function versionAtLabel(moment: string): string {
   return `Version at ${moment}`;
 }
 
+export function uploadedVersionLabel(moment: string): string {
+  return `Document as uploaded, ${moment}`;
+}
+
 export function retryInLabel(seconds: number): string {
   return `Try again in ${seconds} s.`;
 }

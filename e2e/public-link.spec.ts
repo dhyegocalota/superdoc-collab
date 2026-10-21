@@ -153,3 +153,19 @@ test('the owner sees the visitor as an animal, the visitor sees the owner online
   await anonymous.page.close();
   await expect(ana.page.getByRole('img', { name: ANONYMOUS_ONLINE })).toHaveCount(0, { timeout: PRESENCE_TIMEOUT_MS });
 });
+
+test('no websocket frame a visitor receives carries the email of a member', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS });
+  const address = await setPublic({ page: ana.page, isPublic: true });
+  const anonymous = await openedContext({ browser });
+  const frames: Buffer[] = [];
+  anonymous.page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => frames.push(Buffer.from(payload))));
+  await anonymous.page.goto(address);
+  await expect(liveEditorText(anonymous.page).filter({ hasText: PARAGRAPHS[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await insertInParagraph({ page: ana.page, paragraphText: PARAGRAPHS[0]!, text: LIVE_TEXT });
+  await expect(anonymous.page.locator(REMOTE_CARET_SELECTOR).first()).toBeVisible({ timeout: PRESENCE_TIMEOUT_MS });
+  await expect(editorText(anonymous.page).filter({ hasText: LIVE_TEXT.trim() }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  expect(frames.length).toBeGreaterThan(0);
+  expect(frames.filter((frame) => frame.toString('latin1').includes(DEMO_USERS[0]!.email))).toHaveLength(0);
+});

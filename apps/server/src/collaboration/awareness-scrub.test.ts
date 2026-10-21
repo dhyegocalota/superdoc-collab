@@ -1,4 +1,5 @@
 import { MessageType } from '@hocuspocus/server';
+import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
 import { scrubAwarenessFrame } from './awareness-scrub';
 
@@ -29,14 +30,14 @@ test('an awareness frame loses the email and the ids of its users and keeps thei
   const state = {
     user: { id: 'user-1', name: 'Ana', email: 'ana@example.com', color: '#ff0000' },
     userId: 'user-1',
-    cursor: { anchor: 3 },
+    selection: { anchor: 3 },
   };
   const scrubbed = scrubAwarenessFrame({ frame: awarenessFrame([{ clientId: 7, clock: 2, state }]), secret: SECRET });
   const text = Buffer.from(scrubbed).toString();
   expect([text.includes('@'), text.includes('user-1'), text.includes('email')]).toEqual([false, false, false]);
   expect(text).toMatch(/"user":\{"id":"[0-9a-f]{16}","name":"Ana","color":"#ff0000"\}/);
   expect(text).toMatch(/"userId":"[0-9a-f]{16}"/);
-  expect(text).toContain('"cursor":{"anchor":3}');
+  expect(text).toContain('"selection":{"anchor":3}');
 });
 
 test('every entry is scrubbed, a removed client stays removed and a long state survives the new length', () => {
@@ -75,4 +76,22 @@ test('the pseudonym of one person is stable in a room and differs by room and by
   const withOtherSecret = idOf(scrubAwarenessFrame({ frame: awarenessFrame(entry), secret: `${SECRET}-other` }));
   expect(again).toBe(inRoom);
   expect(new Set([inRoom, inOtherRoom, withOtherSecret]).size).toBe(3);
+});
+
+const CAPTURED_STATE: Record<string, unknown> = JSON.parse(
+  readFileSync(new URL('fixtures/superdoc-2.24-awareness-state.json', import.meta.url), 'utf8'),
+);
+
+test('the awareness state SuperDoc 2.24 really sends loses the email wherever it sits and keeps what draws a caret', () => {
+  const state = { ...CAPTURED_STATE, emailAddress: 'ana@example.com', nested: { deep: { owner: 'ana@example.com' } } };
+  const scrubbed = scrubAwarenessFrame({ frame: awarenessFrame([{ clientId: 3, clock: 1, state }]), secret: SECRET });
+  const text = Buffer.from(scrubbed).toString('latin1');
+  expect(text.includes('@')).toBe(false);
+  expect(text).toContain('"displayName":"Ana"');
+  expect(text).toContain('"color":"#B82E39"');
+  expect(text).toContain('"superdocV2CursorUi"');
+  expect(text).toContain('"selection"');
+  expect(text).not.toContain('emailAddress');
+  expect(text).not.toContain('nested');
+  expect(text).not.toContain('"email"');
 });

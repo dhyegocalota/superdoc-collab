@@ -5,6 +5,7 @@ import {
   NO_STORE_CACHE_CONTROL,
   anonymousViewerOf,
   PUBLIC_PREPARING_MESSAGE,
+  PUBLIC_SUMMARY_SEGMENT,
   PUBLIC_RATE_LIMITED_MESSAGE,
   PublicAccess,
   RETRY_AFTER_SECONDS,
@@ -12,6 +13,7 @@ import {
   secondsRoundedUp,
   signedInViewerOf,
   type PublicOpened,
+  type PublicSummary,
 } from '@superdoc-collab/types';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
@@ -28,7 +30,7 @@ const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 const COOKIE_HEADER = 'cookie';
 
 export function createPublicRoutes({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
-  const { documents, runtime, publicReads } = services;
+  const { documents, runtime, publicReads, insightsRepository } = services;
   const routes = new Hono();
 
   routes.use('*', async (context, next) => {
@@ -74,6 +76,12 @@ export function createPublicRoutes({ auth, environment, services }: { auth: Auth
     const viewer = user === null ? anonymousViewerOf(visitorId) : signedInViewerOf({ visitorId, name: user.name });
     const roomToken = signPublicRoomToken({ secret: environment.authSecret, documentId, viewer, now: Date.now() });
     return context.json({ access: PublicAccess.Visitor, document, viewer, roomToken } satisfies PublicOpened);
+  });
+
+  routes.get(`/:documentId/${PUBLIC_SUMMARY_SEGMENT}`, (context) => {
+    const documentId = context.req.param('documentId');
+    if (!documents.findPublic(documentId)) throw new DocumentNotFoundError();
+    return context.json({ summary: insightsRepository.latestSelectionSummary(documentId) } satisfies PublicSummary);
   });
 
   return routes;

@@ -59,6 +59,7 @@ export enum VersionResource {
   Text = 'text',
 }
 
+export const PUBLIC_SUMMARY_SEGMENT = 'summary';
 export const TAB_QUERY_KEY = 'tab';
 
 const TAB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -68,7 +69,6 @@ export function isTabId(value: string): boolean {
 }
 
 const EDITS_SEGMENT = 'edits';
-const PUBLIC_SUMMARY_SEGMENT = 'summary';
 const SELECTION_SEGMENT = 'selection';
 const COLLABORATION_VERSIONS_SEGMENT = 'versions';
 const VERSION_VIEW_SEGMENT = 'view';

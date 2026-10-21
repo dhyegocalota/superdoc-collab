@@ -14,7 +14,8 @@ const DOCUMENT_URL_PATTERN = /\/documents\/([^/?#]+)/;
 const SIX_GIGABYTES_MEGABYTES = '6144';
 const START_LETTERS = 'qzxjkvwyfp';
 const MIDDLE_LETTERS = 'ypfwvkjxzq';
-const MEDIAN_BOUND_MS = 1500;
+const START_MEDIAN_BOUND_MS = 1500;
+const MIDDLE_MEDIAN_BOUND_MS = 500;
 const LONGEST_TASK_BOUND_MS = 1000;
 const TEST_TIMEOUT_MS = 900_000;
 const OPEN_TIMEOUT_MS = 600_000;
@@ -33,7 +34,7 @@ test.afterAll(async () => {
   await stopRestartableStack();
 });
 
-test('a keystroke in a 2,000-page document reaches the page in under 1.5 s with no task over 1 s, at the start and in the middle', async ({ browser }) => {
+test('a keystroke in a 2,000-page document reaches the page in under 1.5 s at the start and under 500 ms in the middle, with no task over 1 s', async ({ browser }) => {
   test.setTimeout(TEST_TIMEOUT_MS);
   const origin = `http://127.0.0.1:${RestartablePort.TypingLatency}`;
   const uploader = await signedInContext({ browser, user: DEMO_USERS[0]!, origin });
@@ -66,8 +67,8 @@ test('a keystroke in a 2,000-page document reaches the page in under 1.5 s with 
   await typist.page.keyboard.press('Home');
   const inMiddle = await typeAndMeasure({ page: typist.page, letters: MIDDLE_LETTERS });
 
-  expect(median(atStart.settledMs)).toBeLessThan(MEDIAN_BOUND_MS);
+  expect(median(atStart.settledMs)).toBeLessThan(START_MEDIAN_BOUND_MS);
   expect(atStart.longestTaskMs).toBeLessThan(LONGEST_TASK_BOUND_MS);
-  expect(median(inMiddle.settledMs)).toBeLessThan(MEDIAN_BOUND_MS);
+  expect(median(inMiddle.settledMs)).toBeLessThan(MIDDLE_MEDIAN_BOUND_MS);
   expect(inMiddle.longestTaskMs).toBeLessThan(LONGEST_TASK_BOUND_MS);
 });

@@ -12,9 +12,9 @@ In the 9.5 MB document (56,800 paragraphs, 2,185 pages) every keystroke made Sup
 
 ## Decision
 
-No editor option is adopted. Every SuperDoc layout setting that could plausibly cut the per-transaction layout was measured on the 9.5 MB fixture with the same probe (ten keystrokes at the start of the document, Playwright plus Chrome DevTools Protocol, one laptop under load, the typist joining as a second author). None brings the keystroke under 150 ms; the best two cut it by about 40% and change how lines flow (`flowMode: 'semantic'`) or drop the page layout engine (`useLayoutEngine: false`), both unmeasured for fidelity, so they are not shipped. A spike's reading of 102 ms with the virtualization window came from an ad-hoc override and did not reproduce with the option in the build (929 ms with the spike's own harness), so the option is not kept either.
+No editor option is adopted. Every SuperDoc layout setting that could plausibly cut the per-transaction layout was measured on the 9.5 MB fixture with the same probe (ten keystrokes at the start of the document, Playwright plus Chrome DevTools Protocol, one laptop under load, the typist joining as a second author). None brings the keystroke under 150 ms; the best three cut it by about 40% (`useLayoutEngine: false` 658 ms, `flowMode: 'semantic'` with the virtualization window 671 ms, `flowMode: 'semantic'` alone 683 ms) and change how lines flow or drop the page layout engine, both unmeasured for fidelity, so they are not shipped. A spike's reading of 102 ms with the virtualization window came from an ad-hoc override and did not reproduce with the option in the build (929 ms with the spike's own harness), so the option is not kept either.
 
-What ships: this measurement, the E2E `e2e/typing-latency.spec.ts` as a regression guard with the real numbers as bounds (median under 1.5 s and no task longer than 1 s at the start and in the middle of the 2,000-page document, so a change that makes it worse fails), a row in `docs/next.md`, and the issue draft below for SuperDoc.
+What ships: this measurement, the E2E `e2e/typing-latency.spec.ts` as a regression guard with the real numbers as bounds (median under 1.5 s at the start and under 500 ms in the middle of the 2,000-page document, no task longer than 1 s, so a change that makes it worse fails), a row in `docs/next.md`, and the issue draft below for SuperDoc.
 
 ## Measured
 
@@ -43,3 +43,4 @@ Title: a keystroke in a 56,800-paragraph document lays out the whole document (a
 
 - The 2% in our code (React commits and mutation callbacks per keystroke) stays; it is not attributable to one source in the profile.
 - The E2E bounds are the measured reality with margin, a guard against getting worse, not a target met.
+- The probe is a document-wide MutationObserver that records every node change during the relayout, so the absolute numbers include its small cost; every row of the table used the same probe.

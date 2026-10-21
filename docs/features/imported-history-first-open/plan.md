@@ -47,4 +47,4 @@ G1, G2, G3 in order, one lead: the owner asked for the fastest path.
 - [x] **Tester run:** the lead's scripted walk on the scenario stack.
 - [ ] **Reviewer:** skipped on the owner's request (fastest path).
 - [x] **/check-ui:** screenshots of the banner and the opened summary.
-- [ ] **/open-pr:** gate, PR, merge, deploy.
+- [x] **/open-pr:** gate green at e19419af (8 gates, 171 of 171 E2E), PR, merge, deploy.

@@ -1,6 +1,6 @@
 # Imported history on first open
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-20
 **ADRs:** [0011](../../adr/0011-process-wide-llm-cost-caps.md), [0012](../../adr/0012-selection-summaries-cached-per-filter-and-cursor.md), [0031](../../adr/0031-one-summarize-job-runs-only-what-is-stale.md), [0043](../../adr/0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md)

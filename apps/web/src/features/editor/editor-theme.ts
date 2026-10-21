@@ -13,6 +13,7 @@ export type EditorThemeChoice = { preset: EditorThemePreset } | { accent: string
 type Accent = { light: string; dark: string };
 
 const THEME_NAME = 'editor';
+const DEFAULT_PICKER_COLOR = '#1355ff';
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 const HOVER_MIX_PERCENT = 15;
 const LIGHT_TEXT_COLOR = '#ffffff';
@@ -71,6 +72,12 @@ function accentOf(choice: EditorThemeChoice): Accent | null {
   if ('accent' in choice) return { light: choice.accent, dark: choice.accent };
   if (choice.preset === EditorThemePreset.Default) return null;
   return PRESET_ACCENTS[choice.preset];
+}
+
+export function pickerColorOf(choice: EditorThemeChoice): string {
+  const accent = accentOf(choice);
+  if (!accent) return DEFAULT_PICKER_COLOR;
+  return accent.light;
 }
 
 export function editorThemeConfig(choice: EditorThemeChoice): ThemeConfig | null {

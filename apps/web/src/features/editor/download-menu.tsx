@@ -15,6 +15,7 @@ import { ShortcutHint } from '@/features/shortcuts/shortcut-hint';
 import { ShortcutTooltipContent } from '@/features/shortcuts/shortcut-tooltip-content';
 import { ShortcutId } from '@/features/shortcuts/shortcuts';
 import { DownloadFormat } from './download-format';
+import { repairExportedDocx } from './repair-exported-docx';
 import { PrintView } from '@/features/versions/print-view';
 import {
   DOWNLOAD_BUTTON_LABEL,
@@ -118,7 +119,7 @@ export function useDownload({ superdoc, onDownloadDocx }: { superdoc: SuperDoc |
     if (!superdoc || isPreparingPdf.current) return;
     isPreparingPdf.current = true;
     preparingToastId.current = toast.loading(PREPARING_PDF_MESSAGE, { description: PDF_PRINT_HINT });
-    superdoc.export({ triggerDownload: false }).then(setPdfFile, failPdf);
+    superdoc.export({ triggerDownload: false }).then(repairExportedDocx).then(setPdfFile, failPdf);
   }
 
   const downloaders: Record<DownloadFormat, () => void> = {

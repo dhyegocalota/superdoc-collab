@@ -37,7 +37,7 @@ G1 to G4 in order: G3 needs the hook of G2, the E2E needs everything.
 
 ### G4
 
-- [ ] **Step 5:** the E2E spec; READMEs and rules updated.
+- [x] **Step 5:** the E2E spec; READMEs and rules updated. — evidence: b80335a1 (spec written and typechecked, not run: ports held by another stack)
 
 ## Failure modes
 

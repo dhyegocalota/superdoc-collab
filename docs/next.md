@@ -17,6 +17,7 @@ Each step names the signal that calls for it and the decision it revisits. The o
 | A document's update log too large for its volume | Compaction already writes a snapshot every thousand updates and keeps every update; move the updates below an old snapshot to cold storage, read back only to rebuild a version older than it | [0003](adr/0003-time-travel-with-native-yjs-snapshots.md) |
 | Upload peaks that compete for the server's CPU and memory with the people editing | A conversion service of its own on Railway: the SDK host runs in a separate service with its own CPU and memory, pulls jobs from a queue table in the main database and returns the room state over HTTP, so conversions scale out and never starve the editing process | [0048](adr/0048-the-server-bootstraps-the-room-after-the-upload.md) |
 | Histories too long for the chart's render budget | The streamgraph moves to canvas | [0016](adr/0016-timeline-bin-budget.md), [0039](adr/0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) |
+| A keystroke in a 2,000-page document costing about a second, because SuperDoc's layout engine lays out the whole document per transaction (measured: default 1,089 ms, `flowMode: 'semantic'` 683 ms, `useLayoutEngine: false` 658 ms, virtualization 929 ms) | A layout mode in SuperDoc that lays out only the pages around the edit and defers the rest to idle time; the issue draft lives in the typing-latency spec | [typing-latency](features/typing-latency/spec.md) |
 
 ## Real time
 

@@ -11,6 +11,7 @@ export enum RestartablePort {
   ExitConfirmation = 3160,
   Backpressure = 3170,
   LocalPreview = 3171,
+  TypingLatency = 3800,
 }
 
 const MEMORY_LIMIT_KEY = 'MEMORY_LIMIT_MEGABYTES';

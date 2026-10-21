@@ -16,7 +16,7 @@ import {
   type ShareLinkRole,
   type ShareLinks,
 } from '../libs/types/src';
-import { buildSeedDocx } from '../libs/history/src';
+import { buildSeedDocx, type SeedTrackedChange } from '../libs/history/src';
 import { THEME_LABELS, accountMenuLabel } from '../apps/web/src/features/account/account-copy';
 import { SIGN_OUT_LABEL } from '../apps/web/src/features/auth/auth-copy';
 import { FILE_INPUT_LABEL, UPLOAD_LABEL } from '../apps/web/src/features/documents/documents-copy';
@@ -106,13 +106,15 @@ export async function openDocumentFileInput(page: Page): Promise<void> {
 export async function uploadSeed({
   page,
   paragraphs,
+  trackedChanges = [],
   fileName = UPLOAD_FILE_NAME,
 }: {
   page: Page;
   paragraphs: string[];
+  trackedChanges?: SeedTrackedChange[];
   fileName?: string;
 }): Promise<string> {
-  const buffer = await buildSeedDocx(paragraphs.map((text) => ({ text, trackedChanges: [] })));
+  const buffer = await buildSeedDocx(paragraphs.map((text, index) => ({ text, trackedChanges: index === 0 ? trackedChanges : [] })));
   await page.goto(AppRoute.Documents);
   await openDocumentFileInput(page);
   await expect

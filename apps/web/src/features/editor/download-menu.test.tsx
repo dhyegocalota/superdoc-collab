@@ -1,4 +1,5 @@
 import { cleanup, screen, waitFor } from '@testing-library/react';
+import JSZip from 'jszip';
 import { toast } from 'sonner';
 import userEvent from '@testing-library/user-event';
 import type { SuperDoc } from 'superdoc';
@@ -18,7 +19,22 @@ import { DownloadFormat } from './download-format';
 import { PrintMessageKind } from '@/features/versions/print-messages';
 import { DownloadMenu, useDownload } from './download-menu';
 
-const EXPORTED_BLOB = new Blob(['docx']);
+const DOCUMENT_ENTRY = 'word/document.xml';
+const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const EXPORTED_DOCUMENT_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${WORD_NAMESPACE}"><w:body><w:p><w:ins w:id="0" w:author="Ana" w:date="2026-10-21T10:00:00Z" w16du:dateUtc="2026-10-21T13:00:00Z"><w:r><w:t>hi</w:t></w:r></w:ins></w:p></w:body></w:document>`;
+
+async function exportedDocx(): Promise<Blob> {
+  const zip = new JSZip();
+  zip.file(DOCUMENT_ENTRY, EXPORTED_DOCUMENT_XML);
+  return zip.generateAsync({ type: 'blob' });
+}
+
+async function documentXmlOf(file: Blob): Promise<string> {
+  const zip = await JSZip.loadAsync(file);
+  return zip.file(DOCUMENT_ENTRY)!.async('string');
+}
+
+const EXPORTED_BLOB = await exportedDocx();
 
 function DownloadHarness({ superdoc, onDownloadDocx }: { superdoc: SuperDoc | null; onDownloadDocx: () => void }) {
   const { download, printView } = useDownload({ superdoc, onDownloadDocx });
@@ -74,7 +90,9 @@ test('Download PDF exports the live document to a Blob with triggerDownload fals
   const postMessage = vi.spyOn(frameWindow, 'postMessage').mockImplementation(() => undefined);
 
   sendFromFrame({ source: frameWindow, message: { kind: PrintMessageKind.Ready } });
-  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Load, file: EXPORTED_BLOB }, window.location.origin);
+  expect(postMessage).toHaveBeenCalledWith({ kind: PrintMessageKind.Load, file: expect.any(Blob) }, window.location.origin);
+  const printedFile = postMessage.mock.calls.map(([message]) => (message as { file?: Blob }).file).find((file) => file instanceof Blob);
+  expect(await documentXmlOf(printedFile!)).toContain('xmlns:w16du="http://schemas.microsoft.com/office/word/2023/wordml/word16du"');
   sendFromFrame({ source: frameWindow, message: { kind: PrintMessageKind.PageCount, pageCount: 3 } });
   expect(printFrame().style.height).toBe('3168px');
   expect(postMessage).not.toHaveBeenCalledWith({ kind: PrintMessageKind.Print }, window.location.origin);

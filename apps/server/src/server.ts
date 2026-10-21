@@ -474,6 +474,7 @@ export async function startServer({
     auth,
     hocuspocus: services.hocuspocus,
     versionRooms: services.versionRooms,
+    publicAdmission: { window: services.publicSockets, trustProxy: environment.trustProxy, trustedProxyHops: environment.trustedProxyHops },
     path: ApiPath.Collaboration,
     allowedOrigin: environment.appOrigin,
   });

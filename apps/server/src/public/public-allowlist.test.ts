@@ -12,21 +12,13 @@ import {
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import { documentWithOwner } from '../testing/collaboration-client';
-import { commitBootstrap } from '../testing/committed-room';
+import { publicRoom } from '../testing/public-room';
 import type { TestServer } from '../testing/test-server';
 
 const SELECTION_KEY = 'a'.repeat(64);
 const SENTENCE = 'Ana raised the budget.';
 const SAVED_AT = 1_800_000_000_000;
 const AUTHORS = [{ name: 'Ana', actor: ClientActor.Human }];
-
-async function publicDocument() {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBootstrap({ services: server.services, documentId, userId: owner.id });
-  server.services.documents.setPublic({ documentId, isPublic: true });
-  return { server, documentId, owner };
-}
 
 function send({
   server,
@@ -55,7 +47,7 @@ function spyOnEveryTrigger(server: TestServer) {
 }
 
 test('the summary is null while nothing was summarized', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const response = await send({ server, path: publicSummaryApiPath(documentId) });
   expect(response.status).toBe(HttpStatus.Ok);
   expect(await response.json()).toEqual({ summary: null } satisfies PublicSummary);
@@ -63,7 +55,7 @@ test('the summary is null while nothing was summarized', async () => {
 });
 
 test('the summary is the latest stored sentence with its date and authors', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(SAVED_AT);
   server.services.insightsRepository.saveSelectionSummary({
@@ -81,7 +73,7 @@ test('the summary is the latest stored sentence with its date and authors', asyn
 });
 
 test('the summary of a missing or private document is not found', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   server.services.documents.setPublic({ documentId, isPublic: false });
   const privateAnswer = await send({ server, path: publicSummaryApiPath(documentId) });
   const missingAnswer = await send({ server, path: publicSummaryApiPath(randomUUID()) });
@@ -93,7 +85,7 @@ test('the summary of a missing or private document is not found', async () => {
 test.each([HttpMethod.Post, HttpMethod.Put, HttpMethod.Patch, HttpMethod.Delete])(
   'a %s to the public paths is not found',
   async (method) => {
-    const { server, documentId } = await publicDocument();
+    const { server, documentId } = await publicRoom();
     const triggers = spyOnEveryTrigger(server);
     const answers = await Promise.all(
       [publicApiPath(documentId), publicSummaryApiPath(documentId)].map((path) => send({ server, path, method })),
@@ -105,7 +97,7 @@ test.each([HttpMethod.Post, HttpMethod.Put, HttpMethod.Patch, HttpMethod.Delete]
 );
 
 test('nothing but the document and its summary exists under the public path', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const triggers = spyOnEveryTrigger(server);
   const resources = [...Object.values(DocumentResource), 'edits', 'summaries/selection', 'timeline/edits'];
   const answers = await Promise.all(resources.map((resource) => send({ server, path: `${publicApiPath(documentId)}/${resource}` })));
@@ -115,7 +107,7 @@ test('nothing but the document and its summary exists under the public path', as
 });
 
 test('every document route and the summarize post refuse a caller with no session, even one holding a room token', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const triggers = spyOnEveryTrigger(server);
   const opened: PublicOpened = await (await send({ server, path: publicApiPath(documentId) })).json();
   if (!('roomToken' in opened)) throw new Error('A visitor was expected');

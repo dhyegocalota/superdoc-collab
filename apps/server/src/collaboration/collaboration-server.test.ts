@@ -62,6 +62,7 @@ function contextOf({ userId, documentId, attempt }: { userId: string; documentId
     holdsRoomPlace: false,
     tabId: null,
     impersonationEndsAt: null,
+    visitor: null,
   };
 }
 

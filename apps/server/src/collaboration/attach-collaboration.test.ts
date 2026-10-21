@@ -10,6 +10,8 @@ import {
   HEAVY_ROOMS_USER_CAP_CLOSE_CODE,
   HEAVY_ROOMS_USER_CAP_REASON,
   MAX_AWARENESS_ENTRIES_PER_FRAME,
+  MINUTE_MS,
+  PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE,
   MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND,
   MAX_SOCKET_UPDATE_FRAMES_PER_SECOND,
   POLICY_VIOLATION_CLOSE_CODE,
@@ -48,7 +50,8 @@ import { signedInUser, startTestServer, type TestServer } from '../testing/test-
 import { editedAfterBootstrap } from '../testing/timeline-client';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 import type { Auth } from '../auth/auth';
-import { attachCollaboration } from './attach-collaboration';
+import { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
+import { attachCollaboration, type PublicAdmission } from './attach-collaboration';
 import { PRE_AUTHENTICATION_MAX_INFLATED_BYTES } from './socket-message-limit';
 import { AWARENESS_DROP_LOG, AWARENESS_IDS_LOG } from './collaboration-server';
 import { VersionAdmission, type VersionRooms } from './version-rooms';
@@ -89,6 +92,11 @@ const SIGNED_IN_UPGRADE_TEST_TIMEOUT_MS = 15_000;
 const DECODE_FAILURE = 'decode failed';
 const RESET_FAILURE = 'ECONNRESET';
 const ORIGIN = 'http://app.test';
+const PUBLIC_ADMISSION: PublicAdmission = {
+  window: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE }),
+  trustProxy: false,
+  trustedProxyHops: 1,
+};
 const FOREIGN_ADDRESS = '203.0.113.9';
 const ABNORMAL_CLOSE_CODE = 1006;
 const SESSION_EXPIRED_REASON = 'Session expired';
@@ -459,6 +467,7 @@ describe('attachCollaboration', () => {
       auth: {} as Auth,
       hocuspocus: {} as Hocuspocus,
       versionRooms: { authorize } as unknown as VersionRooms,
+      publicAdmission: PUBLIC_ADMISSION,
       path: ApiPath.Collaboration,
       allowedOrigin: ORIGIN,
     });
@@ -487,6 +496,7 @@ describe('attachCollaboration', () => {
         auth: {} as Auth,
         hocuspocus: {} as Hocuspocus,
         versionRooms: {} as unknown as VersionRooms,
+        publicAdmission: PUBLIC_ADMISSION,
         path: ApiPath.Collaboration,
         allowedOrigin: ORIGIN,
       });
@@ -524,6 +534,7 @@ async function openCountedSocket({
     auth,
     hocuspocus,
     versionRooms: {} as VersionRooms,
+    publicAdmission: PUBLIC_ADMISSION,
     path: ApiPath.Collaboration,
     allowedOrigin: ORIGIN,
   });

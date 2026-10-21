@@ -180,10 +180,10 @@ export function connectAsVisitor({
   token: string;
   documentId: string;
   document?: Y.Doc;
-  origin?: string;
+  origin?: string | null;
   path?: string;
 }): Promise<CollaborationClient> {
-  return openProvider({ server, headers: {}, origin, token, documentId, document, path });
+  return openProvider({ server, headers: {}, origin: origin === null ? undefined : origin, token, documentId, document, path });
 }
 
 export function connectAgentToDocument({

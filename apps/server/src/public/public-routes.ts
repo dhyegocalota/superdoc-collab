@@ -23,10 +23,9 @@ import { signPublicRoomToken } from '../collaboration/public-room-tokens';
 import type { Environment } from '../config/environment';
 import { DocumentNotFoundError } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
-import { clientAddressOf, UNKNOWN_CLIENT_ADDRESS_MESSAGE } from '../http/client-address';
+import { clientAddressOf, FORWARDED_FOR_HEADER, UNKNOWN_CLIENT_ADDRESS_MESSAGE } from '../http/client-address';
 import { retryLater } from '../http/retry-later';
 
-const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 const COOKIE_HEADER = 'cookie';
 
 export function createPublicRoutes({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {

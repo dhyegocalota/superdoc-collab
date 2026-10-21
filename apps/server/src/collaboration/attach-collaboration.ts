@@ -11,6 +11,7 @@ import {
   MAX_SOCKET_MESSAGE_BYTES,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
+  secondsRoundedUp,
   SECOND_MS,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_CLOSE_GRACE_MS,
@@ -22,11 +23,13 @@ import {
 import { WebSocket, WebSocketServer, type PerMessageDeflateOptions, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
+import { clientAddressOf, FORWARDED_FOR_HEADER } from '../http/client-address';
+import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
 import { AuthReply, authReplyOf, deniedReasonOf } from './auth-reply';
 import { SocketMessageLimit } from './socket-message-limit';
-import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
+import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, isPublicUpgrade, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
 const SOCKET_COMPRESSION_THRESHOLD_BYTES = 1024;
@@ -69,6 +72,17 @@ const UNAVAILABLE_UPGRADE_RESPONSE = [
   '',
 ].join('\r\n');
 
+function tooManyRequestsResponse(retryAfterSeconds: number): string {
+  return [
+    `HTTP/1.1 ${HttpStatus.TooManyRequests} Too Many Requests`,
+    `${RETRY_AFTER_HEADER}: ${retryAfterSeconds}`,
+    'Connection: close',
+    'Content-Length: 0',
+    '',
+    '',
+  ].join('\r\n');
+}
+
 function terminateOnError(this: WebSocket, error: Error): void {
   console.warn(`${SOCKET_ERROR_MESSAGE}: ${describeError(error)}`);
   if (this.readyState === WebSocket.CLOSING) return;
@@ -79,11 +93,14 @@ function destroyOnSocketError(this: Duplex): void {
   this.destroy();
 }
 
+export type PublicAdmission = { window: KeyedSlidingWindow; trustProxy: boolean; trustedProxyHops: number };
+
 export function attachCollaboration({
   httpServer,
   auth,
   hocuspocus,
   versionRooms,
+  publicAdmission,
   path,
   allowedOrigin,
 }: {
@@ -91,6 +108,7 @@ export function attachCollaboration({
   auth: Auth;
   hocuspocus: Hocuspocus;
   versionRooms: VersionRooms;
+  publicAdmission: PublicAdmission;
   path: string;
   allowedOrigin: string;
 }): WebSocketServer {
@@ -207,6 +225,23 @@ export function attachCollaboration({
     if (!lookup.session) return refuseSession({ request, socket, head });
     upgrade({ request, socket, head, endpoint: null });
   }
+  function upgradePublic({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): void {
+    const { remoteAddress } = request.socket;
+    if (remoteAddress === undefined) return void socket.destroy();
+    const address = clientAddressOf({
+      forwardedFor: request.headers[FORWARDED_FOR_HEADER],
+      remoteAddress,
+      trustProxy: publicAdmission.trustProxy,
+      trustedProxyHops: publicAdmission.trustedProxyHops,
+    });
+    const waitMs = publicAdmission.window.waitMs(address);
+    if (waitMs !== null) {
+      socket.on('error', destroyOnSocketError);
+      return void socket.end(tooManyRequestsResponse(secondsRoundedUp(waitMs)));
+    }
+    publicAdmission.window.record(address);
+    upgrade({ request, socket, head, endpoint: null });
+  }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     const pathname = upgradePathname(request.url);
@@ -214,6 +249,7 @@ export function attachCollaboration({
     if (isLoopbackOnly && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
     if (isLoopbackOnly) return upgrade({ request, socket, head, endpoint: null });
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
+    if (isPublicUpgrade(request.url)) return upgradePublic({ request, socket, head });
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });
     if (pathname !== path) return socket.destroy();

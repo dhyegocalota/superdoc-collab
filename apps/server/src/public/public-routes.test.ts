@@ -12,20 +12,14 @@ import {
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { verifyPublicRoomToken } from '../collaboration/public-room-tokens';
+import { FORWARDED_FOR_HEADER } from '../http/client-address';
 import { documentWithOwner } from '../testing/collaboration-client';
 import { commitBootstrap } from '../testing/committed-room';
+import { publicRoom } from '../testing/public-room';
 import { signedInUser, TEST_AUTH_SECRET, type TestServer } from '../testing/test-server';
 
-const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 const FIRST_ADDRESS = '10.1.0.1';
 const SECOND_ADDRESS = '10.1.0.2';
-
-async function publicDocument() {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBootstrap({ services: server.services, documentId, userId: owner.id });
-  server.services.documents.setPublic({ documentId, isPublic: true });
-  return { server, documentId, owner };
-}
 
 function getPublic({
   server,
@@ -44,7 +38,7 @@ function getPublic({
 }
 
 test('a visitor with no session gets the document, an anonymous animal and a room token', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const response = await getPublic({ server, documentId });
   const body: PublicOpened = await response.json();
   expect(response.status).toBe(HttpStatus.Ok);
@@ -59,14 +53,14 @@ test('a visitor with no session gets the document, an anonymous animal and a roo
 });
 
 test('no email and no user id of the owner is anywhere in the answer', async () => {
-  const { server, documentId, owner } = await publicDocument();
+  const { server, documentId, owner } = await publicRoom();
   const text = await (await getPublic({ server, documentId })).text();
   expect([text.includes('@'), text.includes(owner.id), text.includes(owner.email)]).toEqual([false, false, false]);
   await server.stop();
 });
 
 test('every visit is a new identity', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const first: PublicOpened = await (await getPublic({ server, documentId })).json();
   const second: PublicOpened = await (await getPublic({ server, documentId })).json();
   if (first.access !== PublicAccess.Visitor || second.access !== PublicAccess.Visitor) throw new Error('Visitors were expected');
@@ -88,14 +82,14 @@ test('a missing document and a document that is not public answer the same', asy
 });
 
 test('a document switched back to private answers not found', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   server.services.documents.setPublic({ documentId, isPublic: false });
   expect((await getPublic({ server, documentId })).status).toBe(HttpStatus.NotFound);
   await server.stop();
 });
 
 test('a signed-in person who is not a member keeps the real name and has no animal', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const bruno = await signedInUser({ server, name: 'Bruno' });
   const body: PublicOpened = await (await getPublic({ server, documentId, cookie: bruno.cookie })).json();
   if (body.access !== PublicAccess.Visitor) throw new Error('A visitor was expected');
@@ -105,7 +99,7 @@ test('a signed-in person who is not a member keeps the real name and has no anim
 });
 
 test('a member is told to use the document and gets no token, even while the document is private', async () => {
-  const { server, documentId, owner } = await publicDocument();
+  const { server, documentId, owner } = await publicRoom();
   const whilePublic: PublicOpened = await (await getPublic({ server, documentId, cookie: owner.cookie })).json();
   server.services.documents.setPublic({ documentId, isPublic: false });
   const whilePrivate: PublicOpened = await (await getPublic({ server, documentId, cookie: owner.cookie })).json();
@@ -127,7 +121,7 @@ test('a room that is not committed answers 503 with Retry-After and spends no op
 });
 
 test('an address past the window is refused with Retry-After and another address is not', async () => {
-  const { server, documentId } = await publicDocument();
+  const { server, documentId } = await publicRoom();
   const allowed = await Promise.all(Array.from({ length: PUBLIC_READS_PER_MINUTE }, () => getPublic({ server, documentId })));
   const refused = await getPublic({ server, documentId });
   const otherAddress = await getPublic({ server, documentId, address: SECOND_ADDRESS });

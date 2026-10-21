@@ -1,5 +1,5 @@
 export const CLIENT_ADDRESS_HEADER = 'x-client-ip';
-const FORWARDED_FOR_HEADER = 'x-forwarded-for';
+export const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 const FORWARDED_SEPARATOR = ',';
 export const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 

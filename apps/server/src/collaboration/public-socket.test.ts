@@ -1,47 +1,24 @@
 import {
   ApiPath,
   PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE,
-  publicApiPath,
   publicUserIdOf,
-  type PublicOpened,
-  PublicAccess,
   anonymousViewerOf,
   RETRY_AFTER_HEADER,
 } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test } from 'vitest';
 import WebSocket from 'ws';
+import { FORWARDED_FOR_HEADER } from '../http/client-address';
 import { signRoomToken } from '../agent/room-tokens';
 import { CollaborationRefusedError, connectAsVisitor, connectToDocument, documentWithOwner } from '../testing/collaboration-client';
-import { commitBootstrap } from '../testing/committed-room';
+import { publicRoom, roomConnections, visitorToken } from '../testing/public-room';
 import { TEST_AUTH_SECRET, type TestServer } from '../testing/test-server';
 import { signPublicRoomToken } from './public-room-tokens';
-import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
-const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 const SWITCHING_PROTOCOLS_STATUS = 101;
 const TOO_MANY_REQUESTS_STATUS = 429;
 const FAILED_UPGRADE_STATUS = 0;
 const OLD_TOKEN_TIME = 1000;
-
-async function publicRoom() {
-  const { server, documentId, owner } = await documentWithOwner();
-  commitBootstrap({ services: server.services, documentId, userId: owner.id });
-  server.services.documents.setPublic({ documentId, isPublic: true });
-  return { server, documentId, owner };
-}
-
-async function visitorToken({ server, documentId }: { server: TestServer; documentId: string }): Promise<string> {
-  const opened: PublicOpened = await (await fetch(`${server.baseUrl}${publicApiPath(documentId)}`)).json();
-  if (opened.access !== PublicAccess.Visitor) throw new Error('A visitor was expected');
-  return opened.roomToken;
-}
-
-function roomConnections({ server, documentId }: { server: TestServer; documentId: string }) {
-  const room = server.services.hocuspocus.documents.get(`${SUPERDOC_ROOM_PREFIX}${documentId}`);
-  if (!room) throw new Error('The room is not loaded.');
-  return [...room.connections.values()].map(({ connection }) => connection);
-}
 
 function upgradeStatusOf({ server, address }: { server: TestServer; address: string }): Promise<{ status: number; retryAfter: unknown }> {
   return new Promise((resolve) => {
@@ -122,12 +99,12 @@ test('a valid token is refused once the document is private again', async () => 
 });
 
 test.each([
-  { name: 'no Origin', origin: undefined },
+  { name: 'no Origin', origin: null },
   { name: 'another Origin', origin: 'http://evil.example' },
 ])('a valid token with $name is refused', async ({ origin }) => {
   const { server, documentId } = await publicRoom();
   const token = await visitorToken({ server, documentId });
-  const attempt = connectAsVisitor({ server, token, documentId, origin: origin as string });
+  const attempt = connectAsVisitor({ server, token, documentId, origin });
   await expect(attempt).rejects.toBeInstanceOf(CollaborationRefusedError);
   await server.stop();
 });

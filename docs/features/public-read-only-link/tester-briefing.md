@@ -45,6 +45,8 @@ Failure texts are the ones the red runs printed.
 | `collaboration/public-socket-writes.test.ts` | pin: green on arrival, the guard landed with the admission | |
 | `web/features/sharing/public-link-section.test.tsx` | `PublicLinkSection is not implemented for doc-1` | switch, link and copy |
 | `web/features/sharing/public-page.test.tsx` | `PublicPage is not implemented` | page, redirect, notices, editor wiring |
+| `web/features/sharing/public-page.test.tsx::a connection that fails after it synced asks for a new room token by itself` | `expected "vi.fn()" to be called 2 times, but got 1 times` (6798f48e), found by the E2E: a link switched off left a Reload banner | `243a02a1` |
+| `e2e/public-link.spec.ts` (6 specs) | written against the implementation, no red run; one run by the developer: 6 passed in 32.7 s, after two fixes (the summary spec needed an edit in both topics; the switch-off spec found the bug above) | |
 
 ## Mutation checks (steps 7 and 8)
 
@@ -65,6 +67,10 @@ The tests of `public-socket-writes.test.ts` landed green because the guards came
 5. No email leaves the server in any public answer. Break it by: grep every response and websocket frame of the public page for `@`.
 6. Awareness: a visitor has no caret. Break it by: click in the text as a visitor and look for a remote caret in the owner's editor.
 7. The Share dialog switch does not break the existing dialog tests or the layout at 375 px.
+
+## Developer runs
+
+`pnpm typecheck` green; libs/types 84 tests, the server tests of `src/http`, `src/public`, `src/documents`, the public and collaboration files, `src/database` (398 tests) and the web tests of `features/sharing`, `features/editor` and `app` (487 tests) green; `tools/repository-shape` has one failure that is not this lane's: `feature-status.test.ts` finds the row of `imported-history-first-open` at Building while its spec says Shipped, in the base this branch was cut from (it resolves when `main` is merged). Prettier clean.
 
 ## Known gaps
 

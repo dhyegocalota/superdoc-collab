@@ -54,11 +54,11 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 - [x] **Step 10:** red test for the Share dialog switch (owner sees it, reads the flag, switches it, copies the public link, the copy names who can see the editors) and `public-api.ts`. — evidence: red f8bbe60a, green 37458ef4
 - [x] **Step 11:** red test for the public page (member redirect, not-found state, `View only` chip, no toolbar, no share, no Summarize, no edits panel, latest summary card present or absent, preparing state, rate-limit state) and the route outside `RequireSession`. — evidence: red 1b7d66ec, green d9f7833a
-- [ ] **Step 12:** wire the visitor into the editor (additive props on `superdoc-editor.tsx` and `superdoc-options.ts`: socket path and token), Playwright spec `e2e/public-link.spec.ts`.
+- [x] **Step 12:** wire the visitor into the editor (additive props on `superdoc-editor.tsx` and `superdoc-options.ts`: socket path and token), Playwright spec `e2e/public-link.spec.ts`. — evidence: wiring in d9f7833a, fix 6798f48e/243a02a1, e2e/public-link.spec.ts ae2d4406 (6 passed)
 
 ### G6: docs
 
-- [ ] **Step 13:** README and `.claude/rules/` facts (collaboration, sharing and auth), `docs/features/public-read-only-link/tester-briefing.md`.
+- [x] **Step 13:** README and `.claude/rules/` facts (collaboration, sharing and auth), `docs/features/public-read-only-link/tester-briefing.md`. — evidence: 77776be4, tester briefing
 
 ### G7: visitors in the members row (last; do not start before `ai-presence-avatar` merged)
 

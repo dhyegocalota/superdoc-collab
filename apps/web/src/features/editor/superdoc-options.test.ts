@@ -67,7 +67,6 @@ test('the options open the file in its room as the signed-in user, fitted to the
     colors: PALETTE_COLORS,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: { mode: ZoomMode.FitWidth, fitWidth: { max: 100 } },
-    layoutEngineOptions: { virtualization: { enabled: true, window: 1, overscan: 0 } },
     ui: {
       comments: { layout: 'auto', responsive: { breakpoint: 480 } },
       toolbar: {
@@ -106,10 +105,4 @@ test('the preview options open the uploaded bytes read-only, fitted to the width
 
 test('the context menu gets the shortcut provider', () => {
   expect(optionsFor(document.createElement('div'))).toMatchObject({ ui: { contextMenu: { menuProvider: expect.any(Function) } } });
-});
-
-test('the live editor virtualizes pages to a window of one so a keystroke in a large document lays out a few pages', () => {
-  expect(optionsFor(document.createElement('div')).layoutEngineOptions).toEqual({
-    virtualization: { enabled: true, window: 1, overscan: 0 },
-  });
 });

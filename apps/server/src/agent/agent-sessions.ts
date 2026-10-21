@@ -128,6 +128,10 @@ export class AgentSessions implements AgentDocumentSessions {
     return turnPromise;
   }
 
+  presentUserIds(documentId: string): Set<string> {
+    throw new Error('presentUserIds is not implemented');
+  }
+
   async close(): Promise<void> {
     await Promise.all(this.turns.values());
     const sessions = this.idle.values();

@@ -4,6 +4,7 @@ import {
   HttpStatus,
   NO_STORE_CACHE_CONTROL,
   anonymousViewerOf,
+  PUBLIC_MEMBERS_SEGMENT,
   PUBLIC_PREPARING_MESSAGE,
   PUBLIC_SUMMARY_SEGMENT,
   PUBLIC_RATE_LIMITED_MESSAGE,
@@ -12,6 +13,7 @@ import {
   RoomMode,
   secondsRoundedUp,
   signedInViewerOf,
+  type PublicMembers,
   type PublicOpened,
   type PublicSummary,
 } from '@superdoc-collab/types';
@@ -29,7 +31,7 @@ import { retryLater } from '../http/retry-later';
 const COOKIE_HEADER = 'cookie';
 
 export function createPublicRoutes({ auth, environment, services }: { auth: Auth; environment: Environment; services: AppServices }): Hono {
-  const { documents, runtime, publicReads, insightsRepository } = services;
+  const { documents, runtime, publicReads, publicConnections, insightsRepository } = services;
   const routes = new Hono();
 
   routes.use('*', async (context, next) => {
@@ -81,6 +83,17 @@ export function createPublicRoutes({ auth, environment, services }: { auth: Auth
     const documentId = context.req.param('documentId');
     if (!documents.findPublic(documentId)) throw new DocumentNotFoundError();
     return context.json({ summary: insightsRepository.latestSelectionSummary(documentId) } satisfies PublicSummary);
+  });
+
+  routes.get(`/:documentId/${PUBLIC_MEMBERS_SEGMENT}`, (context) => {
+    const documentId = context.req.param('documentId');
+    if (!documents.findPublic(documentId)) throw new DocumentNotFoundError();
+    const online = runtime.onlineUserIds(documentId);
+    const members = documents
+      .membersWithColorSlots(documentId)
+      .filter((member) => online.has(member.user.id))
+      .map(({ user, colorSlot }) => ({ name: user.name, colorSlot }));
+    return context.json({ members, visitors: publicConnections.visitorsOf(documentId) } satisfies PublicMembers);
   });
 
   return routes;

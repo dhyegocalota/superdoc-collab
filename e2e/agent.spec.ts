@@ -28,6 +28,8 @@ import {
 } from './agent';
 import { insertInParagraph, uploadSeed } from './editor';
 import { DEMO_PASSWORD, expect, signedInContext, signIn, test } from './fixtures';
+import { memberLabel } from '../apps/web/src/features/editor/editor-copy';
+import { agentOwnerLabel } from '../apps/web/src/features/editor/members-copy';
 import { agentActionLabel, agentMarkLabel } from '../apps/web/src/features/timeline/timeline-copy';
 import {
   ANA_TEXT,
@@ -67,6 +69,19 @@ test('an AI client connects, edits in tracked mode and is revoked', async ({ bro
   await revokeConnectedApp({ page: connectedApps, clientName: connection.clientName });
   const revokedCall = callTool({ connection, tool: AgentTool.GetTimeline, args: { documentId, timeZone: UTC_TIME_ZONE } });
   expect(await rejectedStatus(revokedCall)).toBe(HttpStatus.Unauthorized);
+});
+
+test('the AI shows beside its owner after it edits', async ({ browser, request }) => {
+  const ana = await signedInContext({ browser, user: ANA });
+  const documentId = await uploadSeed({ page: ana.page, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
+  const connection = await connectAiClient({ page: await ana.context.newPage(), request });
+  const aiAvatar = ana.page.getByRole('img', { name: memberLabel(agentOwnerLabel(ANA.name)) });
+  await expect(aiAvatar).toHaveCount(0);
+
+  toolJson(await replaceTextThroughAgent({ connection, documentId, find: HIRING_FIND, replace: HIRING_REPLACE }));
+
+  await expect(aiAvatar).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
+  await expect(ana.page.getByRole('button', { name: memberLabel(ANA.name) })).toBeVisible();
 });
 
 test('a share link rotated by the AI leaves a mark and reveals no link', async ({ browser, request }) => {

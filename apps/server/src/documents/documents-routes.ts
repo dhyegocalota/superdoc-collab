@@ -1,5 +1,6 @@
 import { buildSeedDocx, declaredDocumentXmlBytes, DocxVerdict, inspectDocx, type SeedParagraph } from '@superdoc-collab/history';
 import {
+  agentAuthorName,
   BOOTSTRAP_QUEUE_FULL_MESSAGE,
   BOOTSTRAP_QUEUE_WAITING_MESSAGE,
   bootstrapBusyMessage,
@@ -387,7 +388,7 @@ function mountManagement({ routes, services }: RouteMount): void {
 }
 
 function mountReading({ routes, services }: RouteMount): void {
-  const { documents, storage, runtime } = services;
+  const { documents, storage, runtime, agentSessions } = services;
 
   routes.get('/:documentId/download', async (context) => {
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
@@ -406,8 +407,13 @@ function mountReading({ routes, services }: RouteMount): void {
     const isCurrentUserOnline = isTabAsked
       ? runtime.onlineTabIds({ documentId, userId: context.var.user.id }).has(tab)
       : online.has(context.var.user.id);
+    const members = documents.membersWithColorSlots(documentId);
+    const presentAgentUserIds = agentSessions.presentUserIds(documentId);
     return context.json({
-      members: documents.membersWithColorSlots(documentId).map((member) => ({ ...member, online: online.has(member.user.id) })),
+      members: members.map((member) => ({ ...member, online: online.has(member.user.id) })),
+      agents: members
+        .filter((member) => presentAgentUserIds.has(member.user.id))
+        .map(({ user, colorSlot }) => ({ user, name: agentAuthorName(user.name), colorSlot, online: true })),
       isCurrentUserOnline,
     });
   });

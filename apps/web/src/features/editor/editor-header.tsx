@@ -1,4 +1,11 @@
-import { AppRoute, DocumentRole, READ_ONLY_BADGE_LABEL, type DocumentMember, type OpenedDocument } from '@superdoc-collab/types';
+import {
+  AppRoute,
+  DocumentRole,
+  READ_ONLY_BADGE_LABEL,
+  type DocumentAgent,
+  type DocumentMember,
+  type OpenedDocument,
+} from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bot, Ellipsis, Search } from 'lucide-react';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
@@ -173,6 +180,7 @@ function DocumentActionsMenu({ documentId, isOwner, isLarge, superdoc, onDownloa
 type EditorHeaderProps = {
   opened: OpenedDocument;
   members: DocumentMember[];
+  agents: DocumentAgent[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
   editorContainer: HTMLElement | null;
@@ -187,6 +195,7 @@ type EditorHeaderProps = {
 export function EditorHeader({
   opened,
   members,
+  agents,
   currentUserId,
   superdoc,
   editorContainer,
@@ -264,6 +273,7 @@ export function EditorHeader({
               <Members
                 documentId={document.id}
                 members={members}
+                agents={agents}
                 currentUserId={currentUserId}
                 superdoc={superdoc}
                 editorContainer={editorContainer}

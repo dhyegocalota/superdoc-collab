@@ -1,5 +1,12 @@
 import type { Hocuspocus } from '@hocuspocus/server';
-import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, BootstrapStage, RoomMode, type BootstrapProgress } from '@superdoc-collab/types';
+import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
+  BootstrapStage,
+  ClientActor,
+  RoomMode,
+  type BootstrapProgress,
+} from '@superdoc-collab/types';
 import { expect, test, vi } from 'vitest';
 import { createCollaborationRuntime } from './collaboration-runtime';
 import { COMMITTED_WITHOUT_BOOTSTRAP } from './room-bootstrap';
@@ -10,10 +17,10 @@ const OTHER_DOCUMENT_ID = '22222222-2222-4222-8222-222222222222';
 const FIRST_EDITOR = 'editor-1';
 const SECOND_EDITOR = 'editor-2';
 
-type FakeConnection = { context: { userId: string }; close: ReturnType<typeof vi.fn> };
+type FakeConnection = { context: { userId: string; actor?: ClientActor }; close: ReturnType<typeof vi.fn> };
 
-function connectionOfUser(userId: string): FakeConnection {
-  return { context: { userId }, close: vi.fn() };
+function connectionOfUser(userId: string, actor: ClientActor = ClientActor.Human): FakeConnection {
+  return { context: { userId, actor }, close: vi.fn() };
 }
 
 const QUEUED: BootstrapProgress = {
@@ -227,4 +234,15 @@ test('a device job is reopened only once the collaboration server no longer hold
     false,
     1,
   ]);
+});
+
+test('an agent socket does not make its person online, a human socket does', () => {
+  const runtime = runtimeWith({
+    rooms: {
+      [DOCUMENT_ID]: [connectionOfUser(FIRST_EDITOR, ClientActor.Agent), connectionOfUser(SECOND_EDITOR)],
+      [OTHER_DOCUMENT_ID]: [connectionOfUser(FIRST_EDITOR)],
+    },
+  });
+  expect(runtime.onlineUserIds(DOCUMENT_ID)).toEqual(new Set([SECOND_EDITOR]));
+  expect(runtime.onlineUserIds(OTHER_DOCUMENT_ID)).toEqual(new Set([FIRST_EDITOR]));
 });

@@ -197,8 +197,10 @@ export type OpenedDocument = {
 };
 export type UploadRefusal = { error: string; canPrepareOnDevice: boolean };
 export type DocumentMember = { user: UserReference; role: DocumentRole; online: boolean; colorSlot: AuthorColorSlot };
+export type DocumentAgent = { user: UserReference; name: string; colorSlot: AuthorColorSlot; online: true };
 export type DocumentMembers = {
   members: DocumentMember[];
+  agents: DocumentAgent[];
   isCurrentUserOnline: boolean;
 };
 export type ShareLinks = Record<ShareLinkRole, string>;

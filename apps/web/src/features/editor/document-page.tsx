@@ -78,7 +78,7 @@ export function DocumentPage() {
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
-  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
+  const { members, agents, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const {
     state: connectionState,
     failureReason: reportedFailureReason,
@@ -241,6 +241,7 @@ export function DocumentPage() {
         <EditorHeader
           opened={opened}
           members={members}
+          agents={agents}
           currentUserId={user ? user.id : null}
           superdoc={superdoc}
           editorContainer={editorContainer}

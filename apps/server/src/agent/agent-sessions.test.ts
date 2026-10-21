@@ -1,4 +1,4 @@
-import { agentAuthorName, DOCUMENT_NOT_READY_ERROR, DocumentRole, RoomMode } from '@superdoc-collab/types';
+import { AGENT_PRESENCE_LINGER_MS, agentAuthorName, DOCUMENT_NOT_READY_ERROR, DocumentRole, RoomMode } from '@superdoc-collab/types';
 import type { SuperDocDocument } from '@superdoc/sdk';
 import { afterEach, expect, test, vi } from 'vitest';
 import { AgentSessionBusyError, AgentSessionOpenTimeoutError, AgentSessions, type AgentSessionsClient } from './agent-sessions';
@@ -332,5 +332,54 @@ test('a queued call gives up busy after the open timeout and calls behind it kee
   await holder;
   expect(work).not.toHaveBeenCalled();
   expect(opened.has('second')).toBe(false);
+  await sessions.close();
+});
+
+test("a person's AI is present while a tool call runs and for the linger after it ends", async () => {
+  const { client } = openedPerDocument();
+  const clock = { current: 0 };
+  const sessions = sessionsOn({ client, now: () => clock.current });
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const call = sessions.run({ person: ANA, documentId: 'plan', work: () => gate });
+  await vi.waitFor(() => expect(sessions.presentUserIds('plan')).toEqual(new Set([ANA.userId])));
+  clock.current = AGENT_PRESENCE_LINGER_MS * 2;
+  expect(sessions.presentUserIds('plan')).toEqual(new Set([ANA.userId]));
+  release();
+  await call;
+  clock.current += AGENT_PRESENCE_LINGER_MS - 1;
+  expect(sessions.presentUserIds('plan')).toEqual(new Set([ANA.userId]));
+  clock.current += 1;
+  expect(sessions.presentUserIds('plan')).toEqual(new Set());
+  await sessions.close();
+});
+
+test('each document lists only the people whose AI worked on it', async () => {
+  const { client } = openedPerDocument();
+  const sessions = sessionsOn({ client });
+  await sessions.run({ person: ANA, documentId: 'plan', work: async () => undefined });
+  await sessions.run({ person: BRUNO, documentId: 'plan', work: async () => undefined });
+  await sessions.run({ person: BRUNO, documentId: 'budget', work: async () => undefined });
+  expect(sessions.presentUserIds('plan')).toEqual(new Set([ANA.userId, BRUNO.userId]));
+  expect(sessions.presentUserIds('budget')).toEqual(new Set([BRUNO.userId]));
+  expect(sessions.presentUserIds('other')).toEqual(new Set());
+  await sessions.close();
+});
+
+test('a failed tool call still leaves the AI present for the linger', async () => {
+  const { client } = openedPerDocument();
+  const sessions = sessionsOn({ client });
+  await sessions
+    .run({
+      person: ANA,
+      documentId: 'plan',
+      work: async () => {
+        throw new Error('boom');
+      },
+    })
+    .catch(() => undefined);
+  expect(sessions.presentUserIds('plan')).toEqual(new Set([ANA.userId]));
   await sessions.close();
 });

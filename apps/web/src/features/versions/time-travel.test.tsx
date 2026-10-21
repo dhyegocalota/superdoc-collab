@@ -145,7 +145,7 @@ function mockDocumentApi({
     if (path === ApiPath.Me) return jsonResponse({ body: { user: SESSION_USER } });
     if (path === documentApiPath({ documentId: DOCUMENT_ID })) return jsonResponse({ body: opened, status: openedStatus });
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Members }))
-      return jsonResponse({ body: { members: [] } });
+      return jsonResponse({ body: { members: [], agents: [] } });
     if (path === documentApiPath({ documentId: DOCUMENT_ID, resource: DocumentResource.Timeline })) {
       if (holdTimeline) return new Promise<Response>(() => undefined);
       await timelineGate;

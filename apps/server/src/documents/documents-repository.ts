@@ -6,6 +6,7 @@ import {
   type AuthorColorSlot,
   type DocumentsList,
   type DocumentSummary,
+  type PublicDocument,
   type UserReference,
 } from '@superdoc-collab/types';
 import { and, desc, eq, inArray, type SQL } from 'drizzle-orm';
@@ -71,6 +72,16 @@ export class DocumentsRepository {
     const row = this.database.drizzle.select({ isPublic: documents.isPublic }).from(documents).where(eq(documents.id, documentId)).get();
     if (!row) return false;
     return row.isPublic;
+  }
+
+  findPublic(documentId: string): PublicDocument | null {
+    const row = this.database.drizzle
+      .select({ id: documents.id, title: documents.title })
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.isPublic, true)))
+      .get();
+    if (!row) return null;
+    return row;
   }
 
   setPublic({ documentId, isPublic }: { documentId: string; isPublic: boolean }): void {

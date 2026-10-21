@@ -17,6 +17,8 @@ import {
   HttpStatus,
   isPreparable,
   MINUTE_MS,
+  PUBLIC_READS_PER_MINUTE,
+  PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE,
   SECOND_MS,
   TOPICS_INTERRUPTED_MESSAGE,
 } from '@superdoc-collab/types';
@@ -363,6 +365,8 @@ function createServices({
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
+    publicReads: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_READS_PER_MINUTE, now }),
+    publicSockets: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE, now }),
     heavyUploadBudget,
     timelinePipelines,
     insights,

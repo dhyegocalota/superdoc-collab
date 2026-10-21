@@ -87,6 +87,7 @@ function renderHeader({
     <EditorHeader
       opened={openedAs(role)}
       members={members}
+      agents={[]}
       currentUserId={SESSION_USER.id}
       superdoc={superdoc}
       editorContainer={null}

@@ -1,4 +1,5 @@
 import {
+  AGENT_PRESENCE_LINGER_MS,
   agentAuthorName,
   DOCUMENT_NOT_READY_ERROR,
   type DocumentRole,
@@ -34,6 +35,7 @@ type OpenedSession = {
   idleTimer: NodeJS.Timeout | null;
 };
 type SessionWork<Result> = { person: AgentPerson; documentId: string; work: (document: SuperDocDocument) => Promise<Result> };
+type AgentActivity = { userId: string; documentId: string; endedAt: number | null };
 type SessionTraits = { role: DocumentRole | null; userName: string };
 
 export class AgentSessionBusyError extends AgentToolError {
@@ -62,6 +64,7 @@ function closeQuietly(document: SuperDocDocument): Promise<void> {
 export class AgentSessions implements AgentDocumentSessions {
   private readonly idle: LruMap<OpenedSession>;
   private readonly turns = new Map<string, Promise<void>>();
+  private readonly activity = new Map<string, AgentActivity>();
   private readonly waiting: (() => void)[] = [];
   private readonly client: AgentSessionsClient;
   private readonly issueRoomToken: (options: { userId: string; documentId: string }) => string;
@@ -128,6 +131,12 @@ export class AgentSessions implements AgentDocumentSessions {
     return turnPromise;
   }
 
+  presentUserIds(documentId: string): Set<string> {
+    [...this.activity].filter(([, entry]) => !this.isPresent(entry)).forEach(([key]) => this.activity.delete(key));
+    const present = [...this.activity.values()].filter((entry) => entry.documentId === documentId);
+    return new Set(present.map((entry) => entry.userId));
+  }
+
   async close(): Promise<void> {
     await Promise.all(this.turns.values());
     const sessions = this.idle.values();
@@ -146,8 +155,21 @@ export class AgentSessions implements AgentDocumentSessions {
     });
   }
 
+  private isPresent({ endedAt }: AgentActivity): boolean {
+    if (endedAt === null) return true;
+    return this.now() - endedAt < AGENT_PRESENCE_LINGER_MS;
+  }
+
   private async runOnSession<Result>(options: SessionWork<Result>): Promise<Result> {
-    const key = `${options.person.userId}:${options.documentId}`;
+    const { person, documentId } = options;
+    const key = `${person.userId}:${documentId}`;
+    this.activity.set(key, { userId: person.userId, documentId, endedAt: null });
+    return this.runTracked({ key, ...options }).finally(() => {
+      this.activity.set(key, { userId: person.userId, documentId, endedAt: this.now() });
+    });
+  }
+
+  private async runTracked<Result>({ key, ...options }: SessionWork<Result> & { key: string }): Promise<Result> {
     const session = await this.checkout({ key, ...options });
     const result = await options.work(session.document).catch(async (error: unknown) => {
       this.free();

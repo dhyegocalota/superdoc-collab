@@ -1,6 +1,13 @@
 import type { Connection, Document, Hocuspocus } from '@hocuspocus/server';
 import type { UpdateLog } from '@superdoc-collab/history';
-import { ACCESS_REVOKED_CLOSE_CODE, ACCESS_REVOKED_REASON, BootstrapStage, RoomMode, type BootstrapProgress } from '@superdoc-collab/types';
+import {
+  ACCESS_REVOKED_CLOSE_CODE,
+  ACCESS_REVOKED_REASON,
+  BootstrapStage,
+  ClientActor,
+  RoomMode,
+  type BootstrapProgress,
+} from '@superdoc-collab/types';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
 import type { InsightsServices } from '../http/app';
@@ -117,7 +124,12 @@ export function createCollaborationRuntime({
     },
     roomMode: (documentId) => (bootstrap.isCommitted(documentId) ? RoomMode.Join : RoomMode.Create),
     onlineUserIds: (documentId) =>
-      new Set(connectionsOf(documentId).map((connection) => (connection.context as CollaborationContext).userId)),
+      new Set(
+        connectionsOf(documentId)
+          .map((connection) => connection.context as CollaborationContext)
+          .filter((connectionContext) => connectionContext.actor === ClientActor.Human)
+          .map((connectionContext) => connectionContext.userId),
+      ),
     onlineTabIds: ({ documentId, userId }) =>
       new Set(
         roomsOf(documentId)

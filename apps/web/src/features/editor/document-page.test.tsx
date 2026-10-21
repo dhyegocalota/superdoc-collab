@@ -191,6 +191,7 @@ function mockDocumentApi({
       return jsonResponse({
         body: {
           members: [],
+          agents: [],
           isCurrentUserOnline: isCurrentUserOnline(),
         },
         status: currentMembersStatus(),

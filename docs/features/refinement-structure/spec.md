@@ -4,7 +4,7 @@
 - Tier: green (moves, renames and a formatter; no behaviour change).
 - Owner approval: approved 2026-10-17 (refinement proposal, first of five lanes: structure → tests → readability-server ∥ ux-care → readability-web).
 - ADRs: none new; [0008](../../adr/0008-vertical-slices.md) (one folder per slice stays).
-- Not changing: any runtime behaviour, any public path, any test assertion, `poc/`, `libs/history/src` layout (regrouping deferred).
+- Not changing: any runtime behaviour, any public path, any test assertion, the proof of concept, `libs/history/src` layout (regrouping deferred).
 
 ## Problem
 

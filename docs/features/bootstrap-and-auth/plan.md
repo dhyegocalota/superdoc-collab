@@ -7,14 +7,14 @@
 **Goal:** A pnpm workspace where a person signs up, signs in, lands on an empty protected workspace and signs out, with the same session trusted by the collaboration socket, in one Docker image, verified by CI.
 **Architecture:** `apps/server` runs Hono and Hocuspocus 2.15.3 on one Node HTTP server; Better Auth owns users and sessions in `auth.sqlite` through Drizzle on better-sqlite3; `apps/web` is a Vite SPA served by the same server in production and proxied in development; `libs/types` holds the enums, constants and zod schemas both sides share.
 **Tech stack:** Node 24, pnpm 8, TypeScript 7, Hono 4.13, @hono/node-server 2.1, better-auth 1.7, drizzle-orm 0.45, drizzle-kit 0.31, better-sqlite3 13, @hocuspocus/server 2.15.3, ws 8, zod 4, React 19, Vite 8, react-router 8, @tanstack/react-query 5, Tailwind 4 (@tailwindcss/vite), shadcn 4, react-hook-form 7, Vitest 5, Playwright 1.64.
-**Seam:** nothing existing changes; `poc/` is untouched and stays green.
+**Seam:** nothing existing changes; the proof of concept is untouched and stays green.
 **Assumptions (decided, owner can override):** Better Auth session cookie name is read from the library (`better-auth.session_token`), never hard-coded; the dev server runs web on 5173 and server on 3000; production serves everything on `PORT` (default declared in `.env.example` as 3000, required at runtime).
 
 ## Global constraints
 
 - Everything in English. No comments. No `?? default`. No `else`. Enums over string literals. Constants over magic literals. Named parameters when a function takes more than one. Function declarations. No `.js` in imports. No `sleep` in tests: wait on conditions.
 - Required environment variables throw a named error when missing: `AUTH_SECRET`, `APP_ORIGIN`, `DATABASE_DIR`, `PORT`. `DEMO_PASSWORD` is required by the seed only.
-- `@hocuspocus/server` pinned to `2.15.3`; `yjs` to `13.6.33` (the pair proven in `poc/`).
+- `@hocuspocus/server` pinned to `2.15.3`; `yjs` to `13.6.33` (the pair proven in the proof of concept).
 - Better Auth rate limiting is `enabled: true` in every environment, including tests, so the 429 path is testable.
 - Credential failures return the same status and body whether the email exists or not.
 - Tests run against a temporary `DATABASE_DIR` created per test file; nothing writes to the repo tree.

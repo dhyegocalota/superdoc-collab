@@ -50,5 +50,5 @@ pnpm test:e2e
 1. The format commit hides a semantic change: diff `2bdb7c5..2bae62f` ignoring whitespace and compare token streams.
 2. A moved file lost history: `git log --follow` on each moved path.
 3. A doc, rule or script still points at an old path: `rg "src/deploy|@/test/|features/editor/(version|viewer)|timeline-tooltip.*format"`.
-4. A Prettier-ignored folder hides unformatted source: the ignore list now includes `drizzle` and `.agents/skills`; the only tracked `.ts` files under ignored paths are `poc/` (by the plan) and one vendored skill example.
+4. A Prettier-ignored folder hides unformatted source: the ignore list now includes `drizzle` and `.agents/skills`; the only tracked `.ts` files under ignored paths are the proof of concept (by the plan) and one vendored skill example.
 5. The banner still shows time only for today and date plus time otherwise.

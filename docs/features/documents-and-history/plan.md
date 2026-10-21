@@ -28,7 +28,7 @@
 - Non-members get 404 with the same body as a missing document on every document route; the socket refuses them with the slice 1 generic error.
 - Readers are enforced twice: `connection.readOnly = true` on the server and `documentMode: 'viewing'` in SuperDoc (spike fact 3).
 - Share tokens never appear in logs, nor in responses other than the owner's share-links response.
-- `poc/` stays untouched and green. One projection worker per process, no Piscina.
+- the proof of concept stays untouched and green. One projection worker per process, no Piscina.
 
 ## Review focus
 
@@ -188,7 +188,7 @@ _Done — evidence: commits fd9fdc2 (tests), eefc59b (deps), 6b25147; task revie
 - Produces: `readMainStoryBlocks(document: Y.Doc): Block[]`, `readMainStoryText(document)`, `groupIntoWindows({ events, rules }): EditWindow[]`, `SingleFlight<Value>`, `EditEvent = { sequence; serverTime; authorIds: string[]; blockId; kind: BlockChangeKind; inserted; deleted }` (resolved, for windows), `ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` (raw, for storage), `projectEditEvents({ baselineState: Uint8Array; updates: LoggedUpdate[] }): ProjectedEdit[]`, `resolveAuthorIds({ update, identities }: { update: Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>; identities: Map<number, string> }): string[]`, `findBootstrapSequence(updates: LoggedUpdate[]): number | null`, `TrackedChangeKind { Insert, Delete }`, `SeedParagraph`, `buildSeedDocx(paragraphs): Promise<Buffer>`, `isDocx(bytes: Uint8Array): Promise<boolean>`.
 
 - [x] **Step 1: Package** — `libs/history` and its dependencies exist from Task 1; this task runs no `pnpm add`.
-- [x] **Step 2: Lift unchanged** — `cp poc/lib/{document-content,edit-windows,single-flight}.ts libs/history/src/` and `cp poc/tests/node/{edit-windows,single-flight}.test.ts libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-collab/types`.
+- [x] **Step 2: Lift unchanged** — copy `document-content.ts`, `edit-windows.ts`, `single-flight.ts` and `edit-windows.test.ts` and `single-flight.test.ts` from the proof of concept into `libs/history/src/`; rewrite the tests' imports to `./edit-windows`, `./single-flight` and `BlockChangeKind` from `@superdoc-collab/types`.
 - [x] **Step 3: Failing test** — `docx-signature.test.ts`
 ```ts
 async function zipWith(entry: string): Promise<Uint8Array> {
@@ -223,7 +223,7 @@ export async function isDocx(bytes: Uint8Array): Promise<boolean> {
   }
 }
 ```
-`seed-docx.ts`: copy `poc/lib/seed-docx.ts`; add `export enum TrackedChangeKind { Insert = 'insert', Delete = 'delete' }`, type `kind: TrackedChangeKind`, compare with `TrackedChangeKind.Insert`. `edit-events.ts`: copy `poc/lib/edit-events.ts`; import `BlockChangeKind` from `@superdoc-collab/types` (delete the local enum) and `LoggedUpdate` from `./update-log` (Task 3); the projector starts from state bytes, because the product projects from a materialized cursor, and it emits the update's raw identity facts instead of resolved authors, because authors are resolved at read time. `resolveAuthorIds` keeps its POC body; only its `update` parameter narrows to `Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` so a stored event can be resolved too. The projector becomes:
+`seed-docx.ts`: copy the proof of concept's `seed-docx.ts`; add `export enum TrackedChangeKind { Insert = 'insert', Delete = 'delete' }`, type `kind: TrackedChangeKind`, compare with `TrackedChangeKind.Insert`. `edit-events.ts`: copy the proof of concept's `edit-events.ts`; import `BlockChangeKind` from `@superdoc-collab/types` (delete the local enum) and `LoggedUpdate` from `./update-log` (Task 3); the projector starts from state bytes, because the product projects from a materialized cursor, and it emits the update's raw identity facts instead of resolved authors, because authors are resolved at read time. `resolveAuthorIds` keeps its POC body; only its `update` parameter narrows to `Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>` so a stored event can be resolved too. The projector becomes:
 ```ts
 export type ProjectedEdit = Omit<EditEvent, 'authorIds'> & Pick<LoggedUpdate, 'yjsClientIds' | 'connectionUserId'>;
 
@@ -240,7 +240,7 @@ export function projectEditEvents({ baselineState, updates }: { baselineState: U
     return changes.map((change) => ({ ...change, sequence, serverTime, yjsClientIds, connectionUserId }));
   });
 }
-``` `document-history.ts`: copy only `findBootstrapSequence` and its three constants from `poc/lib/document-history.ts`, with return type `number | null` and its last two lines replaced by the lines below, because an unbootstrapped room is a normal state for the projection:
+``` `document-history.ts`: copy only `findBootstrapSequence` and its three constants from the proof of concept's `document-history.ts`, with return type `number | null` and its last two lines replaced by the lines below, because an unbootstrapped room is a normal state for the projection:
 ```ts
   if (!committed) return null;
   return committed.sequence;
@@ -296,7 +296,7 @@ export function commitBootstrap(document: Y.Doc): void {
 }
 ```
 `testing/index.ts` re-exports both files.
-- [x] **Step 2: Port the POC suites and add the new cases** — copy `poc/tests/node/relay-attribution.test.ts` and `snapshots.test.ts`; replace `new UpdateLog(path)` with `new UpdateLog(openTestDatabase({ set: MigrationSet.History, path }))` and `log.close()` with closing that handle. `update-log.test.ts`
+- [x] **Step 2: Port the POC suites and add the new cases** — copy the proof of concept's `relay-attribution.test.ts` and `snapshots.test.ts`; replace `new UpdateLog(path)` with `new UpdateLog(openTestDatabase({ set: MigrationSet.History, path }))` and `log.close()` with closing that handle. `update-log.test.ts`
 ```ts
 const DOCUMENT = 'document-1';
 
@@ -330,7 +330,7 @@ test('compaction reads only the tail after the latest snapshot', () => {
 ```
 Also: `logWith(5).readBatch({ afterSequence: 1, limit: 2 })` returns sequences `[2, 3]`; after `forget(DOCUMENT)` on a log that also holds `'other'`, `hasUpdates(DOCUMENT)` is false, `clientIdentities(DOCUMENT).size` is 0 and `hasUpdates('other')` is true.
 - [x] **Step 3: Run, expect failure** — FAIL: cannot find `./update-log`. Commit the failing tests alone: `test(history): pin the update log on better-sqlite3`; `git show` of that commit plus this failing run is the red evidence.
-- [x] **Step 4: Implement** — copy `poc/lib/update-log.ts`; delete the `node:sqlite` import, the constructor's `exec` block and `close()`; `import type Database from 'better-sqlite3'`, field `private readonly database: Database.Database`, `constructor(database: Database.Database) { this.database = database; }`. Bind the `Uint8Array` as is (spike fact 4). Extract the row mapping of `readRange` into `function toLoggedUpdate(row: UpdateRow): LoggedUpdate` (keeps `new Uint8Array(row.update_bytes)`). Add:
+- [x] **Step 4: Implement** — copy the proof of concept's `update-log.ts`; delete the `node:sqlite` import, the constructor's `exec` block and `close()`; `import type Database from 'better-sqlite3'`, field `private readonly database: Database.Database`, `constructor(database: Database.Database) { this.database = database; }`. Bind the `Uint8Array` as is (spike fact 4). Extract the row mapping of `readRange` into `function toLoggedUpdate(row: UpdateRow): LoggedUpdate` (keeps `new Uint8Array(row.update_bytes)`). Add:
 ```ts
   readBatch({ documentName, afterSequence, limit }: { documentName: string; afterSequence: number; limit: number }): LoggedUpdate[] {
     const rows = this.database.prepare('SELECT * FROM updates WHERE document_name = ? AND sequence > ? ORDER BY sequence LIMIT ?').all(documentName, afterSequence, limit) as UpdateRow[];

@@ -4,7 +4,7 @@
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-16
 **ADRs:** [0004](../../adr/0004-stack.md) stack · [0005](../../adr/0005-authentication-with-better-auth.md) auth · [0008](../../adr/0008-vertical-slices.md) slices · [0009](../../adr/0009-design-system.md) design system
-**Not changing:** `poc/` stays as it is and stays green; no documents, no SuperDoc, no history code yet (slice 2); no deployment to the VPS yet (slice 5), only the local Compose.
+**Not changing:** the proof of concept stays as it is and stays green; no documents, no SuperDoc, no history code yet (slice 2); no deployment to the VPS yet (slice 5), only the local Compose.
 
 ## Problem
 
@@ -41,7 +41,7 @@ docker/           Dockerfile, compose, entrypoint
 ```
 
 - `apps` vs `libs`: deployable processes versus code shared by them. `libs/history` arrives in slice 2 when the POC is ported, so it is not created empty now.
-- E2E at the root, not inside `apps/web`: the specs exercise the server too, and later the multi-author harness from `poc/tests/harness.ts` moves here.
+- E2E at the root, not inside `apps/web`: the specs exercise the server too, and later the multi-author harness from the proof of concept's test harness moves here.
 - One image, one port: Hocuspocus shares the HTTP server, so TLS and WebSocket upgrade are one Traefik route in slice 5 and the auth cookie is first-party for the socket.
 
 ### Data flow

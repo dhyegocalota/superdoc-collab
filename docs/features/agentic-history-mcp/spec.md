@@ -4,7 +4,7 @@
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-17
 **ADRs:** [0029](../../adr/0029-agent-edits-carry-a-human-or-agent-actor.md) agent actor identity · [0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md) MCP OAuth and room tokens · [0002](../../adr/0002-authorship-observed-vs-declared.md) identity tiers · [0010](../../adr/0010-documents-ownership-and-share-links.md) roles and share links · [0011](../../adr/0011-process-wide-llm-cost-caps.md) LLM caps · [0016](../../adr/0016-timeline-bin-budget.md) bin budget · [0019](../../adr/0019-deploy-on-railway.md) Railway
-**Not changing:** the browser collaboration path and its `Origin` guard, the identity tiers of 0002, snapshots and time travel, the LLM caps, the share link model (two links per document, rotate to revoke), `poc/`. No in-app agent panel.
+**Not changing:** the browser collaboration path and its `Origin` guard, the identity tiers of 0002, snapshots and time travel, the LLM caps, the share link model (two links per document, rotate to revoke), the proof of concept. No in-app agent panel.
 
 ## Problem
 

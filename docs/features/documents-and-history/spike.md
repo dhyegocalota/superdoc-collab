@@ -2,7 +2,7 @@
 
 - Date: 2026-10-16
 - Versions: `superdoc` 2.23.0, `@hocuspocus/server` and `@hocuspocus/provider` 2.15.3, `yjs` 13.6.33, `better-sqlite3` 13.0.3 (SQLite 3.53.4), Node 24.7.0, headless Chromium through Playwright.
-- Method: a throwaway client copied from `poc/client/main.ts` (adds `user.id`, `documentMode` and `window.superdoc`), built with `vite build` and served with `vite preview` on port 5198, plus a wrapper `Hocuspocus` server that logs `onAuthenticate`, `onChange` and `onAwarenessUpdate`. All of it lived under `poc/spike/` and was deleted afterwards; no POC or product file changed.
+- Method: a throwaway client copied from the proof of concept's client (adds `user.id`, `documentMode` and `window.superdoc`), built with `vite build` and served with `vite preview` on port 5198, plus a wrapper `Hocuspocus` server that logs `onAuthenticate`, `onChange` and `onAwarenessUpdate`. All of it lived in a spike folder inside the proof of concept and was deleted afterwards; no POC or product file changed.
 
 ## 1. Awareness `userId`
 

@@ -4,7 +4,7 @@
 **Tier:** 🟡 medium. Nothing the user sees changes, and nothing crosses the wire differently. It still splits `useTimeTravel` and `TimelinePanel`, rewires every poller and every query key builder, and replaces both auth pages, so every control-flow change is pinned by a test before it moves.
 **Owner approval:** approved 2026-10-17 (refinement proposal)
 **ADRs:** none new.
-**Not changing:** request paths and methods, query key values, poll intervals, `Retry-After` header parsing, every user-visible string, layout and Tailwind classes, the SuperDoc options passed to the constructor, `apps/server`, `poc/`, and E2E specs.
+**Not changing:** request paths and methods, query key values, poll intervals, `Retry-After` header parsing, every user-visible string, layout and Tailwind classes, the SuperDoc options passed to the constructor, `apps/server`, the proof of concept, and E2E specs.
 
 ## Problem
 

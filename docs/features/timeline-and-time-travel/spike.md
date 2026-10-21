@@ -2,7 +2,7 @@
 
 - Date: 2026-10-16
 - Versions: `superdoc` 2.23.0, `@hocuspocus/server` and `@hocuspocus/provider` 2.15.3, `yjs` 13.6.33, `better-sqlite3` 13.0.3, `ai` 7.0.142, `@openrouter/ai-sdk-provider` 3.1.0, `zod` 4.6.7, `d3-shape` 3, `react` 19, Node 24.7.0, headless Chromium 156 through Playwright.
-- Method: everything lived under an untracked `spike/` at the repo root (own `package.json`, symlinks to the workspace's `yjs`, `superdoc` and Hocuspocus packages so there is one Yjs instance) and was never staged. No product file, `poc/`, manifest or lockfile changed. The real log came from the built product (`apps/server/dist`, port 3200, throwaway database directory) driven by Playwright as Ana with the repo's own `e2e/fixtures.ts` and `e2e/editor.ts` helpers; every server and browser started was stopped.
+- Method: everything lived under an untracked `spike/` at the repo root (own `package.json`, symlinks to the workspace's `yjs`, `superdoc` and Hocuspocus packages so there is one Yjs instance) and was never staged. No product file, the proof of concept, manifest or lockfile changed. The real log came from the built product (`apps/server/dist`, port 3200, throwaway database directory) driven by Playwright as Ana with the repo's own `e2e/fixtures.ts` and `e2e/editor.ts` helpers; every server and browser started was stopped.
 
 ## 1. Native Yjs snapshots over SuperDoc's room
 

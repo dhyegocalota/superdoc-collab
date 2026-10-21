@@ -1,7 +1,8 @@
 # Shrinking the snapshot interval barely moves open-room latency
 - Date: 2026-10-16
-- Inspired by: docs/adr/0003-time-travel-with-native-yjs-snapshots.md; poc/RESULTS.md
+- Inspired by: docs/adr/0003-time-travel-with-native-yjs-snapshots.md; the proof of concept's results
 - Revisited: 2026-10-16 — still true
+- Revisited: 2026-10-21 — anchors moved off the proof of concept, removed on 2026-10-17, to the code that carries the fix today
 
 ## Signal
 Dropping the heavy snapshot interval from 1000 to 100 updates cuts open-room p50 only from 83 ms to 53 ms while storage grows from 21 MB to 222 MB. The worst case stays near 110 ms.
@@ -15,4 +16,4 @@ Measure read against decode before touching storage. Keep heavy snapshots rare (
 ## Anchor
 - `docs/adr/0003-time-travel-with-native-yjs-snapshots.md` — benchmark table and decision
 - `docs/adr/0007-read-model-in-sqlite.md` — context
-- `poc/lib/update-log.ts` — `compact`, `materialize`
+- `libs/history/src/update-log.ts` — `compact`, `materialize`

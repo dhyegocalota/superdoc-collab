@@ -21,6 +21,7 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { SELECTION_SUMMARY_HEADING, SUMMARIZE_EDITS_LABEL } from '@/features/timeline/timeline-copy';
+import { installAuthorPalette, removeAuthorPalette } from '@/testing/author-palette';
 import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
@@ -87,11 +88,15 @@ const ACCESS_DENIED = {
 };
 
 beforeEach(() => {
+  installAuthorPalette();
   SuperDoc.mockClear();
   superDocDestroy.mockClear();
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  removeAuthorPalette();
+  vi.restoreAllMocks();
+});
 
 function constructedConfig(): SuperDocConfig {
   const config = SuperDoc.mock.calls.at(-1)?.[0];

@@ -22,6 +22,7 @@ export function renderWithProviders(
     [
       { path: AppRoute.Document, element },
       { path: AppRoute.Share, element },
+      { path: AppRoute.Public, element },
       { path: AppRoute.VersionView, element },
       { path: ANY_PATH, element },
     ],

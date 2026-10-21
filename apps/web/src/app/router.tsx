@@ -13,6 +13,7 @@ import { SignUpPage } from '@/features/auth/sign-up-page';
 import { DocumentsPage } from '@/features/documents/documents-page';
 import { OAuthConsentPage } from '@/features/oauth-consent/oauth-consent-page';
 import { SettingsPage } from '@/features/settings/settings-page';
+import { PublicPage } from '@/features/sharing/public-page';
 import { ShareLandingPage } from '@/features/sharing/share-landing-page';
 import { PrintPage } from '@/features/versions/print-page';
 import { VersionViewPage } from '@/features/versions/version-view-page';
@@ -63,6 +64,7 @@ const pageRoutes: RouteObject[] = [
       </RequireSession>
     ),
   },
+  { path: AppRoute.Public, element: <PublicPage /> },
   { path: AppRoute.About, element: <AboutPage /> },
   {
     path: AppRoute.OAuthConsent,

@@ -133,4 +133,4 @@ Refinement after the five slices:
 | [`reload-safe-align-shortcut`](reload-safe-align-shortcut/) | Align right moves from ⌘R to ⌘⌥R (Ctrl+Alt+R) so the browser reload keys ⌘R and ⌘⇧R are never taken while a document is open | Shipped 2026-10-21 |
 | [`ai-presence-avatar`](ai-presence-avatar/) | An AI editing through MCP shows its own avatar in the members row, beside its owner's, for the tool call plus 60 s; the owner is online only from a human socket | Shipped 2026-10-21 |
 | [`toolbar-ruler-mode-theme`](toolbar-ruler-mode-theme/) | The editor toolbar shows SuperDoc's ruler button and document-mode dropdown, and a Theme button with five presets and an accent picker saved per browser | Shipped 2026-10-21 |
-| [`public-read-only-link`](public-read-only-link/) | Shipped 2026-10-21 |
+| [`public-read-only-link`](public-read-only-link/) | The owner switches a document public: anyone with the link reads it live and read-only as `Anonymous <Animal>`, sees who is online and the latest stored summary, and can start nothing | Shipped 2026-10-21 |

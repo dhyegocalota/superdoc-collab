@@ -13,7 +13,7 @@ export const ANIMAL_ICONS: Record<PublicAnimal, string> = {
   [PublicAnimal.Giraffe]: '🦒',
   [PublicAnimal.Hedgehog]: '🦔',
   [PublicAnimal.Hippo]: '🦛',
-  [PublicAnimal.Iguana]: '🦎',
+  [PublicAnimal.Iguana]: '🦕',
   [PublicAnimal.Koala]: '🐨',
   [PublicAnimal.Lemur]: '🐒',
   [PublicAnimal.Llama]: '🦙',

@@ -35,7 +35,7 @@ import { authenticateMember, CollaborationAuthenticationError } from './authenti
 import { overfullConnections } from './awareness-client-cap';
 import { trackAwarenessOwners } from './awareness-origin';
 import { AwarenessOwners } from './awareness-owners';
-import { awarenessEntriesOf, messageTypeOf, silenceAwarenessEntries } from './frame-bucket';
+import { awarenessEntriesOf, messageTypeOf, silenceAwarenessEntries, syncStepOf } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
@@ -82,6 +82,8 @@ class VisitorMessageError extends Error {
   }
 }
 
+const SYNC_STEP_ONE = 0;
+const MAX_VISITOR_WRITE_SHAPED_MESSAGES = 1;
 const VISITOR_MESSAGE_TYPES = new Set<number>([MessageType.Sync, MessageType.Awareness, MessageType.QueryAwareness, MessageType.CLOSE]);
 
 class CollaborationSingleDocumentError extends Error {
@@ -186,6 +188,7 @@ export function createCollaborationServer({
   const dropLogCooldown = new KeyedCooldown({ durationMs: DROP_LOG_COOLDOWN_MS });
   const impersonationTimers = new ImpersonationTimers();
   const refusedConnections = new WeakSet<CollaborationContext>();
+  const visitorWriteShapedMessages = new WeakMap<CollaborationContext, number>();
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   const admitters: Record<
     SocketKind,
@@ -300,13 +303,22 @@ export function createCollaborationServer({
       trackAwarenessOwners({ document, owners: awarenessOwners });
     },
     async beforeHandleMessage({ update, context, document, socketId, connection }) {
-      const { userId, documentId, bootstrapAttempt, visitor } = context as CollaborationContext;
+      const connectionContext = context as CollaborationContext;
+      const { userId, documentId, bootstrapAttempt, visitor } = connectionContext;
       const isStaleAttempt = bootstrapAttempt !== null && !roomBootstrap.isCurrent({ documentId, attempt: bootstrapAttempt });
       if (isStaleAttempt) connection.readOnly = true;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
       const messageType = messageTypeOf(frame);
       const isRefusedVisitorMessage = visitor !== null && (messageType === null || !VISITOR_MESSAGE_TYPES.has(messageType));
       if (isRefusedVisitorMessage) throw new VisitorMessageError();
+      const syncStep = syncStepOf(frame);
+      const isVisitorWriteShaped = visitor !== null && syncStep !== null && syncStep !== SYNC_STEP_ONE;
+      if (isVisitorWriteShaped) {
+        const seen = visitorWriteShapedMessages.get(connectionContext);
+        const writeShapedMessages = seen === undefined ? 1 : seen + 1;
+        visitorWriteShapedMessages.set(connectionContext, writeShapedMessages);
+        if (writeShapedMessages > MAX_VISITOR_WRITE_SHAPED_MESSAGES) throw new VisitorMessageError();
+      }
       const entries = awarenessEntriesOf(frame);
       if (entries === null) {
         console.warn(AWARENESS_MALFORMED_LOG);

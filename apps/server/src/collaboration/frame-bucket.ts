@@ -60,6 +60,15 @@ export function messageTypeOf(frame: RawData): number | null {
   return header.messageType.value;
 }
 
+export function syncStepOf(frame: RawData): number | null {
+  const bytes = bufferOf(frame);
+  const header = headerOf(bytes);
+  if (header === null || header.messageType === null || header.messageType.value !== MessageType.Sync) return null;
+  const step = readVarUint({ bytes, offset: header.messageType.next });
+  if (step === null) return null;
+  return step.value;
+}
+
 export function frameBucketOf(frame: RawData): FrameBucket {
   const header = headerOf(bufferOf(frame));
   if (header?.messageType?.value === MessageType.Awareness) return FrameBucket.Awareness;

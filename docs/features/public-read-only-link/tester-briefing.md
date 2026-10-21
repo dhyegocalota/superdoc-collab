@@ -10,7 +10,7 @@ Written by the developer sub-agent when its steps are done. The developer does n
 - `apps/server/src/collaboration/` — `authenticate-public.ts`, `public-room-tokens.ts` (own key label; `agent/room-tokens.ts` now exports `sealClaims` and `openClaims`), `public-connections.ts`, a fourth socket kind in `collaboration-server.ts`, the per-address admission window in `attach-collaboration.ts`, `CollaborationContext.visitor`.
 - `apps/server/src/insights/insights-repository.ts` — `latestSelectionSummary`.
 - `libs/types/src/public-link.ts` (and `routes.ts`, `constants.ts`, `http.ts`, `author-colors.ts`) — animals, viewers, the public payloads, paths, limits.
-- `apps/web/src/features/sharing/` — `public-page.tsx`, `public-link-section.tsx` (inside the Share dialog), `public-api.ts`, `public-copy.ts`, `public-summary-card.tsx`, `animal-avatar.tsx`, `viewer-avatar.tsx`; route `/public/:documentId` in `app/router.tsx`.
+- `apps/web/src/features/sharing/` — `public-page.tsx`, `public-link-section.tsx` (inside the Share dialog), `public-api.ts`, `public-copy.ts`, `public-summary-card.tsx`, `public-members.tsx`, `viewer-avatar.tsx` (animal icons live in `lib/animal-icons.ts`); route `/public/:documentId` in `app/router.tsx`.
 - Sibling files touched, additive only: `apps/web/src/features/editor/superdoc-editor.tsx` (optional props `collaborationPath` and `collaborationToken`, `user` typed as `CollaborationUser`) and `superdoc-options.ts` (`collaborationToken` with the placeholder as default, `CollaborationUser`). Expect a trivial merge with `toolbar-ruler-mode-theme`.
 - `e2e/public-link.spec.ts`.
 
@@ -54,7 +54,7 @@ The tests of `public-socket-writes.test.ts` landed green because the guards came
 
 | Mutation | Test that went red | Failure text |
 |----------|--------------------|--------------|
-| `isWriteAllowed` no longer refuses a visitor context | `... with the read-only flag lifted by mistake, an update from a public connection is still not appended to the log` | `expected [ Array(1) ] to deeply equal []` |
+| `isWriteAllowed` no longer refuses a visitor context | `a change that reaches the room with a visitor context is not appended to the log` | `expected [ Array(1) ] to deeply equal []` |
 | the visitor's awareness frame is no longer silenced | `a visitor announces no awareness to the room while it sees the awareness of a member` | `expected true to be false` |
 | `connection.readOnly` no longer set for the Reader role | `an update from a public connection is never applied to the room nor appended to the log` | `expected 'written by the ownerwritten by the vi…' to be 'written by the owner'` |
 

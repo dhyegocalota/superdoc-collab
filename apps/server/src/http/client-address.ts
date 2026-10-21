@@ -41,7 +41,7 @@ const IPV6_GROUP_COUNT = 8;
 const IPV6_PREFIX_GROUPS = 4;
 const IPV6_COMPRESSION = '::';
 const IPV6_SEPARATOR = ':';
-const ZONE_SEPARATOR = '%';
+const ZONE_SUFFIX = /%.*$/;
 const IPV4_MARKER = '.';
 const LEADING_ZEROS = /^0+(?=.)/;
 const IPV6_PREFIX_SUFFIX = '/64';
@@ -52,16 +52,17 @@ function groupsOf(part: string): string[] {
 
 export function addressWindowKeyOf(address: string): string {
   if (!address.includes(IPV6_SEPARATOR) || address.includes(IPV4_MARKER)) return address;
-  const [unzoned = address] = address.split(ZONE_SEPARATOR);
-  const [head = '', tail] = unzoned.split(IPV6_COMPRESSION);
-  const headGroups = groupsOf(head);
-  const tailGroups = tail === undefined ? [] : groupsOf(tail);
+  const unzoned = address.replace(ZONE_SUFFIX, '');
+  const compression = unzoned.indexOf(IPV6_COMPRESSION);
+  const isCompressed = compression !== -1;
+  const headGroups = groupsOf(isCompressed ? unzoned.slice(0, compression) : unzoned);
+  const tailGroups = isCompressed ? groupsOf(unzoned.slice(compression + IPV6_COMPRESSION.length)) : [];
   const zeroGroups = Array.from({ length: IPV6_GROUP_COUNT - headGroups.length - tailGroups.length }, () => '0');
-  const groups = tail === undefined ? headGroups : [...headGroups, ...zeroGroups, ...tailGroups];
+  const groups = isCompressed ? [...headGroups, ...zeroGroups, ...tailGroups] : headGroups;
   const prefix = groups.slice(0, IPV6_PREFIX_GROUPS).map((group) => group.toLowerCase().replace(LEADING_ZEROS, ''));
   return `${prefix.join(IPV6_SEPARATOR)}${IPV6_PREFIX_SUFFIX}`;
 }
 
 export function publicAddressKeyOf(parameters: Parameters<typeof clientAddressOf>[0]): string {
-  throw new Error(`publicAddressKeyOf is not implemented for ${parameters.remoteAddress}`);
+  return addressWindowKeyOf(clientAddressOf(parameters));
 }

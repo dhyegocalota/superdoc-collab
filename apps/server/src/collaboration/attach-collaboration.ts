@@ -24,7 +24,7 @@ import {
 import { WebSocket, WebSocketServer, type PerMessageDeflateOptions, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
-import { addressWindowKeyOf, clientAddressOf, FORWARDED_FOR_HEADER } from '../http/client-address';
+import { FORWARDED_FOR_HEADER, publicAddressKeyOf } from '../http/client-address';
 import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
@@ -239,14 +239,12 @@ export function attachCollaboration({
   function upgradePublic({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): void {
     const { remoteAddress } = request.socket;
     if (remoteAddress === undefined) return void socket.destroy();
-    const address = addressWindowKeyOf(
-      clientAddressOf({
-        forwardedFor: request.headers[FORWARDED_FOR_HEADER],
-        remoteAddress,
-        trustProxy: publicAdmission.trustProxy,
-        trustedProxyHops: publicAdmission.trustedProxyHops,
-      }),
-    );
+    const address = publicAddressKeyOf({
+      forwardedFor: request.headers[FORWARDED_FOR_HEADER],
+      remoteAddress,
+      trustProxy: publicAdmission.trustProxy,
+      trustedProxyHops: publicAdmission.trustedProxyHops,
+    });
     const waitMs = publicAdmission.window.waitMs(address);
     if (waitMs !== null) {
       socket.on('error', destroyOnSocketError);

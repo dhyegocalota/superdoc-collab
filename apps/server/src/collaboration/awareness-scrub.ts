@@ -1,7 +1,10 @@
 import { MessageType } from '@hocuspocus/server';
 import { createHmac } from 'node:crypto';
+import { LruMap } from '../limits/lru-map';
 import type { WebSocket } from 'ws';
 
+const PSEUDONYM_CACHE_ENTRIES = 4096;
+const PSEUDONYM_CACHE_KEY_SEPARATOR = '\0';
 const PSEUDONYM_DIGEST = 'sha256';
 const PSEUDONYM_PARTS_SEPARATOR = ':';
 const PSEUDONYM_LENGTH = 16;
@@ -36,12 +39,19 @@ function readEntries({ bytes, offset, remaining }: { bytes: Buffer; offset: numb
   return [{ clientId: clientId.value, clock: clock.value, state }, ...readEntries({ bytes, offset: end, remaining: remaining - 1 })];
 }
 
+const pseudonyms = new LruMap<string>({ isOverBudget: (entries) => entries.size > PSEUDONYM_CACHE_ENTRIES });
+
 function pseudonymOf({ id, secret, roomName }: { id: unknown; secret: string; roomName: string }): string | undefined {
   if (typeof id !== 'string') return undefined;
-  return createHmac(PSEUDONYM_DIGEST, secret)
+  const key = [secret, roomName, id].join(PSEUDONYM_CACHE_KEY_SEPARATOR);
+  const cached = pseudonyms.get(key);
+  if (cached !== null) return cached;
+  const pseudonym = createHmac(PSEUDONYM_DIGEST, secret)
     .update(`${roomName}${PSEUDONYM_PARTS_SEPARATOR}${id}`)
     .digest('hex')
     .slice(0, PSEUDONYM_LENGTH);
+  pseudonyms.set({ key, value: pseudonym });
+  return pseudonym;
 }
 
 function scrubbedState({ state, secret, roomName }: { state: unknown; secret: string; roomName: string }): unknown {
@@ -62,7 +72,7 @@ function encodedEntry({ entry, secret, roomName }: { entry: AwarenessEntry; secr
 }
 
 export function scrubAwarenessFrame({ frame, secret }: { frame: Uint8Array; secret: string }): Uint8Array {
-  const bytes = Buffer.from(frame);
+  const bytes = Buffer.from(frame.buffer, frame.byteOffset, frame.byteLength);
   const roomNameLength = readVarUint({ bytes, offset: 0 });
   const roomNameEnd = roomNameLength.next + roomNameLength.value;
   const roomName = bytes.subarray(roomNameLength.next, roomNameEnd).toString();

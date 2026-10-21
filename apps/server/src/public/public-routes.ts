@@ -25,7 +25,7 @@ import { signPublicRoomToken } from '../collaboration/public-room-tokens';
 import type { Environment } from '../config/environment';
 import { DocumentNotFoundError } from '../documents/require-document-role';
 import type { AppServices } from '../http/app';
-import { addressWindowKeyOf, clientAddressOf, FORWARDED_FOR_HEADER, UNKNOWN_CLIENT_ADDRESS_MESSAGE } from '../http/client-address';
+import { publicAddressKeyOf, FORWARDED_FOR_HEADER, UNKNOWN_CLIENT_ADDRESS_MESSAGE } from '../http/client-address';
 import { retryLater } from '../http/retry-later';
 
 const COOKIE_HEADER = 'cookie';
@@ -37,14 +37,12 @@ export function createPublicRoutes({ auth, environment, services }: { auth: Auth
   routes.use('*', async (context, next) => {
     const remoteAddress = getConnInfo(context).remote.address;
     if (!remoteAddress) return context.json({ error: UNKNOWN_CLIENT_ADDRESS_MESSAGE }, HttpStatus.BadRequest);
-    const address = addressWindowKeyOf(
-      clientAddressOf({
-        forwardedFor: context.req.header(FORWARDED_FOR_HEADER),
-        remoteAddress,
-        trustProxy: environment.trustProxy,
-        trustedProxyHops: environment.trustedProxyHops,
-      }),
-    );
+    const address = publicAddressKeyOf({
+      forwardedFor: context.req.header(FORWARDED_FOR_HEADER),
+      remoteAddress,
+      trustProxy: environment.trustProxy,
+      trustedProxyHops: environment.trustedProxyHops,
+    });
     const waitMs = publicReads.waitMs(address);
     if (waitMs !== null) {
       return retryLater({

@@ -1,6 +1,5 @@
 import {
   ApiPath,
-  ConnectionFailureReason,
   documentPagePath,
   DocumentRole,
   PREPARING_POLL_MS,
@@ -67,8 +66,8 @@ function PublicDocumentView({ opened, onReload }: { opened: VisitorAccess; onRel
   const handleTransportReport = useCallback(
     (report: TransportReport): void => {
       if (report.reading !== TransportReading.Failed) return;
-      if (report.failureReason === ConnectionFailureReason.AccessDenied) return onReload();
       setHasTransportFailed(true);
+      onReload();
     },
     [onReload],
   );

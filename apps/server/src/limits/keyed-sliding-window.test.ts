@@ -44,3 +44,23 @@ test('keys do not share a budget', () => {
   recordTimes({ window, key: 'user-1', count: MAX_EVENTS });
   expect(window.waitMs('user-2')).toBeNull();
 });
+
+test('the oldest idle key is forgotten once more keys than the cap are tracked', () => {
+  const clock = { time: 0 };
+  const window = new KeyedSlidingWindow({ windowMs: WINDOW_MS, maxEvents: MAX_EVENTS, maxKeys: 2, now: () => clock.time });
+  recordTimes({ window, key: 'first', count: MAX_EVENTS });
+  window.record('second');
+  window.record('third');
+  expect(window.waitMs('first')).toBeNull();
+  recordTimes({ window, key: 'third', count: MAX_EVENTS });
+  expect(window.waitMs('third')).not.toBeNull();
+});
+
+test('a key used recently survives the eviction of an older one', () => {
+  const window = new KeyedSlidingWindow({ windowMs: WINDOW_MS, maxEvents: MAX_EVENTS, maxKeys: 2 });
+  recordTimes({ window, key: 'busy', count: MAX_EVENTS });
+  window.record('quiet');
+  window.waitMs('busy');
+  window.record('newcomer');
+  expect(window.waitMs('busy')).not.toBeNull();
+});

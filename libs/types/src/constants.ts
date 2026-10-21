@@ -33,6 +33,8 @@ export const BOOTSTRAP_INTERRUPTED_RETRIES = 1;
 export const BOOTSTRAP_RETRY_COOLDOWN_MS = 30 * SECOND_MS;
 export const BOOTSTRAP_MAX_RETRIES = 3;
 export const OPEN_UNCOMMITTED_PER_MINUTE = 30;
+export const PUBLIC_READS_PER_MINUTE = 300;
+export const PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE = 30;
 export const OPEN_RATE_LIMITED_MESSAGE = 'Too many opens of documents that are not ready';
 // NB ADR 0040: update frames peak near 264 per second at fifty keys per second, so 1000 leaves room and still closes a flood.
 export const MAX_SOCKET_UPDATE_FRAMES_PER_SECOND = 1000;
@@ -60,6 +62,8 @@ export const JUMP_FAILED_NOTICE_MS = 3 * SECOND_MS;
 export const PRINT_READY_TIMEOUT_MS = 20 * SECOND_MS;
 export const AGENT_PRESENCE_LINGER_MS = MINUTE_MS;
 export const MEMBERS_REFRESH_MS = 5 * SECOND_MS;
+export const PUBLIC_SUMMARY_REFRESH_MS = 30 * SECOND_MS;
+export const COPIED_NOTICE_MS = 3 * SECOND_MS;
 export const MEMBERS_PRESENCE_DEBOUNCE_MS = SECOND_MS;
 export const LAST_EDIT_MARK_INTERVAL_MS = SECOND_MS;
 export const RECOVERED_NOTICE_MS = 3 * SECOND_MS;
@@ -77,3 +81,7 @@ export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 export function secondsRoundedUp(milliseconds: number): number {
   return Math.ceil(milliseconds / SECOND_MS);
 }
+export const PUBLIC_MAX_SOCKET_MESSAGE_BYTES = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE;
+export const PUBLIC_MESSAGE_REASON = 'Public readers may only sync and read awareness';
+export const KEYED_WINDOW_MAX_KEYS = 50_000;
+export const MAX_VISITOR_SYNC_STEP_ONE_MESSAGES = 2;

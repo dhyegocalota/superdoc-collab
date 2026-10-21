@@ -1,11 +1,4 @@
-import {
-  ApiPath,
-  type AuthorColorSlot,
-  ConnectionFailureReason,
-  DocumentRole,
-  type RoomMode,
-  type SessionUser,
-} from '@superdoc-collab/types';
+import { ApiPath, type AuthorColorSlot, ConnectionFailureReason, DocumentRole, type RoomMode } from '@superdoc-collab/types';
 import { SuperDoc, type SuperDocExceptionPayload } from 'superdoc';
 import 'superdoc/style.css';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -14,7 +7,7 @@ import type { EditorLoadProgress } from '@/features/open-progress/open-progress-
 import { KeyboardKey } from '@/lib/keyboard';
 import { authorPaletteOf } from './author-palette';
 import { ExceptionOutcome, exceptionOutcome, failureReasonOf } from './superdoc-exceptions';
-import { DocumentMode, superdocOptions } from './superdoc-options';
+import { type CollaborationUser, DocumentMode, superdocOptions } from './superdoc-options';
 import { EDIT_REJECTED_MESSAGE, EDITOR_ESCAPE_HINT, EDITOR_EXIT_LABEL, EDITOR_FAILED_MESSAGE } from './editor-copy';
 import { cn } from '@/lib/utils';
 import { FITTED_PAGE_CLASS } from './superdoc-zoom';
@@ -34,10 +27,12 @@ type SuperDocEditorProps = {
   documentId: string;
   roomMode: RoomMode;
   role: DocumentRole;
-  user: SessionUser;
+  user: CollaborationUser;
   colorSlot: AuthorColorSlot;
   file: Blob;
   isInert: boolean;
+  collaborationPath?: string;
+  collaborationToken?: string;
   onTransportReport: (report: TransportReport) => void;
   onEditorUpdate: () => void;
   onDocumentEdit: () => void;
@@ -55,6 +50,8 @@ export function SuperDocEditor({
   colorSlot,
   file,
   isInert,
+  collaborationPath = ApiPath.Collaboration,
+  collaborationToken,
   onTransportReport,
   onEditorUpdate,
   onDocumentEdit,
@@ -113,7 +110,8 @@ export function SuperDocEditor({
         documentId,
         file,
         documentMode: role === DocumentRole.Reader ? DocumentMode.Viewing : DocumentMode.Editing,
-        collaborationPath: ApiPath.Collaboration,
+        collaborationPath,
+        collaborationToken,
         roomMode,
         user,
         ...authorPaletteOf({ colorSlot }),
@@ -146,7 +144,20 @@ export function SuperDocEditor({
       setPageCount(0);
       setHasRejectedEdit(false);
     };
-  }, [onSuperdocChange, toolbarContainer, documentId, roomMode, role, user, file, onTransportReport, onEditorUpdate, onDocumentEdit]);
+  }, [
+    onSuperdocChange,
+    toolbarContainer,
+    documentId,
+    roomMode,
+    role,
+    user,
+    file,
+    collaborationPath,
+    collaborationToken,
+    onTransportReport,
+    onEditorUpdate,
+    onDocumentEdit,
+  ]);
 
   useEffect(
     () => onLoadProgress({ isSynced: isCollaborationReady, pageCount, hasFailed }),

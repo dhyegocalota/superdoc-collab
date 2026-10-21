@@ -1,4 +1,4 @@
-import type { ClientActor } from '@superdoc-collab/types';
+import type { ClientActor, PublicViewer } from '@superdoc-collab/types';
 
 export type CollaborationContext = {
   userId: string;
@@ -8,4 +8,5 @@ export type CollaborationContext = {
   holdsRoomPlace: boolean;
   tabId: string | null;
   impersonationEndsAt: number | null;
+  visitor: PublicViewer | null;
 };

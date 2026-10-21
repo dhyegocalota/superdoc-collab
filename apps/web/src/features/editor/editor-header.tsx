@@ -5,6 +5,7 @@ import {
   type DocumentAgent,
   type DocumentMember,
   type OpenedDocument,
+  type PublicViewer,
 } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bot, Ellipsis, Search } from 'lucide-react';
@@ -181,6 +182,7 @@ type EditorHeaderProps = {
   opened: OpenedDocument;
   members: DocumentMember[];
   agents: DocumentAgent[];
+  visitors: PublicViewer[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
   editorContainer: HTMLElement | null;
@@ -196,6 +198,7 @@ export function EditorHeader({
   opened,
   members,
   agents,
+  visitors,
   currentUserId,
   superdoc,
   editorContainer,
@@ -274,6 +277,7 @@ export function EditorHeader({
                 documentId={document.id}
                 members={members}
                 agents={agents}
+                visitors={visitors}
                 currentUserId={currentUserId}
                 superdoc={superdoc}
                 editorContainer={editorContainer}

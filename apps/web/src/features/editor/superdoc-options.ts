@@ -29,6 +29,8 @@ export enum DocumentMode {
   Suggesting = 'suggesting',
 }
 
+export type CollaborationUser = Pick<SessionUser, 'id' | 'name'>;
+
 export function superdocOptions({
   container,
   toolbarContainer,
@@ -36,6 +38,7 @@ export function superdocOptions({
   file,
   documentMode,
   collaborationPath,
+  collaborationToken = COLLABORATION_TOKEN_PLACEHOLDER,
   roomMode,
   user,
   userColor,
@@ -47,8 +50,9 @@ export function superdocOptions({
   file: Blob;
   documentMode: DocumentMode;
   collaborationPath: string;
+  collaborationToken?: string;
   roomMode: RoomMode;
-  user: SessionUser;
+  user: CollaborationUser;
   userColor: string;
   paletteColors: string[];
 }): Config {
@@ -65,11 +69,11 @@ export function superdocOptions({
           documentId,
           serverUrl: collaborationUrl(collaborationPath),
           roomMode,
-          token: COLLABORATION_TOKEN_PLACEHOLDER,
+          token: collaborationToken,
         },
       },
     ],
-    user: { id: user.id, name: user.name, email: user.email, color: userColor },
+    user: { id: user.id, name: user.name, color: userColor },
     colors: paletteColors,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: FIT_WIDTH_ZOOM,

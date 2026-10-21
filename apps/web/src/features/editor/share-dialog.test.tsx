@@ -52,7 +52,7 @@ const NOTICE_FAKE_TIMERS = { toFake: ['setTimeout', 'clearTimeout'] } satisfies 
 afterEach(() => vi.restoreAllMocks());
 
 function membersAnswer(members: DocumentMember[]): DocumentMembers {
-  return { members, agents: [], isCurrentUserOnline: true };
+  return { members, agents: [], visitors: [], isCurrentUserOnline: true };
 }
 
 function mockShareApi({ members = [OWNER_MEMBER, READER_MEMBER, EDITOR_MEMBER] }: { members?: DocumentMember[] } = {}) {

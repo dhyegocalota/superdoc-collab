@@ -23,17 +23,20 @@ import { createMcpRoutes } from '../agent/mcp-route';
 import type { Environment } from '../config/environment';
 import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import type { OpenBudget } from '../limits/open-budget';
+import type { PublicConnections } from '../collaboration/public-connections';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { HeavyRoomAdmission } from '../collaboration/heavy-room-admission';
 import type { DocumentsRepository } from '../documents/documents-repository';
 import { createDocumentsRoutes } from '../documents/documents-routes';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { ShowcaseDocuments } from '../documents/showcase-documents';
+import { createPublicLinkRoutes } from '../documents/public-link-routes';
 import { createShareLinksRoutes } from '../documents/share-links-routes';
 import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
 import type { ProjectionScheduler } from '../history/projection-scheduler';
 import type { TimelinePipelineCache } from '../history/timeline-pipeline-cache';
+import { createPublicRoutes } from '../public/public-routes';
 import { createInsightsRoutes } from '../insights/insights-routes';
 import type { InsightsJobRunner } from '../insights/insights-job-runner';
 import type { SelectionSummariesService } from '../insights/selection-summaries-service';
@@ -47,13 +50,12 @@ import type { VersionsService } from '../history/versions-service';
 import type { VersionRooms } from '../collaboration/version-rooms';
 import { timelineErrorResponse } from '../history/timeline-errors';
 import { createTimelineRoutes } from '../history/timeline-routes';
-import { withClientAddress } from './client-address';
+import { UNKNOWN_CLIENT_ADDRESS_MESSAGE, withClientAddress } from './client-address';
 import { health } from './health';
 import { createMeHandler } from './me';
 import { requireAdmin } from './require-admin';
 import { requireUser } from './require-user';
 
-const UNKNOWN_CLIENT_ADDRESS_MESSAGE = 'Unknown client address';
 export const AUTH_BODY_MAX_BYTES = 16 * 1024;
 const REGISTER_BODY_MAX_BYTES = 2 * 1024;
 const REQUEST_TOO_LARGE_MESSAGE = 'The request body is too large';
@@ -78,6 +80,9 @@ export type AppServices = {
   heavyRooms: HeavyRoomAdmission;
   openBudget: OpenBudget;
   uploadBudget: KeyedSlidingWindow;
+  publicConnections: PublicConnections;
+  publicReads: KeyedSlidingWindow;
+  publicSockets: KeyedSlidingWindow;
   heavyUploadBudget: KeyedSlidingWindow;
   shareLinks: ShareLinksRepository;
   updateLog: UpdateLog;
@@ -162,10 +167,12 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.use(`${ApiPath.Admin}/*`, sameOriginOnly, signedIn, requireAdmin());
   app.route(ApiPath.Admin, createAdminRoutes({ services }));
   app.route(ApiPath.Admin, createUserAccessRoutes({ services }));
+  app.route(ApiPath.Public, createPublicRoutes({ auth, environment, services }));
   app.route(ApiPath.Documents, createHistoryRoutes({ services }));
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));
   app.route(ApiPath.Documents, createVersionsRoutes({ services }));
+  app.route(ApiPath.Documents, createPublicLinkRoutes({ services }));
   app.route(
     ApiPath.Documents,
     createDocumentsRoutes({

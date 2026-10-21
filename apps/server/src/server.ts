@@ -17,12 +17,15 @@ import {
   HttpStatus,
   isPreparable,
   MINUTE_MS,
+  PUBLIC_READS_PER_MINUTE,
+  PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE,
   SECOND_MS,
   TOPICS_INTERRUPTED_MESSAGE,
 } from '@superdoc-collab/types';
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
+import { createPublicConnections } from './collaboration/public-connections';
 import { createRoomModes } from './collaboration/room-modes';
 import { cachedDocumentXmlBytes } from './documents/cached-document-xml-bytes';
 import { createHeavyRoomAdmission } from './collaboration/heavy-room-admission';
@@ -363,6 +366,9 @@ function createServices({
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
+    publicConnections: createPublicConnections({ hocuspocus }),
+    publicReads: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_READS_PER_MINUTE, now }),
+    publicSockets: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE, now }),
     heavyUploadBudget,
     timelinePipelines,
     insights,
@@ -407,11 +413,13 @@ async function stopServer({
   services: ServerServices;
   databases: Databases;
   httpServer: ServerType;
-  sockets: WebSocketServer;
+  sockets: WebSocketServer[];
 }): Promise<void> {
   await closeCollaboration(services);
-  sockets.clients.forEach((client) => client.terminate());
-  sockets.close();
+  sockets.forEach((socketServer) => {
+    socketServer.clients.forEach((client) => client.terminate());
+    socketServer.close();
+  });
   closeAllConnectionsWhenSupported(httpServer);
   await closeServer(httpServer);
   closeDatabases(databases);
@@ -470,6 +478,12 @@ export async function startServer({
     auth,
     hocuspocus: services.hocuspocus,
     versionRooms: services.versionRooms,
+    publicAdmission: {
+      window: services.publicSockets,
+      trustProxy: environment.trustProxy,
+      trustedProxyHops: environment.trustedProxyHops,
+      pseudonymSecret: environment.authSecret,
+    },
     path: ApiPath.Collaboration,
     allowedOrigin: environment.appOrigin,
   });

@@ -388,7 +388,7 @@ function mountManagement({ routes, services }: RouteMount): void {
 }
 
 function mountReading({ routes, services }: RouteMount): void {
-  const { documents, storage, runtime, agentSessions } = services;
+  const { documents, storage, runtime, agentSessions, publicConnections } = services;
 
   routes.get('/:documentId/download', async (context) => {
     const documentId = authorizedDocumentId({ context, documents, minimumRole: DocumentRole.Reader });
@@ -414,6 +414,7 @@ function mountReading({ routes, services }: RouteMount): void {
       agents: members
         .filter((member) => presentAgentUserIds.has(member.user.id))
         .map(({ user, colorSlot }) => ({ user, name: agentAuthorName(user.name), colorSlot, online: true })),
+      visitors: publicConnections.visitorsOf(documentId),
       isCurrentUserOnline,
     });
   });

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "connectionId": "conn-1a15ee55384-7d74c0cf",
+  "state": "active",
+  "lastObservedAt": 1792593449891,
+  "displayName": "Ana",
+  "color": "#B82E39",
+  "activeStoryId": "main:/word/document.xml",
+  "selection": {
+    "storyId": "main:/word/document.xml",
+    "anchor": {
+      "encoded": [],
+      "blockId": "00000001",
+      "kind": "block"
+    },
+    "head": {
+      "encoded": [],
+      "blockId": "00000001",
+      "kind": "block"
+    },
+    "renderable": true,
+    "blockHints": [
+      "00000001"
+    ]
+  },
+  "operationIntent": "selecting",
+  "extensions": {
+    "superdocV2CursorUi": {
+      "anchorOffset": 0,
+      "headOffset": 0,
+      "anchorFragmentId": "body|n/main:/word/document.xml/00000001/o0|para:0:1",
+      "headFragmentId": "body|n/main:/word/document.xml/00000001/o0|para:0:1",
+      "anchorAffinity": "before",
+      "headAffinity": "before",
+      "direction": "none",
+      "layoutEpoch": 1,
+      "revision": 1,
+      "colorCategory": "valid-hex"
+    },
+    "email": "ana@example.com"
+  },
+  "userId": "7c0e2e6928085eae"
+}

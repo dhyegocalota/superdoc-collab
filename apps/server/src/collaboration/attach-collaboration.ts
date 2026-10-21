@@ -9,8 +9,10 @@ import {
   HEAVY_ROOMS_USER_CAP_REASON,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
+  PUBLIC_MAX_SOCKET_MESSAGE_BYTES,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
+  secondsRoundedUp,
   SECOND_MS,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_CLOSE_GRACE_MS,
@@ -22,11 +24,14 @@ import {
 import { WebSocket, WebSocketServer, type PerMessageDeflateOptions, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
+import { FORWARDED_FOR_HEADER, publicAddressKeyOf } from '../http/client-address';
+import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
+import { scrubOutgoingAwareness } from './awareness-scrub';
 import { AuthReply, authReplyOf, deniedReasonOf } from './auth-reply';
 import { SocketMessageLimit } from './socket-message-limit';
-import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, upgradePathname } from './upgrade-path';
+import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, isPublicUpgrade, upgradePathname } from './upgrade-path';
 import { parseVersionPath, VersionAdmission, type VersionRooms } from './version-rooms';
 
 const SOCKET_COMPRESSION_THRESHOLD_BYTES = 1024;
@@ -47,6 +52,10 @@ const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
   maxPayload: MAX_SOCKET_MESSAGE_BYTES,
   perMessageDeflate: SOCKET_COMPRESSION_OPTIONS,
   closeTimeout: SOCKET_CLOSE_GRACE_MS,
+};
+const PUBLIC_SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
+  ...SOCKET_SERVER_OPTIONS,
+  maxPayload: PUBLIC_MAX_SOCKET_MESSAGE_BYTES,
 };
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
@@ -69,6 +78,17 @@ const UNAVAILABLE_UPGRADE_RESPONSE = [
   '',
 ].join('\r\n');
 
+function tooManyRequestsResponse(retryAfterSeconds: number): string {
+  return [
+    `HTTP/1.1 ${HttpStatus.TooManyRequests} Too Many Requests`,
+    `${RETRY_AFTER_HEADER}: ${retryAfterSeconds}`,
+    'Connection: close',
+    'Content-Length: 0',
+    '',
+    '',
+  ].join('\r\n');
+}
+
 function terminateOnError(this: WebSocket, error: Error): void {
   console.warn(`${SOCKET_ERROR_MESSAGE}: ${describeError(error)}`);
   if (this.readyState === WebSocket.CLOSING) return;
@@ -79,11 +99,14 @@ function destroyOnSocketError(this: Duplex): void {
   this.destroy();
 }
 
+export type PublicAdmission = { window: KeyedSlidingWindow; trustProxy: boolean; trustedProxyHops: number; pseudonymSecret: string };
+
 export function attachCollaboration({
   httpServer,
   auth,
   hocuspocus,
   versionRooms,
+  publicAdmission,
   path,
   allowedOrigin,
 }: {
@@ -91,10 +114,12 @@ export function attachCollaboration({
   auth: Auth;
   hocuspocus: Hocuspocus;
   versionRooms: VersionRooms;
+  publicAdmission: PublicAdmission;
   path: string;
   allowedOrigin: string;
-}): WebSocketServer {
+}): WebSocketServer[] {
   const sockets = new WebSocketServer(SOCKET_SERVER_OPTIONS);
+  const publicSockets = new WebSocketServer(PUBLIC_SOCKET_SERVER_OPTIONS);
   const messageLimit = new SocketMessageLimit();
   function closeOnBreach(this: WebSocket, frame: RawData): void {
     if (!messageLimit.breached({ socket: this, frame })) return;
@@ -102,7 +127,7 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
-  function reactToAuthReply(webSocket: WebSocket): void {
+  function reactToAuthReply({ webSocket, isPublicSocket }: { webSocket: WebSocket; isPublicSocket: boolean }): void {
     const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
     webSocket.send = ((...parameters: unknown[]) => {
       const reply = authReplyOf(parameters[0] as Uint8Array);
@@ -110,6 +135,8 @@ export function attachCollaboration({
       send(...parameters);
       if (reply === AuthReply.Other) return;
       Reflect.deleteProperty(webSocket, 'send');
+      if (isPublicSocket && reply === AuthReply.Authenticated)
+        scrubOutgoingAwareness({ webSocket, secret: publicAdmission.pseudonymSecret });
       if (reply !== AuthReply.Denied) return;
       console.warn(SOCKET_DENIED_LOG);
       const deniedReason = deniedReasonOf(parameters[0] as Uint8Array);
@@ -147,17 +174,19 @@ export function attachCollaboration({
     socket,
     head,
     endpoint,
+    socketServer = sockets,
   }: {
     request: IncomingMessage;
     socket: Duplex;
     head: Buffer;
     endpoint: VersionEndpoint | null;
+    socketServer?: WebSocketServer;
   }): void {
     const isBootstrapSocket = request.url !== undefined && isBootstrapUpgrade(request.url);
-    sockets.handleUpgrade(request, socket, head, (webSocket) => {
+    socketServer.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
-      reactToAuthReply(webSocket);
+      reactToAuthReply({ webSocket, isPublicSocket: socketServer === publicSockets });
       if (endpoint) messageLimit.markAuthenticated(webSocket);
       withholdOverclaims({ webSocket, isBootstrapSocket });
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
@@ -207,6 +236,23 @@ export function attachCollaboration({
     if (!lookup.session) return refuseSession({ request, socket, head });
     upgrade({ request, socket, head, endpoint: null });
   }
+  function upgradePublic({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): void {
+    const { remoteAddress } = request.socket;
+    if (remoteAddress === undefined) return void socket.destroy();
+    const address = publicAddressKeyOf({
+      forwardedFor: request.headers[FORWARDED_FOR_HEADER],
+      remoteAddress,
+      trustProxy: publicAdmission.trustProxy,
+      trustedProxyHops: publicAdmission.trustedProxyHops,
+    });
+    const waitMs = publicAdmission.window.waitMs(address);
+    if (waitMs !== null) {
+      socket.on('error', destroyOnSocketError);
+      return void socket.end(tooManyRequestsResponse(secondsRoundedUp(waitMs)));
+    }
+    publicAdmission.window.record(address);
+    upgrade({ request, socket, head, endpoint: null, socketServer: publicSockets });
+  }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
     const pathname = upgradePathname(request.url);
@@ -214,10 +260,11 @@ export function attachCollaboration({
     if (isLoopbackOnly && !isLoopbackAddress(request.socket.remoteAddress)) return socket.destroy();
     if (isLoopbackOnly) return upgrade({ request, socket, head, endpoint: null });
     if (request.headers.origin !== allowedOrigin) return socket.destroy();
+    if (isPublicUpgrade(request.url)) return upgradePublic({ request, socket, head });
     const endpoint = parseVersionPath(pathname);
     if (endpoint) return void upgradeVersion({ request, socket, head, endpoint });
     if (pathname !== path) return socket.destroy();
     void upgradeMember({ request, socket, head });
   });
-  return sockets;
+  return [sockets, publicSockets];
 }

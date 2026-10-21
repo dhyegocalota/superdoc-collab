@@ -96,6 +96,7 @@ const PUBLIC_ADMISSION: PublicAdmission = {
   window: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE }),
   trustProxy: false,
   trustedProxyHops: 1,
+  pseudonymSecret: 'pseudonym-secret',
 };
 const FOREIGN_ADDRESS = '203.0.113.9';
 const ABNORMAL_CLOSE_CODE = 1006;

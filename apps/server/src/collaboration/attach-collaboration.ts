@@ -99,7 +99,7 @@ function destroyOnSocketError(this: Duplex): void {
   this.destroy();
 }
 
-export type PublicAdmission = { window: KeyedSlidingWindow; trustProxy: boolean; trustedProxyHops: number };
+export type PublicAdmission = { window: KeyedSlidingWindow; trustProxy: boolean; trustedProxyHops: number; pseudonymSecret: string };
 
 export function attachCollaboration({
   httpServer,
@@ -135,7 +135,8 @@ export function attachCollaboration({
       send(...parameters);
       if (reply === AuthReply.Other) return;
       Reflect.deleteProperty(webSocket, 'send');
-      if (isPublicSocket && reply === AuthReply.Authenticated) scrubOutgoingAwareness(webSocket);
+      if (isPublicSocket && reply === AuthReply.Authenticated)
+        scrubOutgoingAwareness({ webSocket, secret: publicAdmission.pseudonymSecret });
       if (reply !== AuthReply.Denied) return;
       console.warn(SOCKET_DENIED_LOG);
       const deniedReason = deniedReasonOf(parameters[0] as Uint8Array);

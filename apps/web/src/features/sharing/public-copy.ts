@@ -3,6 +3,8 @@ export const PUBLIC_LINK_DESCRIPTION =
   'Anyone who has the link reads this document live without signing in. They cannot edit, comment, download or start a summary.';
 export const PUBLIC_LINK_PRESENCE_NOTICE =
   'Anyone with the link sees the names of the people editing, and you see visitors as Anonymous animals.';
+export const PUBLIC_LINK_CONTENT_NOTICE =
+  'Comments and tracked changes, with the names and emails saved in them, are visible to anyone with the link.';
 export const PUBLIC_LINK_ADDRESS_LABEL = 'Public link address';
 export const PUBLIC_LINK_COPY_LABEL = 'Copy public link';
 export const PUBLIC_LINK_LOADING_LABEL = 'Loading the public link setting';

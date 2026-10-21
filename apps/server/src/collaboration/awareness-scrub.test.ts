@@ -2,6 +2,8 @@ import { MessageType } from '@hocuspocus/server';
 import { expect, test } from 'vitest';
 import { scrubAwarenessFrame } from './awareness-scrub';
 
+const SECRET = 'pseudonym-secret-'.padEnd(32, 'x');
+const OTHER_ROOM_NAME = 'sd2/v2.1/22222222-2222-4222-8222-222222222222';
 const ROOM_NAME = 'sd2/v2.1/11111111-1111-4111-8111-111111111111';
 const LONG_STATE_PADDING = 'x'.repeat(300);
 
@@ -15,12 +17,12 @@ function varString(text: string): number[] {
   return [...varUint(bytes.length), ...bytes];
 }
 
-function awarenessFrame(entries: { clientId: number; clock: number; state: unknown }[]): Uint8Array {
+function awarenessFrame(entries: { clientId: number; clock: number; state: unknown }[], roomName = ROOM_NAME): Uint8Array {
   const payload = [
     ...varUint(entries.length),
     ...entries.flatMap(({ clientId, clock, state }) => [...varUint(clientId), ...varUint(clock), ...varString(JSON.stringify(state))]),
   ];
-  return Uint8Array.from([...varString(ROOM_NAME), ...varUint(MessageType.Awareness), ...varUint(payload.length), ...payload]);
+  return Uint8Array.from([...varString(roomName), ...varUint(MessageType.Awareness), ...varUint(payload.length), ...payload]);
 }
 
 test('an awareness frame loses the email and the ids of its users and keeps their name and colour', () => {
@@ -29,7 +31,7 @@ test('an awareness frame loses the email and the ids of its users and keeps thei
     userId: 'user-1',
     cursor: { anchor: 3 },
   };
-  const scrubbed = scrubAwarenessFrame(awarenessFrame([{ clientId: 7, clock: 2, state }]));
+  const scrubbed = scrubAwarenessFrame({ frame: awarenessFrame([{ clientId: 7, clock: 2, state }]), secret: SECRET });
   const text = Buffer.from(scrubbed).toString();
   expect([text.includes('@'), text.includes('user-1'), text.includes('email')]).toEqual([false, false, false]);
   expect(text).toMatch(/"user":\{"id":"[0-9a-f]{16}","name":"Ana","color":"#ff0000"\}/);
@@ -43,7 +45,10 @@ test('every entry is scrubbed, a removed client stays removed and a long state s
     null,
     { user: { id: 'b', name: 'Bruno', email: 'b@example.com', color: '#222222' } },
   ];
-  const scrubbed = scrubAwarenessFrame(awarenessFrame(states.map((state, index) => ({ clientId: index + 1, clock: 1, state }))));
+  const scrubbed = scrubAwarenessFrame({
+    frame: awarenessFrame(states.map((state, index) => ({ clientId: index + 1, clock: 1, state }))),
+    secret: SECRET,
+  });
   const text = Buffer.from(scrubbed).toString();
   expect([text.includes('@'), text.includes('"a"'), text.includes('"b"')]).toEqual([false, false, false]);
   expect(text).toContain(LONG_STATE_PADDING);
@@ -53,7 +58,21 @@ test('every entry is scrubbed, a removed client stays removed and a long state s
 
 test('a state with no user and a frame that is not awareness pass through unchanged', () => {
   const noUser = awarenessFrame([{ clientId: 1, clock: 1, state: { cursor: { anchor: 1 } } }]);
-  expect(scrubAwarenessFrame(noUser)).toEqual(noUser);
+  expect(scrubAwarenessFrame({ frame: noUser, secret: SECRET })).toEqual(noUser);
   const sync = Uint8Array.from([...varString(ROOM_NAME), ...varUint(MessageType.Sync), 0, 1, 0]);
-  expect(scrubAwarenessFrame(sync)).toEqual(sync);
+  expect(scrubAwarenessFrame({ frame: sync, secret: SECRET })).toEqual(sync);
+});
+
+function idOf(frame: Uint8Array): string {
+  return /"id":"([0-9a-f]{16})"/.exec(Buffer.from(frame).toString())![1]!;
+}
+
+test('the pseudonym of one person is stable in a room and differs by room and by secret', () => {
+  const entry = [{ clientId: 1, clock: 1, state: { user: { id: 'user-1', name: 'Ana', color: '#111111' } } }];
+  const inRoom = idOf(scrubAwarenessFrame({ frame: awarenessFrame(entry), secret: SECRET }));
+  const again = idOf(scrubAwarenessFrame({ frame: awarenessFrame(entry), secret: SECRET }));
+  const inOtherRoom = idOf(scrubAwarenessFrame({ frame: awarenessFrame(entry, OTHER_ROOM_NAME), secret: SECRET }));
+  const withOtherSecret = idOf(scrubAwarenessFrame({ frame: awarenessFrame(entry), secret: `${SECRET}-other` }));
+  expect(again).toBe(inRoom);
+  expect(new Set([inRoom, inOtherRoom, withOtherSecret]).size).toBe(3);
 });

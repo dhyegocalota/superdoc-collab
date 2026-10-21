@@ -56,7 +56,8 @@ function encodedEntry({ clientId, clock, state }: AwarenessEntry): number[] {
   return [...varUint(clientId), ...varUint(clock), ...varUint(json.length), ...json];
 }
 
-export function scrubAwarenessFrame(frame: Uint8Array): Uint8Array {
+export function scrubAwarenessFrame({ frame, secret }: { frame: Uint8Array; secret: string }): Uint8Array {
+  void secret;
   const bytes = Buffer.from(frame);
   const roomNameLength = readVarUint({ bytes, offset: 0 });
   const roomNameEnd = roomNameLength.next + roomNameLength.value;
@@ -69,7 +70,8 @@ export function scrubAwarenessFrame(frame: Uint8Array): Uint8Array {
   return Uint8Array.from([...bytes.subarray(0, type.next), ...varUint(payload.length), ...payload]);
 }
 
-export function scrubOutgoingAwareness(webSocket: WebSocket): void {
+export function scrubOutgoingAwareness({ webSocket, secret }: { webSocket: WebSocket; secret: string }): void {
   const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
-  webSocket.send = ((frame: Uint8Array, ...parameters: unknown[]) => send(scrubAwarenessFrame(frame), ...parameters)) as WebSocket['send'];
+  webSocket.send = ((frame: Uint8Array, ...parameters: unknown[]) =>
+    send(scrubAwarenessFrame({ frame, secret }), ...parameters)) as WebSocket['send'];
 }

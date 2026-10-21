@@ -7,6 +7,7 @@ import { DOCUMENT_ID } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import {
   PUBLIC_LINK_ADDRESS_LABEL,
+  PUBLIC_LINK_CONTENT_NOTICE,
   PUBLIC_LINK_COPY_LABEL,
   PUBLIC_LINK_LOAD_FAILED_MESSAGE,
   PUBLIC_LINK_PRESENCE_NOTICE,
@@ -38,6 +39,7 @@ test('a private document shows the switch off and no link', async () => {
   expect(switchControl).toHaveAttribute('aria-checked', 'false');
   expect(screen.queryByDisplayValue(PUBLIC_URL)).not.toBeInTheDocument();
   expect(screen.queryByText(PUBLIC_LINK_PRESENCE_NOTICE)).not.toBeInTheDocument();
+  expect(screen.queryByText(PUBLIC_LINK_CONTENT_NOTICE)).not.toBeInTheDocument();
 });
 
 test('a public document shows the switch on, the link and who can see the editors', async () => {
@@ -46,6 +48,7 @@ test('a public document shows the switch on, the link and who can see the editor
   expect(await screen.findByRole('switch', { name: PUBLIC_LINK_SWITCH_LABEL })).toHaveAttribute('aria-checked', 'true');
   expect(screen.getByLabelText(PUBLIC_LINK_ADDRESS_LABEL)).toHaveValue(PUBLIC_URL);
   expect(screen.getByText(PUBLIC_LINK_PRESENCE_NOTICE)).toBeInTheDocument();
+  expect(screen.getByText(PUBLIC_LINK_CONTENT_NOTICE)).toBeInTheDocument();
 });
 
 test('switching on puts the flag, then shows the link', async () => {

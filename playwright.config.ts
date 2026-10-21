@@ -27,6 +27,7 @@ const HEAVY_SPECS = [
   '**/local-preview.spec.ts',
   '**/open-progress.spec.ts',
   '**/room-admission.spec.ts',
+  '**/typing-latency.spec.ts',
 ];
 
 if (!process.env.E2E_DATABASE_DIR) process.env.E2E_DATABASE_DIR = mkdtempSync(join(tmpdir(), 'superdoc-collab-e2e-'));

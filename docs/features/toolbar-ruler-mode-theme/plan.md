@@ -24,16 +24,16 @@ G1 to G4 in order: G3 needs the hook of G2, the E2E needs everything.
 
 ### G1
 
-- [ ] **Step 1:** failing test: `TOOLBAR_EXCLUDED_ITEMS` still lists `ruler` and `document-mode`; then remove both.
+- [x] **Step 1:** failing test: `TOOLBAR_EXCLUDED_ITEMS` still lists `ruler` and `document-mode`; then remove both. — evidence: 7cc9a9f8 (red 8610fa11)
 
 ### G2
 
-- [ ] **Step 2:** failing test for `editor-theme.ts` (parse a stored value, theme config per preset, text colour by luminance); then the module.
-- [ ] **Step 3:** failing test for `useEditorTheme` (class applied, value persisted, corrupt value removed, other tab followed); then the hook and the `globals.css` mapping.
+- [x] **Step 2:** failing test for `editor-theme.ts` (parse a stored value, theme config per preset, text colour by luminance); then the module. — evidence: 443226af (red 24e81296)
+- [x] **Step 3:** failing test for `useEditorTheme` (class applied, value persisted, corrupt value removed, other tab followed); then the hook and the `globals.css` mapping. — evidence: c1f1ca4c (red ed0a63f6)
 
 ### G3
 
-- [ ] **Step 4:** failing test: the toolbar row shows a Theme button for an Editor and none for a Reader; then `ThemeButton`, the row and the copy.
+- [x] **Step 4:** failing test: the toolbar row shows a Theme button for an Editor and none for a Reader; then `ThemeButton`, the row and the copy. — evidence: 436b7b89 (red e8e0fdfc)
 
 ### G4
 
@@ -53,7 +53,7 @@ G1 to G4 in order: G3 needs the hook of G2, the E2E needs everything.
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
 - [ ] **/check-ui:** screenshots and video recorded and uploaded (only if UI was touched).

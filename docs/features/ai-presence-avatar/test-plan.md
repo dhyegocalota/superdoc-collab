@@ -35,7 +35,7 @@ The disappearance after the linger is covered by `apps/server/src/agent/agent-se
 - [x] Reload mid-edit: expected: the avatar reappears after the reload while the linger lasts — evidence: scripted walk: avatar visible again after reload
 - [x] Console and network clean: zero console errors, zero failed requests — evidence: scripted walk, both pages: zero console errors, zero responses >= 400
 - [x] Desktop width: expected: humans then AIs in one row, AIs sit after the humans and the +N menu, never inside it — evidence: owner-online-with-ai-desktop.png: humans then AI; +N menu not exercised (two humans only)
-- [ ] Narrow width (375 px): expected: humans collapse to three with the +N menu, the AI avatar stays beside them — BLOCKED: at 375 px the whole members row is hidden (`hidden sm:block` in editor-header.tsx, as before the change); .pr-media/ai-presence-avatar/owner-online-with-ai-narrow.png
+- [ ] ~~Narrow width (375 px): expected: humans collapse to three with the +N menu, the AI avatar stays beside them~~ Struck by the lead on 2026-10-21: below 640 px the members row is hidden by the existing header layout, which this feature does not change — BLOCKED: at 375 px the whole members row is hidden (`hidden sm:block` in editor-header.tsx, as before the change); .pr-media/ai-presence-avatar/owner-online-with-ai-narrow.png
 - [ ] Screenshots at `.pr-media/ai-presence-avatar/`; video at `.pr-media/ai-presence-avatar/walk.webm` — 20 screenshots saved at 1280 and 375; no video, the walk was scripted
 
 ## Edge cases found during execution

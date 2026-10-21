@@ -1,6 +1,6 @@
 # AI presence avatar
 
-**Status:** Building
+**Status:** Shipped 2026-10-21
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-21
 **ADRs:** [0028](../../adr/0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md), [0029](../../adr/0029-agent-edits-carry-a-human-or-agent-actor.md), [0032](../../adr/0032-connection-state-truth-callback-for-transitions-server-presence-for-recovery.md)

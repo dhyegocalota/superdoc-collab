@@ -1,6 +1,6 @@
 import type { IdentifiedTopic } from '@superdoc-collab/history';
-import { TopicState, type SummaryAuthor, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
-import { and, asc, eq, inArray, notInArray } from 'drizzle-orm';
+import { TopicState, type LatestSummary, type SummaryAuthor, type TopicStatus, type TopicSummary } from '@superdoc-collab/types';
+import { and, asc, desc, eq, inArray, isNotNull, notInArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { AuthDatabase } from '../database/connection';
 import { documentTopics, selectionSummaries, topicBlocks, topicSets, topicSummaries } from '../database/schema/insights';
@@ -181,6 +181,17 @@ export class InsightsRepository {
       computedAtSequence: row.computedAtSequence,
       topicsUpdatedAt: row.topicsUpdatedAt,
     };
+  }
+
+  latestSelectionSummary(documentId: string): LatestSummary | null {
+    const row = this.database.drizzle
+      .select()
+      .from(selectionSummaries)
+      .where(and(eq(selectionSummaries.documentId, documentId), isNotNull(selectionSummaries.sentence)))
+      .orderBy(desc(selectionSummaries.updatedAt), desc(selectionSummaries.filterKey))
+      .get();
+    if (!row || row.sentence === null) return null;
+    return { sentence: row.sentence, authors: row.authors, computedAtSequence: row.computedAtSequence, updatedAt: row.updatedAt.getTime() };
   }
 
   saveSelectionSummary({

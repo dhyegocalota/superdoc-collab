@@ -1,0 +1,28 @@
+import { PublicAnimal } from '@superdoc-collab/types';
+
+export const ANIMAL_ICONS: Record<PublicAnimal, string> = {
+  [PublicAnimal.Alligator]: '🐊',
+  [PublicAnimal.Badger]: '🦡',
+  [PublicAnimal.Beaver]: '🦫',
+  [PublicAnimal.Capybara]: '🐹',
+  [PublicAnimal.Chameleon]: '🦎',
+  [PublicAnimal.Cheetah]: '🐆',
+  [PublicAnimal.Dolphin]: '🐬',
+  [PublicAnimal.Elephant]: '🐘',
+  [PublicAnimal.Fox]: '🦊',
+  [PublicAnimal.Giraffe]: '🦒',
+  [PublicAnimal.Hedgehog]: '🦔',
+  [PublicAnimal.Hippo]: '🦛',
+  [PublicAnimal.Iguana]: '🦕',
+  [PublicAnimal.Koala]: '🐨',
+  [PublicAnimal.Lemur]: '🐒',
+  [PublicAnimal.Llama]: '🦙',
+  [PublicAnimal.Otter]: '🦦',
+  [PublicAnimal.Panda]: '🐼',
+  [PublicAnimal.Penguin]: '🐧',
+  [PublicAnimal.Platypus]: '🦆',
+  [PublicAnimal.Raccoon]: '🦝',
+  [PublicAnimal.Squirrel]: '🐿️',
+  [PublicAnimal.Tiger]: '🐯',
+  [PublicAnimal.Walrus]: '🦭',
+};

@@ -62,6 +62,7 @@ function contextOf({ userId, documentId, attempt }: { userId: string; documentId
     holdsRoomPlace: false,
     tabId: null,
     impersonationEndsAt: null,
+    visitor: null,
   };
 }
 
@@ -696,7 +697,7 @@ test('an accepted update grows the room memory by its byte length', async () => 
   const update = new Uint8Array([1, 2, 3, 4, 5]);
   await hocuspocus.hooks('onChange', {
     update,
-    context: { userId: 'u1', documentId, actor: ClientActor.Human, bootstrapAttempt: null },
+    context: { userId: 'u1', documentId, actor: ClientActor.Human, bootstrapAttempt: null, visitor: null },
     transactionOrigin: 'client',
     document: new Document(documentName),
   } as unknown as Parameters<typeof hocuspocus.hooks<'onChange'>>[1]);

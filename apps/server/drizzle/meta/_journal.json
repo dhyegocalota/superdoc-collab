@@ -64,6 +64,13 @@
       "when": 1792421000167,
       "tag": "0008_thumbnail-updated-at",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792584311459,
+      "tag": "0009_public-link",
+      "breakpoints": true
     }
   ]
 }

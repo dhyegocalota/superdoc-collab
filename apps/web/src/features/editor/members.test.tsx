@@ -1,10 +1,13 @@
 import {
   agentAuthorName,
+  anonymousViewerOf,
   DocumentRole,
+  signedInViewerOf,
   MEMBERS_PRESENCE_DEBOUNCE_MS,
   type AuthorColorSlot,
   type DocumentAgent,
   type DocumentMember,
+  type PublicViewer,
 } from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
@@ -24,6 +27,7 @@ import {
   onlineMembersLabel,
   SELF_MEMBER_REASON,
 } from './editor-copy';
+import { ANIMAL_ICONS } from '@/lib/animal-icons';
 import { initialsOf } from '@/lib/initials';
 import { membersQueryKey } from './editor-api';
 import { Members } from './members';
@@ -102,10 +106,12 @@ function agentOf(member: DocumentMember): DocumentAgent {
 function renderMembers({
   members,
   agents = [],
+  visitors = [],
   isPastVersion = false,
 }: {
   members: DocumentMember[];
   agents?: DocumentAgent[];
+  visitors?: PublicViewer[];
   isPastVersion?: boolean;
 }) {
   return render(
@@ -114,6 +120,7 @@ function renderMembers({
         documentId={DOCUMENT_ID}
         members={members}
         agents={agents}
+        visitors={visitors}
         currentUserId={CURRENT_USER_ID}
         superdoc={superdoc}
         editorContainer={editor}
@@ -222,6 +229,7 @@ test('a burst of presence changes during a members fetch invalidates once withou
         documentId={DOCUMENT_ID}
         members={[ana, bruno, dario]}
         agents={[]}
+        visitors={[]}
         currentUserId={CURRENT_USER_ID}
         superdoc={superdoc}
         editorContainer={editor}
@@ -420,4 +428,18 @@ test('two people with an AI each show two distinct AI avatars', () => {
   renderMembers({ members: [ana, bruno], agents: [agentOf(ana), agentOf(bruno)] });
   expect(screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Ana')) })).toBeInTheDocument();
   expect(screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Bruno')) })).toBeInTheDocument();
+});
+
+test('a public visitor shows as an animal avatar with its name and counts as someone online', () => {
+  const visitor = anonymousViewerOf('visitor-1');
+  renderMembers({ members: [memberNamed({ id: 'm1', name: 'Ana', online: true, colorSlot: 1 })], visitors: [visitor] });
+  const avatar = screen.getByRole('img', { name: memberLabel(visitor.name) });
+  expect(avatar).toHaveTextContent(ANIMAL_ICONS[visitor.animal!]);
+  expect(screen.getByRole('group', { name: onlineMembersLabel(2) })).toContainElement(avatar);
+});
+
+test('a signed-in visitor shows its initials under its real name', () => {
+  const visitor = signedInViewerOf({ visitorId: 'visitor-2', name: 'Bruno Alves' });
+  renderMembers({ members: [], visitors: [visitor] });
+  expect(screen.getByRole('img', { name: memberLabel('Bruno Alves') })).toHaveTextContent('BA');
 });

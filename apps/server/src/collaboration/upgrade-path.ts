@@ -19,3 +19,7 @@ export function isLoopbackAddress(address: string | undefined): boolean {
 export function isBootstrapUpgrade(url: string): boolean {
   return upgradePathname(url) === ApiPath.BootstrapCollaboration;
 }
+
+export function isPublicUpgrade(url: string): boolean {
+  return upgradePathname(url) === ApiPath.PublicCollaboration;
+}

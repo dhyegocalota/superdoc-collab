@@ -1,7 +1,8 @@
 import { agentAuthorName, ApiPath, DocumentResource, DocumentRole, TAB_QUERY_KEY, type DocumentMembers } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
+import { connectAsVisitor, connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
+import { publicRoom, visitorToken } from '../testing/public-room';
 import { commitBootstrap as commitRoom } from '../testing/committed-room';
 import { pathOf, request } from '../testing/documents-client';
 
@@ -79,5 +80,20 @@ test('members lists the AI of a member while it is present, even with the person
       online: true,
     },
   ]);
+  await server.stop();
+});
+
+test('the members answer lists the public visitors while they are connected and never their tokens', async () => {
+  const { server, documentId, owner } = await publicRoom();
+  const visitor = await connectAsVisitor({ server, token: await visitorToken({ server, documentId }), documentId });
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
+  expect(answer.visitors).toHaveLength(1);
+  expect(answer.visitors[0]).toMatchObject({ name: expect.stringMatching(/^Anonymous /) });
+  expect(answer.members.map((member) => member.user.id)).toEqual([owner.id]);
+  visitor.close();
+  await expect
+    .poll(async () => ((await (await request({ server, cookie: owner.cookie, path })).json()) as DocumentMembers).visitors)
+    .toEqual([]);
   await server.stop();
 });

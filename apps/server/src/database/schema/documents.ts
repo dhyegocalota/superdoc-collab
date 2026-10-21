@@ -11,6 +11,7 @@ export const documents = sqliteTable('documents', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
   thumbnailUpdatedAt: integer('thumbnail_updated_at', { mode: 'timestamp_ms' }),
+  isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(false),
 });
 
 export const documentMembers = sqliteTable(

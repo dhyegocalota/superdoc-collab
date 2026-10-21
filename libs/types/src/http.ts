@@ -26,4 +26,6 @@ export enum HttpMethod {
 }
 
 export const RETRY_AFTER_HEADER = 'Retry-After';
+export const CACHE_CONTROL_HEADER = 'Cache-Control';
+export const NO_STORE_CACHE_CONTROL = 'no-store';
 export const RETRY_AFTER_SECONDS = 1;

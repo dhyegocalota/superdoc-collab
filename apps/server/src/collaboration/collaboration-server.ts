@@ -1,4 +1,4 @@
-import { Hocuspocus } from '@hocuspocus/server';
+import { Hocuspocus, MessageType } from '@hocuspocus/server';
 import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
 import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
@@ -8,13 +8,16 @@ import {
   isTabId,
   MINUTE_MS,
   RoomMode,
+  MAX_VISITOR_SYNC_STEP_ONE_MESSAGES,
   POLICY_VIOLATION_CLOSE_CODE,
+  PUBLIC_MESSAGE_REASON,
   SECOND_MS,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
   SOCKET_SINGLE_DOCUMENT_REASON,
   TAB_QUERY_KEY,
   ACCESS_REVOKED_CLOSE_CODE,
+  type PublicViewer,
   ACCESS_REVOKED_REASON,
   UNAUTHORIZED_CLOSE_CODE,
   UNAUTHORIZED_CLOSE_REASON,
@@ -27,12 +30,13 @@ import type { RoomModes } from './room-modes';
 import type { BootstrapState } from './bootstrap-state';
 import { authenticateAgent } from './authenticate-agent';
 import { authenticateBootstrap } from './authenticate-bootstrap';
+import { authenticatePublic } from './authenticate-public';
 import { ImpersonationTimers } from './impersonation-timers';
 import { authenticateMember, CollaborationAuthenticationError } from './authenticate-member';
 import { overfullConnections } from './awareness-client-cap';
 import { trackAwarenessOwners } from './awareness-origin';
 import { AwarenessOwners } from './awareness-owners';
-import { awarenessEntriesOf, silenceAwarenessEntries } from './frame-bucket';
+import { awarenessEntriesOf, messageTypeOf, silenceAwarenessEntries, syncStepOf } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
@@ -40,7 +44,7 @@ import type { HeavyRoomAdmission } from './heavy-room-admission';
 import { heavyRoomsErrorOf } from './heavy-rooms-full-error';
 import { createProcessRoomMemoryRelease, type RoomMemoryRelease } from './room-memory-release';
 import { documentIdFromRoomName } from './room-name';
-import { isAgentUpgrade, isBootstrapUpgrade } from './upgrade-path';
+import { isAgentUpgrade, isBootstrapUpgrade, isPublicUpgrade } from './upgrade-path';
 
 export type { CollaborationContext };
 
@@ -70,6 +74,19 @@ class MalformedAwarenessError extends Error {
   }
 }
 
+class VisitorMessageError extends Error {
+  readonly code = POLICY_VIOLATION_CLOSE_CODE;
+  readonly reason = PUBLIC_MESSAGE_REASON;
+
+  constructor() {
+    super(PUBLIC_MESSAGE_REASON);
+  }
+}
+
+const SYNC_STEP_ONE = 0;
+const MAX_VISITOR_WRITE_SHAPED_MESSAGES = 1;
+const VISITOR_MESSAGE_TYPES = new Set<number>([MessageType.Sync, MessageType.Awareness, MessageType.QueryAwareness, MessageType.CLOSE]);
+
 class CollaborationSingleDocumentError extends Error {
   readonly code = POLICY_VIOLATION_CLOSE_CODE;
   readonly reason = SOCKET_SINGLE_DOCUMENT_REASON;
@@ -90,7 +107,8 @@ function isWriteAllowed({
   context: CollaborationContext;
   document: Y.Doc;
 }): boolean {
-  const { documentId, bootstrapAttempt } = context;
+  const { documentId, bootstrapAttempt, visitor } = context;
+  if (visitor !== null) return false;
   if (bootstrapAttempt === null) return isBootstrapCommitted({ document }) || bootstrap.isCommitted(documentId);
   return roomBootstrap.isCurrent({ documentId, attempt: bootstrapAttempt });
 }
@@ -117,14 +135,22 @@ enum SocketKind {
   Member = 'member',
   Agent = 'agent',
   Bootstrap = 'bootstrap',
+  Public = 'public',
 }
 
-type Admission = { userId: string; role: DocumentRole; impersonationEndsAt: number | null; bootstrapAttempt: string | null };
+type Admission = {
+  userId: string;
+  role: DocumentRole;
+  impersonationEndsAt: number | null;
+  bootstrapAttempt: string | null;
+  visitor: PublicViewer | null;
+};
 
 function socketKindOf(request: IncomingMessage): SocketKind {
   if (!request.url) throw new CollaborationAuthenticationError();
   if (isAgentUpgrade(request.url)) return SocketKind.Agent;
   if (isBootstrapUpgrade(request.url)) return SocketKind.Bootstrap;
+  if (isPublicUpgrade(request.url)) return SocketKind.Public;
   return SocketKind.Member;
 }
 
@@ -132,6 +158,7 @@ const ACTOR_BY_SOCKET_KIND: Record<SocketKind, ClientActor> = {
   [SocketKind.Member]: ClientActor.Human,
   [SocketKind.Agent]: ClientActor.Agent,
   [SocketKind.Bootstrap]: ClientActor.Human,
+  [SocketKind.Public]: ClientActor.Human,
 };
 
 export function createCollaborationServer({
@@ -162,6 +189,8 @@ export function createCollaborationServer({
   const dropLogCooldown = new KeyedCooldown({ durationMs: DROP_LOG_COOLDOWN_MS });
   const impersonationTimers = new ImpersonationTimers();
   const refusedConnections = new WeakSet<CollaborationContext>();
+  const visitorWriteShapedMessages = new WeakMap<CollaborationContext, number>();
+  const visitorStepOneMessages = new WeakMap<CollaborationContext, number>();
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   const admitters: Record<
     SocketKind,
@@ -169,16 +198,23 @@ export function createCollaborationServer({
   > = {
     [SocketKind.Member]: async ({ requestHeaders, documentId, tabId }) => {
       const member = await authenticateMember({ auth, documents, cookie: requestHeaders.cookie, documentId });
-      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId, tabId }) };
+      return { ...member, bootstrapAttempt: roomBootstrap.claimDevice({ documentId, userId: member.userId, tabId }), visitor: null };
     },
     [SocketKind.Agent]: async ({ token, documentId }) => ({
       ...(await authenticateAgent({ auth, documents, token, documentId })),
       impersonationEndsAt: null,
       bootstrapAttempt: null,
+      visitor: null,
     }),
     [SocketKind.Bootstrap]: async ({ token, documentId }) => ({
       ...(await authenticateBootstrap({ auth, documents, roomBootstrap, bootstrap, token, documentId })),
       impersonationEndsAt: null,
+      visitor: null,
+    }),
+    [SocketKind.Public]: async ({ token, documentId }) => ({
+      ...(await authenticatePublic({ auth, documents, bootstrap, token, documentId })),
+      impersonationEndsAt: null,
+      bootstrapAttempt: null,
     }),
   };
   function admitDeviceClaim({ documentId, userId, attempt }: { documentId: string; userId: string; attempt: string }): void {
@@ -215,7 +251,7 @@ export function createCollaborationServer({
       const documentId = requireDocumentId(documentName);
       const socketKind = socketKindOf(request);
       const tabId = tabIdOf(requestParameters);
-      const { userId, role, impersonationEndsAt, bootstrapAttempt } = await admitters[socketKind]({
+      const { userId, role, impersonationEndsAt, bootstrapAttempt, visitor } = await admitters[socketKind]({
         requestHeaders,
         token,
         documentId,
@@ -233,10 +269,11 @@ export function createCollaborationServer({
         holdsRoomPlace: bootstrapAttempt === null || isDeviceClaim,
         tabId,
         impersonationEndsAt,
+        visitor,
       };
     },
     async connected({ context, connectionInstance, socketId }) {
-      const { documentId, userId, bootstrapAttempt, impersonationEndsAt } = context as CollaborationContext;
+      const { documentId, userId, bootstrapAttempt, impersonationEndsAt, visitor } = context as CollaborationContext;
       if (impersonationEndsAt !== null) {
         impersonationTimers.arm({
           socketId,
@@ -244,7 +281,7 @@ export function createCollaborationServer({
           onEnd: () => connectionInstance.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON }),
         });
       }
-      const isRevoked = documents.findRole({ documentId, userId }) === null;
+      const isRevoked = visitor === null ? documents.findRole({ documentId, userId }) === null : !documents.isPublic(documentId);
       if (isRevoked) {
         console.warn(`${REVOKED_CLOSE_LOG} ${documentId}`);
         connectionInstance.close({ code: ACCESS_REVOKED_CLOSE_CODE, reason: ACCESS_REVOKED_REASON });
@@ -268,15 +305,35 @@ export function createCollaborationServer({
       trackAwarenessOwners({ document, owners: awarenessOwners });
     },
     async beforeHandleMessage({ update, context, document, socketId, connection }) {
-      const { userId, documentId, bootstrapAttempt } = context as CollaborationContext;
+      const connectionContext = context as CollaborationContext;
+      const { userId, documentId, bootstrapAttempt, visitor } = connectionContext;
       const isStaleAttempt = bootstrapAttempt !== null && !roomBootstrap.isCurrent({ documentId, attempt: bootstrapAttempt });
       if (isStaleAttempt) connection.readOnly = true;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
+      const messageType = messageTypeOf(frame);
+      const isRefusedVisitorMessage = visitor !== null && (messageType === null || !VISITOR_MESSAGE_TYPES.has(messageType));
+      if (isRefusedVisitorMessage) throw new VisitorMessageError();
+      const syncStep = syncStepOf(frame);
+      const isVisitorWriteShaped = visitor !== null && syncStep !== null && syncStep !== SYNC_STEP_ONE;
+      const isVisitorStepOne = visitor !== null && syncStep === SYNC_STEP_ONE;
+      if (isVisitorStepOne) {
+        const seen = visitorStepOneMessages.get(connectionContext);
+        const stepOneMessages = seen === undefined ? 1 : seen + 1;
+        visitorStepOneMessages.set(connectionContext, stepOneMessages);
+        if (stepOneMessages > MAX_VISITOR_SYNC_STEP_ONE_MESSAGES) throw new VisitorMessageError();
+      }
+      if (isVisitorWriteShaped) {
+        const seen = visitorWriteShapedMessages.get(connectionContext);
+        const writeShapedMessages = seen === undefined ? 1 : seen + 1;
+        visitorWriteShapedMessages.set(connectionContext, writeShapedMessages);
+        if (writeShapedMessages > MAX_VISITOR_WRITE_SHAPED_MESSAGES) throw new VisitorMessageError();
+      }
       const entries = awarenessEntriesOf(frame);
       if (entries === null) {
         console.warn(AWARENESS_MALFORMED_LOG);
         throw new MalformedAwarenessError();
       }
+      if (visitor !== null) return void silenceAwarenessEntries(frame);
       if (!awarenessOwners.forbids({ documentName: document.name, userId, entries, meta: document.awareness.meta })) return;
       silenceAwarenessEntries(frame);
       if (dropLogCooldown.remainingMs(socketId) > 0) return;

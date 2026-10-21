@@ -68,3 +68,4 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0047](0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md) | The server never materializes an update it only logs; the heap follows the container's memory | Accepted | 2026-10-19 |
 | [0048](0048-the-server-bootstraps-the-room-after-the-upload.md) | The server bootstraps the room after the upload | Accepted | 2026-10-19 |
 | [0049](0049-the-uploader-previews-locally-and-a-refused-file-is-prepared-on-the-device.md) | The uploader previews locally, and a refused file is prepared on the device | Accepted | 2026-10-20 |
+| [0050](0050-anonymous-read-access-through-a-public-link.md) | Anonymous read access through a public link | Accepted | 2026-10-21 |

@@ -38,7 +38,7 @@ test('the options open the file in its room as the signed-in user, fitted to the
     container,
     toolbarContainer,
     documentId: DOCUMENT_ID,
-    file,
+    file: new Blob(),
     documentMode: DocumentMode.Viewing,
     collaborationPath: COLLABORATION_PATH,
     roomMode: RoomMode.Join,
@@ -63,7 +63,7 @@ test('the options open the file in its room as the signed-in user, fitted to the
         },
       },
     ],
-    user: { ...EDITOR_USER, color: USER_COLOR },
+    user: { id: EDITOR_USER.id, name: EDITOR_USER.name, color: USER_COLOR },
     colors: PALETTE_COLORS,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: { mode: ZoomMode.FitWidth, fitWidth: { max: 100 } },
@@ -105,4 +105,21 @@ test('the preview options open the uploaded bytes read-only, fitted to the width
 
 test('the context menu gets the shortcut provider', () => {
   expect(optionsFor(document.createElement('div'))).toMatchObject({ ui: { contextMenu: { menuProvider: expect.any(Function) } } });
+});
+
+test('the user handed to SuperDoc carries no email, so no comment or tracked change is stamped with one', () => {
+  const options = superdocOptions({
+    container: document.createElement('div'),
+    toolbarContainer: null,
+    documentId: DOCUMENT_ID,
+    file: new Blob(),
+    documentMode: DocumentMode.Editing,
+    collaborationPath: COLLABORATION_PATH,
+    roomMode: RoomMode.Join,
+    user: { ...SESSION_USER },
+    userColor: USER_COLOR,
+    paletteColors: PALETTE_COLORS,
+  });
+  expect(options.user).not.toHaveProperty('email');
+  expect(JSON.stringify(options)).not.toContain(SESSION_USER.email);
 });

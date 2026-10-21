@@ -192,6 +192,7 @@ function mockDocumentApi({
         body: {
           members: [],
           agents: [],
+          visitors: [],
           isCurrentUserOnline: isCurrentUserOnline(),
         },
         status: currentMembersStatus(),
@@ -373,7 +374,10 @@ test('creating fetches the stored download and a reader gets the viewing mode', 
   expect(requestedPaths).toContain(DOWNLOAD_PATH);
   expect(requestedPaths).not.toContain(BLANK_DOCX_PATH);
   expect(SuperDoc).toHaveBeenCalledWith(
-    expect.objectContaining({ documentMode: DocumentMode.Viewing, user: expect.objectContaining(EDITOR_USER) }),
+    expect.objectContaining({
+      documentMode: DocumentMode.Viewing,
+      user: expect.objectContaining({ id: EDITOR_USER.id, name: EDITOR_USER.name }),
+    }),
   );
 });
 

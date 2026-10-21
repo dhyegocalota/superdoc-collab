@@ -39,7 +39,7 @@ GET /api/documents/:id/members
 }
 ```
 
-`AGENT_PRESENCE_LINGER_MS` lives in `libs/types/src/constants.ts`; the server reads it from the optional `AGENT_PRESENCE_LINGER_MS` environment variable so the E2E stack can shorten it. The agent's colour slot is the one of its author key, which resolves to the owner's slot.
+`AGENT_PRESENCE_LINGER_MS` lives in `libs/types/src/constants.ts`; it is the default of the `presenceLingerMs` option of `AgentSessions`, which unit tests shorten with fake timers. The agent's colour slot is the one of its author key, which resolves to the owner's slot.
 
 Web: agents render after the humans, `UserAvatar` with `isAgent`, key by `<userId>#agent`, accessible name "<Name>'s AI, online", not a button (no caret, no jump). The current user's own AI is shown. The overflow menu counts agents.
 

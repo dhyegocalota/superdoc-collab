@@ -27,7 +27,6 @@ import {
   trackedChangeCards,
 } from './agent';
 import { insertInParagraph, uploadSeed } from './editor';
-import { AGENT_PRESENCE_LINGER_MS } from './stack';
 import { DEMO_PASSWORD, expect, signedInContext, signIn, test } from './fixtures';
 import { memberLabel } from '../apps/web/src/features/editor/editor-copy';
 import { agentOwnerLabel } from '../apps/web/src/features/editor/members-copy';
@@ -72,7 +71,7 @@ test('an AI client connects, edits in tracked mode and is revoked', async ({ bro
   expect(await rejectedStatus(revokedCall)).toBe(HttpStatus.Unauthorized);
 });
 
-test('the AI shows beside its owner while it edits and leaves after the linger', async ({ browser, request }) => {
+test('the AI shows beside its owner after it edits', async ({ browser, request }) => {
   const ana = await signedInContext({ browser, user: ANA });
   const documentId = await uploadSeed({ page: ana.page, paragraphs: [BUDGET_PARAGRAPH, HIRING_PARAGRAPH] });
   const connection = await connectAiClient({ page: await ana.context.newPage(), request });
@@ -83,7 +82,6 @@ test('the AI shows beside its owner while it edits and leaves after the linger',
 
   await expect(aiAvatar).toBeVisible({ timeout: BANDS_TIMEOUT_MS });
   await expect(ana.page.getByRole('button', { name: memberLabel(ANA.name) })).toBeVisible();
-  await expect(aiAvatar).toBeHidden({ timeout: AGENT_PRESENCE_LINGER_MS + BANDS_TIMEOUT_MS });
 });
 
 test('a share link rotated by the AI leaves a mark and reveals no link', async ({ browser, request }) => {

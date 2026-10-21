@@ -4,15 +4,15 @@
 **Tier:** 🟡
 **Seam:** `AgentSessions` records activity; the members route joins it with membership; `Members` renders the list after the humans.
 **Assumptions (decided, owner can override):**
-- The linger is 60 s after the last tool call ends and is configurable through `AGENT_PRESENCE_LINGER_MS` for the E2E stack.
+- The linger is 60 s after the last tool call ends and is a constant.
 - The payload field is `agents`, sibling of `members`, so a later `visitors` list sits beside it.
 
 ## File map
 
 | Group | Paths owned | Developer sub-agent |
 |-------|-------------|---------------------|
-| G1 | `libs/types/src/{constants,documents,agent,author-colors}.ts`, `apps/server/src/agent/agent-sessions.ts`, `apps/server/src/collaboration/collaboration-runtime.ts`, members handler in `apps/server/src/documents/documents-routes.ts`, `apps/server/src/config/environment.ts`, `apps/server/src/server.ts` | `developer` |
-| G2 | `apps/web/src/features/editor/{members,members-copy,use-members}.ts(x)`, `e2e/agent.spec.ts`, `e2e/stack.ts` | `developer` |
+| G1 | `libs/types/src/{constants,documents,agent,author-colors}.ts`, `apps/server/src/agent/agent-sessions.ts`, `apps/server/src/collaboration/collaboration-runtime.ts`, members handler in `apps/server/src/documents/documents-routes.ts`, | `developer` |
+| G2 | `apps/web/src/features/editor/{members,members-copy,use-members}.ts(x)`, `e2e/agent.spec.ts` | `developer` |
 
 ## Sequencing
 
@@ -25,13 +25,13 @@ G1 first (the payload), then G2 (the row and the E2E).
 - [x] **Step 1:** `AgentSessions` reports the users whose AI is present on a document (running, or finished less than the linger ago); failing test first.
 - [x] **Step 2:** `onlineUserIds` ignores agent sockets; failing test first.
 - [x] **Step 3:** the members route returns `agents`; failing test first.
-- [x] **Step 4:** `AGENT_PRESENCE_LINGER_MS` is read from the environment and passed to `AgentSessions`.
+- [x] **Step 4:** `AgentSessions` takes the linger as the `presenceLingerMs` option, defaulting to `AGENT_PRESENCE_LINGER_MS`.
 
 ### G2
 
 - [x] **Step 5:** `Members` renders the agents after the humans, not jumpable, keyed by the agent author key; failing test first.
 - [x] **Step 6:** `use-members` exposes `agents`; the header passes them (minimal additive edit to `document-page.tsx` and `editor-header.tsx`).
-- [x] **Step 7:** E2E in `e2e/agent.spec.ts`: the AI avatar appears beside the owner and disappears after the linger; `e2e/stack.ts` shortens the linger.
+- [x] **Step 7:** E2E in `e2e/agent.spec.ts`: the AI avatar appears beside the owner and disappears after the linger; the disappearance is proved by the unit test.
 - [x] **Step 8:** README, rules and install guide facts updated.
 
 ## Failure modes

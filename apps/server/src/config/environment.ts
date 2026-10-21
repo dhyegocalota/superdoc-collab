@@ -1,5 +1,4 @@
 import {
-  AGENT_PRESENCE_LINGER_MS,
   MAX_BOOTSTRAP_WAIT_MS,
   MAX_HEAVY_CONVERSIONS_PER_HOUR,
   roomHeapBudgetMegabytes,
@@ -79,7 +78,6 @@ export type Environment = {
   bootstrapHostHeapMegabytes: number | null;
   memoryLimitMegabytes: number | null;
   maxBootstrapWaitMs: number;
-  agentPresenceLingerMs: number;
   roomHeapBudgetMegabytes: number | null;
   heavyConversionsPerHour: number;
 };
@@ -165,11 +163,6 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
       name: 'MAX_BOOTSTRAP_WAIT_MS',
       value: source.MAX_BOOTSTRAP_WAIT_MS,
       fallback: MAX_BOOTSTRAP_WAIT_MS,
-    }),
-    agentPresenceLingerMs: limitFrom({
-      name: 'AGENT_PRESENCE_LINGER_MS',
-      value: source.AGENT_PRESENCE_LINGER_MS,
-      fallback: AGENT_PRESENCE_LINGER_MS,
     }),
     roomHeapBudgetMegabytes: roomHeapBudgetFrom({
       explicit: optionalLimitFrom({ name: 'ROOM_HEAP_BUDGET_MEGABYTES', value: source.ROOM_HEAP_BUDGET_MEGABYTES }),

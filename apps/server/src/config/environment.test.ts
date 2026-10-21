@@ -1,5 +1,4 @@
 import {
-  AGENT_PRESENCE_LINGER_MS,
   MAX_BOOTSTRAP_WAIT_MS,
   MAX_HEAVY_CONVERSIONS_PER_HOUR,
   roomHeapBudgetMegabytes,
@@ -43,7 +42,6 @@ describe('loadEnvironment', () => {
       bootstrapHostHeapMegabytes: null,
       memoryLimitMegabytes: null,
       maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
-      agentPresenceLingerMs: AGENT_PRESENCE_LINGER_MS,
       roomHeapBudgetMegabytes: null,
       heavyConversionsPerHour: MAX_HEAVY_CONVERSIONS_PER_HOUR,
     });
@@ -159,14 +157,6 @@ describe('loadEnvironment', () => {
   });
   test.each(['abc', '0', '-3', '1.5'])('fails startup when MAX_BOOTSTRAP_WAIT_MS is %s', (value) => {
     const name = 'MAX_BOOTSTRAP_WAIT_MS';
-    expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
-  });
-  test('reads how long an AI stays present when it is set and keeps the shared constant otherwise', () => {
-    expect(loadEnvironment({ ...complete, AGENT_PRESENCE_LINGER_MS: '3000' }).agentPresenceLingerMs).toBe(3000);
-    expect(loadEnvironment({ ...complete, AGENT_PRESENCE_LINGER_MS: '' }).agentPresenceLingerMs).toBe(AGENT_PRESENCE_LINGER_MS);
-  });
-  test.each(['abc', '0', '-3', '1.5'])('fails startup when AGENT_PRESENCE_LINGER_MS is %s', (value) => {
-    const name = 'AGENT_PRESENCE_LINGER_MS';
     expect(() => loadEnvironment({ ...complete, [name]: value })).toThrow(new InvalidEnvironmentIntegerError({ name, value }));
   });
   test('reads the hourly heavy conversions of an owner when it is set and keeps the shared constant otherwise', () => {

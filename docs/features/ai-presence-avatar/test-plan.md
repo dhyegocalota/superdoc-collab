@@ -18,7 +18,9 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/agent.spec.ts::the AI shows beside its owner while it edits and leaves after the linger` — steps: Ana opens a document, her AI client edits; expected: "Ana's AI, online" appears next to Ana's avatar; after the shortened linger it is gone without a fixed wait
+- [ ] `e2e/agent.spec.ts::the AI shows beside its owner after it edits` — steps: Ana opens a document, her AI client edits; expected: "Ana's AI, online" appears next to Ana's avatar
+
+The disappearance after the linger is covered by `apps/server/src/agent/agent-sessions.test.ts::a person's AI is present while a tool call runs and for the linger after it ends` (fake clock), not by E2E.
 
 ## Prove it for real — Playwright MCP
 

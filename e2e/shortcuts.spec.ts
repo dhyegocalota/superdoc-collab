@@ -97,7 +97,7 @@ function textAlignOf(page: Page): Promise<string> {
     .evaluate((element) => getComputedStyle(element).textAlign);
 }
 
-async function isPreventedByApp({ page, keys }: { page: Page; keys: string }): Promise<boolean> {
+async function reloadKeyDefaultPrevented({ page, keys }: { page: Page; keys: string }): Promise<boolean | undefined> {
   await page.evaluate(() => {
     const flags = window as Window & { reloadKeyPrevented?: boolean };
     flags.reloadKeyPrevented = undefined;
@@ -106,14 +106,14 @@ async function isPreventedByApp({ page, keys }: { page: Page; keys: string }): P
     });
   });
   await pressWithModifier({ page, keys });
-  return page.evaluate(() => (window as Window & { reloadKeyPrevented?: boolean }).reloadKeyPrevented === true);
+  return page.evaluate(() => (window as Window & { reloadKeyPrevented?: boolean }).reloadKeyPrevented);
 }
 
 test('Mod+Alt+R aligns right and the reload keys are left alone', async ({ browser }) => {
   const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
   await openNewDocumentWithSelectedWord(ana.page);
   for (const keys of RELOAD_KEY_COMBINATIONS) {
-    expect(await isPreventedByApp({ page: ana.page, keys })).toBe(false);
+    expect(await reloadKeyDefaultPrevented({ page: ana.page, keys })).toBe(false);
     expect(await textAlignOf(ana.page)).not.toBe(RIGHT_ALIGNED);
   }
   await pressWithModifier({ page: ana.page, keys: 'Alt+R' });

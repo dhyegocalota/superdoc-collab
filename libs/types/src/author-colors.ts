@@ -18,8 +18,12 @@ export function authorColorKeyOf({ id, name }: Pick<EventAuthor, 'id' | 'name'>)
   return id;
 }
 
+export function authorColorHash(key: string): number {
+  return new TextEncoder().encode(key).reduce((running, byte) => Math.imul(running ^ byte, HASH_PRIME) >>> 0, HASH_OFFSET_BASIS);
+}
+
 export function authorColorSlot(key: string): AuthorColorSlot {
-  const hash = new TextEncoder().encode(key).reduce((running, byte) => Math.imul(running ^ byte, HASH_PRIME) >>> 0, HASH_OFFSET_BASIS);
+  const hash = authorColorHash(key);
   const slot = AUTHOR_COLOR_SLOTS[hash % AUTHOR_COLOR_SLOT_COUNT];
   if (slot === undefined) throw new UnknownAuthorColorSlotError(key);
   return slot;

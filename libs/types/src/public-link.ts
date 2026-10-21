@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AuthorColorSlot } from './author-colors';
+import { AUTHOR_COLOR_SLOT_COUNT, authorColorHash, authorColorSlot, type AuthorColorSlot } from './author-colors';
 
 export const publicFlagSchema = z.object({ isPublic: z.boolean() });
 
@@ -32,12 +32,23 @@ export enum PublicAnimal {
   Walrus = 'Walrus',
 }
 
+const ANONYMOUS_NAME_PREFIX = 'Anonymous';
+const ANIMALS = Object.values(PublicAnimal);
+
+class UnknownPublicAnimalError extends Error {}
+
 export type PublicViewer = { id: string; name: string; colorSlot: AuthorColorSlot; animal: PublicAnimal | null };
 
+export function anonymousVisitorName(animal: PublicAnimal): string {
+  return `${ANONYMOUS_NAME_PREFIX} ${animal}`;
+}
+
 export function anonymousViewerOf(visitorId: string): PublicViewer {
-  throw new Error(`anonymousViewerOf is not implemented for ${visitorId}`);
+  const animal = ANIMALS[Math.floor(authorColorHash(visitorId) / AUTHOR_COLOR_SLOT_COUNT) % ANIMALS.length];
+  if (animal === undefined) throw new UnknownPublicAnimalError(visitorId);
+  return { id: visitorId, name: anonymousVisitorName(animal), animal, colorSlot: authorColorSlot(visitorId) };
 }
 
 export function signedInViewerOf({ visitorId, name }: { visitorId: string; name: string }): PublicViewer {
-  throw new Error(`signedInViewerOf is not implemented for ${visitorId} ${name}`);
+  return { id: visitorId, name, animal: null, colorSlot: authorColorSlot(visitorId) };
 }

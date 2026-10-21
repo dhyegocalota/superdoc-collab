@@ -204,7 +204,7 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
     id: ShortcutId.AlignRight,
     group: ShortcutGroup.Paragraph,
     action: command({ commandId: 'text-align', payload: 'right' }),
-    modifiers: [Mod],
+    modifiers: [Mod, Alt],
     ...letter('R'),
   }),
   definition({

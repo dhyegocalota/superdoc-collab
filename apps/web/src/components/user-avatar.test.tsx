@@ -1,6 +1,8 @@
+import { PublicAnimal } from '@superdoc-collab/types';
 import { render, screen } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import { agentMarkLabel } from '@/features/timeline/timeline-copy';
+import { ANIMAL_ICONS } from '@/lib/animal-icons';
 import { UserAvatar, UserAvatarSize } from './user-avatar';
 
 const NAME = 'Ana Lima';
@@ -39,4 +41,15 @@ test('the online dot shows only while online', () => {
   expect(container.querySelector(ONLINE_DOT_SELECTOR)).toBeInTheDocument();
   rerender(<UserAvatar name={NAME} colorSlot={3} size={UserAvatarSize.Large} isAgent={false} isOnline={false} />);
   expect(container.querySelector(ONLINE_DOT_SELECTOR)).not.toBeInTheDocument();
+});
+
+test('an animal replaces the initials with its icon', () => {
+  const { container } = renderAvatar({ name: 'Anonymous Fox', animal: PublicAnimal.Fox });
+  expect(container.firstElementChild).toHaveTextContent(ANIMAL_ICONS[PublicAnimal.Fox]);
+  expect(container.firstElementChild).not.toHaveTextContent('AF');
+});
+
+test('no animal keeps the initials', () => {
+  const { container } = renderAvatar({ animal: null });
+  expect(container.firstElementChild).toHaveTextContent('AL');
 });

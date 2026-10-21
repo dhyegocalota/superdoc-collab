@@ -11,9 +11,11 @@ import {
   PublicAnimal,
   publicApiPath,
   publicPagePath,
+  publicMembersApiPath,
   publicSummaryApiPath,
   READ_ONLY_BADGE_LABEL,
   anonymousViewerOf,
+  type PublicMembers,
   type PublicOpened,
   type PublicSummary,
 } from '@superdoc-collab/types';
@@ -26,7 +28,7 @@ import { jsonResponse } from '@/testing/json-response';
 import { DOCUMENT_ID, DOCUMENT_TITLE } from '@/testing/opened-document';
 import { renderWithProviders } from '@/testing/render-with-providers';
 import { BLANK_DOCX_PATH } from '@/features/editor/editor-api';
-import { SHARE_LABEL } from '@/features/editor/editor-copy';
+import { memberLabel, onlineMembersLabel, SHARE_LABEL } from '@/features/editor/editor-copy';
 import {
   PUBLIC_CONNECTION_FAILED_MESSAGE,
   PUBLIC_RELOAD_LABEL,
@@ -80,6 +82,7 @@ const SUMMARY: PublicSummary = {
   },
 };
 const NO_SUMMARY: PublicSummary = { summary: null };
+const PEOPLE: PublicMembers = { members: [{ name: 'Ana', colorSlot: 1 }], visitors: [VIEWER] };
 const CONNECTION_FAILED = {
   code: 'collaboration-connection-failed',
   collaborationReason: 'connection-failed',
@@ -113,10 +116,12 @@ function constructedConfig(): SuperDocConfig {
 function mockPublicApi({
   opened = () => jsonResponse({ body: VISITOR }),
   summary = NO_SUMMARY,
-}: { opened?: () => Response; summary?: PublicSummary } = {}) {
+  people = PEOPLE,
+}: { opened?: () => Response; summary?: PublicSummary; people?: PublicMembers } = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     if (input === publicApiPath(DOCUMENT_ID)) return opened();
     if (input === publicSummaryApiPath(DOCUMENT_ID)) return jsonResponse({ body: summary });
+    if (input === publicMembersApiPath(DOCUMENT_ID)) return jsonResponse({ body: people });
     if (input === BLANK_DOCX_PATH) return new Response(new Blob());
     return new Response(null, { status: HttpStatus.NotFound });
   });
@@ -251,4 +256,18 @@ test('a connection that fails before it synced shows a banner whose Reload asks 
   await userEvent.click(screen.getByRole('button', { name: PUBLIC_RELOAD_LABEL }));
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
   expect(constructedConfig().documents[0]!.v2Collaboration.token).toBe('second-token');
+});
+
+test('the members row lists the online people and the visitors, the visitor included', async () => {
+  mockPublicApi();
+  renderPublicPage();
+  expect(await screen.findByRole('img', { name: memberLabel('Ana') })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: memberLabel(VIEWER.name) })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: onlineMembersLabel(2) })).toBeInTheDocument();
+});
+
+test('with nobody else online the row shows only the visitor', async () => {
+  mockPublicApi({ people: { members: [], visitors: [VIEWER] } });
+  renderPublicPage();
+  expect(await screen.findByRole('group', { name: onlineMembersLabel(1) })).toBeInTheDocument();
 });

@@ -1,5 +1,11 @@
 import { agentAuthorKey } from '@superdoc-collab/history/timeline';
-import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentAgent, type DocumentMember } from '@superdoc-collab/types';
+import {
+  JUMP_FAILED_NOTICE_MS,
+  MEMBERS_PRESENCE_DEBOUNCE_MS,
+  type DocumentAgent,
+  type DocumentMember,
+  type PublicViewer,
+} from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
 import type { SuperDoc, SuperDocAwarenessUpdatePayload } from 'superdoc';
@@ -145,6 +151,7 @@ export function Members({
   documentId,
   members,
   agents,
+  visitors,
   currentUserId,
   superdoc,
   editorContainer,
@@ -153,6 +160,7 @@ export function Members({
   documentId: string;
   members: DocumentMember[];
   agents: DocumentAgent[];
+  visitors: PublicViewer[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
   editorContainer: HTMLElement | null;

@@ -1,4 +1,4 @@
-import type { AuthorColorSlot } from '@superdoc-collab/types';
+import type { AuthorColorSlot, PublicAnimal } from '@superdoc-collab/types';
 import { AgentMark } from '@/features/timeline/agent-mark';
 import { initialsOf } from '@/lib/initials';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,14 @@ const COLOR_CLASSES: Record<AuthorColorSlot, string> = {
 
 const NEUTRAL_COLOR_CLASS = 'bg-muted text-muted-foreground';
 
-type UserAvatarProps = { name: string; colorSlot: AuthorColorSlot | null; size: UserAvatarSize; isAgent: boolean; isOnline: boolean };
+type UserAvatarProps = {
+  name: string;
+  colorSlot: AuthorColorSlot | null;
+  size: UserAvatarSize;
+  isAgent: boolean;
+  isOnline: boolean;
+  animal?: PublicAnimal | null;
+};
 
 export function UserAvatar({ name, colorSlot, size, isAgent, isOnline }: UserAvatarProps) {
   return (

@@ -129,3 +129,4 @@ Refinement after the five slices:
 | [`typing-latency`](typing-latency/) | A keystroke in the 9.5 MB document costs about a second inside SuperDoc's layout engine; every layout option was measured, none brings it under 150 ms, the E2E guards the measured cost and the issue draft goes to SuperDoc | Shipped 2026-10-20 |
 | [`import-comments`](import-comments/) | Comments in an uploaded DOCX join the timeline with their original authors and dates, next to its tracked changes | Shipped 2026-10-20 |
 | [`imported-history-first-open`](imported-history-first-open/) | A bin of only imported events opens the document as uploaded, and the first open of a document with imported history summarizes it and opens the panel by itself | Building |
+| [`export-namespace-repair`](export-namespace-repair/) | The PDF and the DOCX download repair the namespace declarations SuperDoc's export drops, so a document with Word tracked changes prints and downloads well-formed | Building |

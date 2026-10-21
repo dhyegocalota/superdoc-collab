@@ -5,6 +5,19 @@ import type { WebSocket } from 'ws';
 
 const PSEUDONYM_CACHE_ENTRIES = 4096;
 const PSEUDONYM_CACHE_KEY_SEPARATOR = '\0';
+const VISIBLE_STATE_KEYS = [
+  'schemaVersion',
+  'connectionId',
+  'state',
+  'lastObservedAt',
+  'displayName',
+  'color',
+  'activeStoryId',
+  'selection',
+  'operationIntent',
+] as const;
+const VISIBLE_EXTENSION_KEYS = ['superdocV2CursorUi'] as const;
+const VISIBLE_USER_KEYS = ['name', 'color'] as const;
 const PSEUDONYM_DIGEST = 'sha256';
 const PSEUDONYM_PARTS_SEPARATOR = ':';
 const PSEUDONYM_LENGTH = 16;
@@ -54,15 +67,27 @@ function pseudonymOf({ id, secret, roomName }: { id: unknown; secret: string; ro
   return pseudonym;
 }
 
+function picked({ source, keys }: { source: Record<string, unknown>; keys: readonly string[] }): Record<string, unknown> {
+  return Object.fromEntries(keys.filter((key) => key in source).map((key) => [key, source[key]]));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function scrubbedState({ state, secret, roomName }: { state: unknown; secret: string; roomName: string }): unknown {
-  if (typeof state !== 'object' || state === null) return state;
-  const { userId, user, ...rest } = state as Record<string, unknown>;
-  const pseudonymousUserId = pseudonymOf({ id: userId, secret, roomName });
-  const withUserId = pseudonymousUserId === undefined ? rest : { ...rest, userId: pseudonymousUserId };
-  if (typeof user !== 'object' || user === null) return withUserId;
-  const { id, email: _email, ...visible } = user as Record<string, unknown>;
-  const pseudonymousId = pseudonymOf({ id, secret, roomName });
-  return { ...withUserId, user: pseudonymousId === undefined ? visible : { id: pseudonymousId, ...visible } };
+  if (!isRecord(state)) return state;
+  const visible = picked({ source: state, keys: VISIBLE_STATE_KEYS });
+  const userId = pseudonymOf({ id: state.userId, secret, roomName });
+  const extensions = isRecord(state.extensions) ? picked({ source: state.extensions, keys: VISIBLE_EXTENSION_KEYS }) : {};
+  const user = isRecord(state.user) ? picked({ source: state.user, keys: VISIBLE_USER_KEYS }) : null;
+  const userPseudonym = isRecord(state.user) ? pseudonymOf({ id: state.user.id, secret, roomName }) : undefined;
+  return {
+    ...visible,
+    ...(Object.keys(extensions).length > 0 && { extensions }),
+    ...(userId !== undefined && { userId }),
+    ...(user !== null && { user: { ...(userPseudonym !== undefined && { id: userPseudonym }), ...user } }),
+  };
 }
 
 function encodedEntry({ entry, secret, roomName }: { entry: AwarenessEntry; secret: string; roomName: string }): number[] {

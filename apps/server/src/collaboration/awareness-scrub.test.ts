@@ -42,7 +42,7 @@ test('an awareness frame loses the email and the ids of its users and keeps thei
 
 test('every entry is scrubbed, a removed client stays removed and a long state survives the new length', () => {
   const states = [
-    { user: { id: 'a', name: 'Ana', email: 'a@example.com', color: '#111111' }, padding: LONG_STATE_PADDING },
+    { user: { id: 'a', name: 'Ana', email: 'a@example.com', color: '#111111' }, selection: { padding: LONG_STATE_PADDING } },
     null,
     { user: { id: 'b', name: 'Bruno', email: 'b@example.com', color: '#222222' } },
   ];
@@ -58,7 +58,7 @@ test('every entry is scrubbed, a removed client stays removed and a long state s
 });
 
 test('a state with no user and a frame that is not awareness pass through unchanged', () => {
-  const noUser = awarenessFrame([{ clientId: 1, clock: 1, state: { cursor: { anchor: 1 } } }]);
+  const noUser = awarenessFrame([{ clientId: 1, clock: 1, state: { selection: { anchor: 1 } } }]);
   expect(scrubAwarenessFrame({ frame: noUser, secret: SECRET })).toEqual(noUser);
   const sync = Uint8Array.from([...varString(ROOM_NAME), ...varUint(MessageType.Sync), 0, 1, 0]);
   expect(scrubAwarenessFrame({ frame: sync, secret: SECRET })).toEqual(sync);

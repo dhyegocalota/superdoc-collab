@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import {
+  contrastRatio,
   DEFAULT_EDITOR_THEME_CHOICE,
   EditorThemePreset,
   editorThemeConfig,
@@ -8,6 +9,8 @@ import {
   readableTextOn,
   serializeEditorThemeChoice,
 } from './editor-theme';
+
+const MIN_CONTRAST = 4.5;
 
 test('a stored preset name or a hex colour parses, anything else does not', () => {
   expect(parseEditorThemeChoice('ocean')).toEqual({ preset: EditorThemePreset.Ocean });
@@ -35,6 +38,23 @@ test.each(ACCENT_PRESETS)('%s writes a light and a dark accent', (preset) => {
 
 test('a custom accent is the same in light and dark', () => {
   expect(editorThemeConfig({ accent: '#336699' })?.vars?.['--sd-editor-accent']).toBe('light-dark(#336699, #336699)');
+});
+
+test.each(ACCENT_PRESETS)('%s tints the toolbar from the accent in every state', (preset) => {
+  const variables = editorThemeConfig({ preset })?.vars;
+  expect(variables?.['--sd-editor-tint']).toContain('var(--sd-editor-accent)');
+  expect(variables?.['--sd-editor-tint-hover']).toContain('var(--sd-editor-accent)');
+  expect(variables?.['--sd-editor-tint-active']).toContain('var(--sd-editor-accent)');
+});
+
+test.each(ACCENT_PRESETS)('%s has at least 4.5:1 between its text and its accent, light and dark', (preset) => {
+  const { light, dark } = PRESET_ACCENTS[preset];
+  expect(contrastRatio({ foreground: readableTextOn(light), background: light })).toBeGreaterThanOrEqual(MIN_CONTRAST);
+  expect(contrastRatio({ foreground: readableTextOn(dark), background: dark })).toBeGreaterThanOrEqual(MIN_CONTRAST);
+});
+
+test('the text on a mid grey is the one with the higher contrast', () => {
+  expect(readableTextOn('#767676')).toBe('#ffffff');
 });
 
 test('the text on an accent is dark on a light colour and light on a dark one', () => {

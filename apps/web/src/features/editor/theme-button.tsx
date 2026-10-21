@@ -54,6 +54,7 @@ export function ThemeButton() {
           {ACCENT_COLOR_LABEL}
           <input
             type="color"
+            aria-label={ACCENT_COLOR_LABEL}
             value={pickerColorOf(choice)}
             onChange={(event) => chooseAccent(event.currentTarget.value)}
             className="h-8 w-12 cursor-pointer rounded-md border bg-transparent p-0.5"

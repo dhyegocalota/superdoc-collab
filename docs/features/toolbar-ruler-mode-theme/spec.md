@@ -43,13 +43,13 @@ flowchart LR
 
 ### Interfaces
 
-- `EditorThemePreset` enum: `Default`, `Ocean`, `Forest`, `Sunset`, `Mono`, and `Custom`.
-- Stored value under `superdoc-collab.editor-theme`: a preset name, or a `#rrggbb` colour for Custom.
-- `useEditorTheme()` returns the current choice and `choosePreset`, `chooseAccent`; it applies the class while mounted and removes it on unmount.
-- `ThemeButton`: icon button with tooltip "Theme", a popover with the five presets as a radio group and a colour input.
+- `EditorThemePreset` enum: `Default`, `Ocean`, `Forest`, `Sunset`, `Mono`. A choice is a preset or a custom `#rrggbb` accent.
+- Stored value under `superdoc-collab.editor-theme`: a preset name, or a `#rrggbb` colour for a custom accent.
+- `useEditorTheme()` returns the current choice and one `choose`; it reads storage synchronously and applies the class in a layout effect (no flash of Default on reload) while mounted and removes it on unmount.
+- `ThemeButton`: icon button with tooltip "Theme", a popover with the five presets as `aria-pressed` buttons in a `role=group`, each with a colour swatch, and a labelled colour input.
 - Copy lives in `editor-copy.ts`.
 
-Preset accents (light, dark): Ocean `#0369a1`, `#38bdf8`; Forest `#15803d`, `#4ade80`; Sunset `#c2410c`, `#fb923c`; Mono `#3f3f46`, `#e4e4e7`. The text on an accent is black or white by luminance.
+Preset accents (light, dark): Ocean `#0369a1`, `#38bdf8`; Forest `#15803d`, `#4ade80`; Sunset `#c2410c`, `#fb923c`; Mono `#3f3f46`, `#e4e4e7`. The text on an accent is the one of black and white with the higher WCAG contrast.
 
 ### Failure handling
 

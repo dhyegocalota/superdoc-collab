@@ -79,8 +79,11 @@ function luminanceOf(hex: string): number {
 }
 
 export function contrastRatio({ foreground, background }: { foreground: string; background: string }): number {
-  const [lighter, darker] = [luminanceOf(foreground), luminanceOf(background)].sort((first, second) => second - first);
-  return (lighter! + CONTRAST_OFFSET) / (darker! + CONTRAST_OFFSET);
+  const foregroundLuminance = luminanceOf(foreground);
+  const backgroundLuminance = luminanceOf(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + CONTRAST_OFFSET) / (darker + CONTRAST_OFFSET);
 }
 
 export function readableTextOn(accent: string): string {

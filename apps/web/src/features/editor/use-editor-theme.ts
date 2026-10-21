@@ -1,5 +1,5 @@
 import { createTheme } from 'superdoc';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import {
   DEFAULT_EDITOR_THEME_CHOICE,
   EDITOR_THEME_STORAGE_KEY,
@@ -35,7 +35,7 @@ function writeChoice(choice: EditorThemeChoice): void {
 export function useEditorTheme(): { choice: EditorThemeChoice; choose: (choice: EditorThemeChoice) => void } {
   const [choice, setChoice] = useState(readChoice);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const config = editorThemeConfig(choice);
     if (!config) return;
     const className = createTheme(config);

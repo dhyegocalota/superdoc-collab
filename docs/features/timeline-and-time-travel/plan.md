@@ -40,7 +40,7 @@
 - Version endpoints are ephemeral, read-only for everyone, authenticated (session, membership, existing mark) **before** an instance is created, and never write updates, identities or membership; viewer highlights are local comments that never reach the server.
 - Agents never read `.env`; anything that needs secrets runs through `scripts/with-env.sh <command>`. Tests mock the model; the only real-LLM test is skipped unless `OPENROUTER_API_KEY` is set.
 - Red first (HARNESS → Build): every task from 1 to 14 commits its failing tests alone in a `test(<scope>): …` commit before the implementation commit, and checks `git show --stat <sha>` lists only test files. Never `git add -A`.
-- `poc/` untouched. One projection worker per process.
+- the proof of concept untouched. One projection worker per process.
 
 ## Review focus
 

@@ -4,7 +4,7 @@
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-16
 **ADRs:** [0001](../../adr/0001-event-sourcing-over-yjs.md) history capture · [0002](../../adr/0002-authorship-observed-vs-declared.md) authorship · [0004](../../adr/0004-stack.md) stack · [0007](../../adr/0007-read-model-in-sqlite.md) read model · [0009](../../adr/0009-design-system.md) design system · [0010](../../adr/0010-documents-ownership-and-share-links.md) documents and sharing
-**Not changing:** authentication and the socket cookie flow from slice 1; `poc/` stays untouched and green; no timeline UI, no time travel, no LLM (slices 3 and 4); no deployment (slice 5).
+**Not changing:** authentication and the socket cookie flow from slice 1; the proof of concept stays untouched and green; no timeline UI, no time travel, no LLM (slices 3 and 4); no deployment (slice 5).
 
 ## Problem
 

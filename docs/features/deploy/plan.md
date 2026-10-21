@@ -35,7 +35,7 @@ Moved to `apps/server/src/repository-shape/` on 2026-10-17 (refinement-structure
 - Commit with `git add <exact paths> && git commit -m "…"` in **one** command, then `git show --stat HEAD` must list only the paths named in that step. Never `git add -A`, `git add .` or `--no-verify`. Commit only on `feat/deploy`. Attribution lines required by the agent harness go at the end of each commit body.
 - No secret in the repository: no real key, password or `AUTH_SECRET` in any committed file; test values are obviously fake (`compose-test-…`, `ci-smoke-…`, `entrypoint-test-…`). Agents never read or edit `.env`.
 - Nothing in this plan runs `docker build`, `docker run` or `docker compose up` locally.
-- `poc/` untouched. The local `docker-compose.yml` untouched.
+- the proof of concept untouched. The local `docker-compose.yml` untouched.
 
 ## Review focus
 

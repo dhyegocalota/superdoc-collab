@@ -1,6 +1,6 @@
 # Tester briefing: refinement, server readability (lane C1)
 
-Branch `chore/refinement-readability-server`, based on `d63679c` (the structure lane). 28 commits, one per plan step that commits. Nothing under `apps/web` or `poc/` changed.
+Branch `chore/refinement-readability-server`, based on `d63679c` (the structure lane). 28 commits, one per plan step that commits. Nothing under `apps/web` or the proof of concept changed.
 
 ## How to run
 

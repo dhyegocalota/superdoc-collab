@@ -154,7 +154,10 @@ describe('the README quick install and the install guide run from source', () =>
 
   test('a pnpm command written in prose is checked like one in a fenced block', () => {
     const scratch = section({
-      text: readme.replace('`docker compose -f docker/docker-compose.local.yml down -v`', '`pnpm reset`'),
+      text: readme.replace(
+        '`ENV_FILE=../.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true docker compose -f docker/docker-compose.local.yml down -v`',
+        '`pnpm reset`',
+      ),
       heading: QUICK_INSTALL_HEADING,
     });
     expect(pnpmInvocations(scratch).filter((invocation) => !isPackageScript(invocation))).toEqual([

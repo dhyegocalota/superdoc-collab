@@ -38,7 +38,7 @@ Known limitation: deletion-only updates in the same crash window stay attributed
 
 ## Evidence
 
-- Unit tests in `poc/tests/node/relay-attribution.test.ts` force the relay scenario deterministically.
+- Unit tests in `libs/history/src/relay-attribution.test.ts` force the relay scenario deterministically.
 - E3: same user in two tabs, every connected client gets a `declared` identity.
 - E6: two offline authors delete the same text; it is counted once.
 - Chaos runs, including 9 SIGKILLs: 0 relayed updates observed.

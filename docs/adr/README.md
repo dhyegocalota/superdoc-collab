@@ -6,6 +6,7 @@ An ADR records one architecturally significant decision: the context that forced
 
 - File name: `NNNN-kebab-slug.md`, four digits, assigned in order of creation.
 - Numbers are never reused and never renumbered.
+- The index lists every record in number order, with the title, status and date the record states; `tools/repository-shape/src/document-indexes.test.ts` checks it.
 - A decision is changed by writing a new ADR and marking the old one `Superseded by [NNNN](NNNN-slug.md)`. The old file stays in place.
 
 ## Status lifecycle
@@ -20,10 +21,6 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 
 | Number | Title | Status | Date |
 |--------|-------|--------|------|
-| [0045](0045-thumbnails-are-captured-by-the-client-that-already-rendered-the-page.md) | Thumbnails are captured by the client that already rendered the page | Accepted | 2026-10-19 |
-| [0044](0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md) | Version builds are budgeted per user and capped in the projection queue | Accepted | 2026-10-19 |
-| [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) | A known version sequence resolves exactly; marks anchor the timeline | Accepted | 2026-10-19 |
-| [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |
 | [0001](0001-event-sourcing-over-yjs.md) | Capture live history by event-sourcing the Yjs update stream | Accepted | 2026-10-16 |
 | [0002](0002-authorship-observed-vs-declared.md) | Bind Yjs clientIds to users in two tiers | Accepted | 2026-10-16 |
 | [0003](0003-time-travel-with-native-yjs-snapshots.md) | Implement time travel with native Yjs snapshots | Accepted | 2026-10-16 |
@@ -34,7 +31,7 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0008](0008-vertical-slices.md) | Deliver the product as five vertical slices | Accepted | 2026-10-16 |
 | [0009](0009-design-system.md) | Design system: Tailwind with shadcn/ui, visually coherent with SuperDoc | Accepted | 2026-10-16 |
 | [0010](0010-documents-ownership-and-share-links.md) | Documents: owner, two share links, files on the data volume | Accepted | 2026-10-16 |
-| [0011](0011-process-wide-llm-cost-caps.md) | Process-wide caps on language-model spend | Accepted (owner to confirm the numbers) | 2026-10-16 |
+| [0011](0011-process-wide-llm-cost-caps.md) | Process-wide caps on language-model spend | Accepted | 2026-10-16 |
 | [0012](0012-selection-summaries-cached-per-filter-and-cursor.md) | Cache selection summaries per filter, stamped with the cursor | Accepted | 2026-10-16 |
 | [0013](0013-deploy-with-dokploy-compose.md) | Deploy with a Dokploy compose service built from the repository | Superseded by [0019](0019-deploy-on-railway.md) | 2026-10-16 |
 | [0014](0014-one-source-per-agent-surface.md) | One source per agent surface, a thin adapter per tool | Accepted | 2026-10-17 |
@@ -58,13 +55,17 @@ A `Proposed` ADR moves to `Accepted` by editing its status line and date. Any ot
 | [0033](0033-one-creator-per-room-reservation-with-per-attempt-write-fencing.md) | One creator per room: a reservation with per-attempt write fencing and expiry | Accepted | 2026-10-17 |
 | [0034](0034-collaboration-socket-payload-and-rate-limits.md) | Collaboration socket limits: a per-message payload cap and a per-connection rate cap | Accepted | 2026-10-17 |
 | [0035](0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md) | The PDF prints from a same-origin frame with its own viewport | Accepted | 2026-10-17 |
-| [0038](0038-phone-time-travel-confirms-with-an-inline-second-tap.md) | Phone time travel confirms with an inline second tap and shows its loading | Accepted | 2026-10-18 |
 | [0036](0036-the-superseded-creator-page-learns-of-the-takeover-from-the-members-poll.md) | The superseded creator's page learns of the takeover from the members poll | Accepted | 2026-10-18 |
 | [0037](0037-author-colour-slots-are-assigned-per-document-by-join-order.md) | Author colour slots are assigned per document by join order | Accepted | 2026-10-18 |
+| [0038](0038-phone-time-travel-confirms-with-an-inline-second-tap.md) | Phone time travel confirms with an inline second tap and shows its loading | Accepted | 2026-10-18 |
 | [0039](0039-the-edits-chart-collapses-idle-stretches-into-marked-breaks.md) | The edits chart collapses idle stretches into marked breaks | Accepted | 2026-10-18 |
+| [0040](0040-the-socket-frame-cap-allows-fast-typing-and-reconnect-bursts.md) | The socket frame caps allow fast typing and reconnect bursts | Accepted | 2026-10-18 |
 | [0041](0041-the-summary-card-shows-the-sentence-as-it-is-written.md) | The summary card shows the sentence as it is written, through the job and the poll | Accepted | 2026-10-18 |
 | [0042](0042-the-client-address-is-the-rightmost-trusted-hop.md) | The client address is the rightmost trusted hop | Accepted | 2026-10-19 |
-| [0046](0046-archiving-is-a-ban-plus-full-access-revocation-impersonation-is-a-visible-session.md) | Archiving is a ban plus full access revocation; impersonation is a visible session | Accepted |
+| [0043](0043-a-known-version-sequence-resolves-exactly-and-marks-anchor-the-timeline.md) | A known version sequence resolves exactly; marks anchor the timeline | Accepted | 2026-10-19 |
+| [0044](0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md) | Version builds are budgeted per user and capped in the projection queue | Accepted | 2026-10-19 |
+| [0045](0045-thumbnails-are-captured-by-the-client-that-already-rendered-the-page.md) | Thumbnails are captured by the client that already rendered the page | Accepted | 2026-10-19 |
+| [0046](0046-archiving-is-a-ban-plus-full-access-revocation-impersonation-is-a-visible-session.md) | Archiving is better-auth's ban plus a full access revocation; impersonation is better-auth's impersonation session with a visible banner and an audit line | Accepted | 2026-10-19 |
 | [0047](0047-the-server-never-materializes-an-update-it-only-logs-and-heap-follows-the-container.md) | The server never materializes an update it only logs; the heap follows the container's memory | Accepted | 2026-10-19 |
 | [0048](0048-the-server-bootstraps-the-room-after-the-upload.md) | The server bootstraps the room after the upload | Accepted | 2026-10-19 |
 | [0049](0049-the-uploader-previews-locally-and-a-refused-file-is-prepared-on-the-device.md) | The uploader previews locally, and a refused file is prepared on the device | Accepted | 2026-10-20 |

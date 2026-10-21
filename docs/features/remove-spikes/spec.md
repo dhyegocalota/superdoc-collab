@@ -8,7 +8,7 @@
 
 ## Problem
 
-`spikes/sdk-room-join/` reached `main` with PR #30: a standalone prototype with its own `package.json` and lockfile. The repository already removed `poc/` on 2026-10-17 for the same reason: answers belong in ADRs and feature folders, prototype code does not. The owner asked to delete it.
+`spikes/sdk-room-join/` reached `main` with PR #30: a standalone prototype with its own `package.json` and lockfile. The repository already removed the proof of concept on 2026-10-17 for the same reason: answers belong in ADRs and feature folders, prototype code does not. The owner asked to delete it.
 
 ## Change
 
@@ -18,6 +18,6 @@
 
 ## Test list
 
-- A repository-shape test fails while a `spikes/` or `poc/` folder exists at the root (red first).
+- A repository-shape test fails while a `spikes/` or proof-of-concept folder exists at the root (red first).
 - `delivery-docs.test.ts` keeps every moved link resolving.
 - `pnpm verify` on the branch.

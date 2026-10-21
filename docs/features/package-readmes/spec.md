@@ -19,7 +19,7 @@ Only the root and four `docs/` folders had a README, so an agent opening `apps/s
 
 ## Non-goals
 
-- No README for `deploy/`, `docker/`, `scripts/` or `poc/`: the root README and `poc/RESULTS.md` describe them.
+- No README for `deploy/`, `docker/`, `scripts/` or the proof of concept: the root README and the proof of concept's results describe them.
 - No check that prose matches behaviour; that stays a judgment for the agent and the reviewer.
 
 ## Design

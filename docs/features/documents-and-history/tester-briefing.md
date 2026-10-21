@@ -56,7 +56,7 @@ Each task committed its failing tests alone before the implementation; `git log 
 | Test | Red before the change because | Green after because |
 |------|--------------------------------|---------------------|
 | `libs/history/src/docx-signature.test.ts` | `./docx-signature` did not exist | `isDocx` checks the zip signature and `word/document.xml` |
-| `libs/history/src/{edit-windows,single-flight}.test.ts` | the lifted modules were not in `libs/history` | modules lifted from `poc/lib` |
+| `libs/history/src/{edit-windows,single-flight}.test.ts` | the lifted modules were not in `libs/history` | modules lifted from the proof of concept's `lib` |
 | `libs/history/src/{update-log,relay-attribution,snapshots}.test.ts` | `./migrations` and `./update-log` did not exist | update log on better-sqlite3 with drizzle migrations |
 | `libs/history/src/{projection,imported-revisions}.test.ts` | `./projection` and `./imported-revisions` did not exist | read model, cursor and mapping implemented |
 | `e2e/documents.spec.ts`, `e2e/collaboration.spec.ts` | no documents, sharing or history in the product | the slice is built; both specs pass twice in a row |

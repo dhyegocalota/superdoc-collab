@@ -108,7 +108,13 @@ export type TimelineBin = { start: number; end: number; versionSequence: number 
 export type TimelineBand = { id: string; kind: TimelineBandKind; name: string; hue: number | null; onsetTime: number; volume: number };
 export type TimelineContributor = { authorKey: string; inserted: number; deleted: number; wordsInserted: number; wordsDeleted: number };
 export type TopicStatus = { state: TopicState; failure: string | null; computedAtSequence: number | null };
-export type ProjectionStatus = { isBehind: boolean; lagMs: number | null; isDegraded: boolean; cursor: number | null };
+export type ProjectionStatus = {
+  isBehind: boolean;
+  lagMs: number | null;
+  isDegraded: boolean;
+  isImporting: boolean;
+  cursor: number | null;
+};
 export type AgentActionView = { authorKey: string; kind: AgentActionKind; createdAt: number };
 export type DocumentTimeline = {
   timeZone: string;

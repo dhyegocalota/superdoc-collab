@@ -294,6 +294,7 @@ test('comments in an uploaded file are imported with their original author and d
   );
   await server.services.storage.put({ documentId, bytes });
   server.services.runtime.importRevisions(documentId);
+  expect(server.services.scheduler.isImporting(documentId)).toBe(true);
   const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
   writeStory({ document: client.document, texts: [''] });
   commitBootstrap(client.document);
@@ -306,6 +307,7 @@ test('comments in an uploaded file are imported with their original author and d
     [BlockChangeKind.Modified, 'Chris Crawford', Date.parse('2026-02-12T09:01:00Z'), ' developers'],
     [BlockChangeKind.Commented, 'Dana Reviewer', Date.parse('2026-02-13T10:00:00Z'), 'Please cite a source'],
   ]);
+  await expect.poll(() => server.services.scheduler.isImporting(documentId)).toBe(false);
   client.close();
   await server.stop();
 });

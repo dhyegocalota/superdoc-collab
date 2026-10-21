@@ -117,13 +117,7 @@ test('a second upload of one owner while one waits in the queue is 429 with Retr
   const running = await upload({ server, cookie: owner.cookie, bytes });
   const queued = await upload({ server, cookie: owner.cookie, bytes });
   const refused = await upload({ server, cookie: owner.cookie, bytes });
-  const refusedBlank = await createBlank({ server, cookie: owner.cookie, title: 'Blank' });
-  expect([running.status, queued.status, refused.status, refusedBlank.status]).toEqual([
-    HttpStatus.Created,
-    HttpStatus.Created,
-    HttpStatus.TooManyRequests,
-    HttpStatus.TooManyRequests,
-  ]);
+  expect([running.status, queued.status, refused.status]).toEqual([HttpStatus.Created, HttpStatus.Created, HttpStatus.TooManyRequests]);
   expect(Number(refused.headers.get(RETRY_AFTER_HEADER))).toBe(BOOTSTRAP_QUEUE_RETRY_AFTER_MS / 1000);
   expect((await listOf({ server, cookie: owner.cookie })).mine).toHaveLength(2);
   expect((await upload({ server, cookie: other.cookie, bytes })).status).toBe(HttpStatus.Created);

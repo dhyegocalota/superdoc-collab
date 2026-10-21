@@ -324,3 +324,17 @@ test('Ctrl+Alt+F is not consumed without an active editor', () => {
   expect(pressKey({ code: 'KeyF', key: 'f', ...OPTION_KEYS }).defaultPrevented).toBe(false);
   expect(insertFootnote).not.toHaveBeenCalled();
 });
+
+test('Ctrl+R and Ctrl+Shift+R are never consumed, so the browser reloads', () => {
+  renderShortcuts();
+  expect(pressKey({ code: 'KeyR', key: 'r', ctrlKey: true }).defaultPrevented).toBe(false);
+  expect(pressKey({ code: 'KeyR', key: 'R', ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(false);
+  expect(execute).not.toHaveBeenCalled();
+});
+
+test('Ctrl+Alt+R aligns right', () => {
+  renderShortcuts();
+  const event = pressKey({ code: 'KeyR', key: 'r', ...OPTION_KEYS });
+  expect(execute).toHaveBeenCalledWith('right');
+  expect(event.defaultPrevented).toBe(true);
+});

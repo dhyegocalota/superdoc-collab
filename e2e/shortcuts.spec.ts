@@ -22,6 +22,8 @@ const TRACKED_INSERT_SELECTOR = '[data-track-change-kind="insert"]';
 const COMMENT_TEXT = 'Please check this word';
 const PANEL_SELECTOR = 'aside[data-position]';
 const CENTERED = 'center';
+const RIGHT_ALIGNED = 'right';
+const RELOAD_KEY_COMBINATIONS = ['R', 'Shift+R'];
 const MAC_PLATFORM_PATTERN = /mac/i;
 
 async function platformOf(page: Page): Promise<Platform> {
@@ -86,6 +88,36 @@ test('Mod+E centres the paragraph through the command surface', async ({ browser
         .evaluate((element) => getComputedStyle(element).textAlign),
     )
     .toBe(CENTERED);
+});
+
+function textAlignOf(page: Page): Promise<string> {
+  return page
+    .locator(LINE_SELECTOR)
+    .first()
+    .evaluate((element) => getComputedStyle(element).textAlign);
+}
+
+async function isPreventedByApp({ page, keys }: { page: Page; keys: string }): Promise<boolean> {
+  await page.evaluate(() => {
+    const flags = window as Window & { reloadKeyPrevented?: boolean };
+    flags.reloadKeyPrevented = undefined;
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'KeyR') flags.reloadKeyPrevented = event.defaultPrevented;
+    });
+  });
+  await pressWithModifier({ page, keys });
+  return page.evaluate(() => (window as Window & { reloadKeyPrevented?: boolean }).reloadKeyPrevented === true);
+}
+
+test('Mod+Alt+R aligns right and the reload keys are left alone', async ({ browser }) => {
+  const ana = await signedInContext({ browser, user: DEMO_USERS[0]! });
+  await openNewDocumentWithSelectedWord(ana.page);
+  for (const keys of RELOAD_KEY_COMBINATIONS) {
+    expect(await isPreventedByApp({ page: ana.page, keys })).toBe(false);
+    expect(await textAlignOf(ana.page)).not.toBe(RIGHT_ALIGNED);
+  }
+  await pressWithModifier({ page: ana.page, keys: 'Alt+R' });
+  await expect.poll(() => textAlignOf(ana.page)).toBe(RIGHT_ALIGNED);
 });
 
 test('Mod+S downloads the DOCX', async ({ browser }) => {

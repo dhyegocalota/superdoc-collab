@@ -43,6 +43,7 @@ const TRACK_CHANGES_MODE_SWITCH: Partial<Record<DocumentMode, DocumentMode>> = {
   [DocumentMode.Suggesting]: DocumentMode.Editing,
 };
 const ALT_GRAPH_MODIFIER = 'AltGraph';
+const HARD_RELOAD_KEY: KeyCombination = { modifiers: [ShortcutModifier.Mod, ShortcutModifier.Shift], code: 'KeyR', label: 'R' };
 const TEXT_CONTROL_SELECTOR = 'input, textarea, select, [contenteditable="true"], [role="document"]';
 
 function isMatch({ event, combination }: { event: KeyboardEvent; combination: KeyCombination }): boolean {
@@ -191,6 +192,10 @@ export function useShortcuts(options: UseShortcutsOptions): void {
       event.stopPropagation();
     }
 
+    function keepHardReload(event: KeyboardEvent): void {
+      if (isMatch({ event, combination: HARD_RELOAD_KEY })) event.stopPropagation();
+    }
+
     function handleKeyDown(event: KeyboardEvent): void {
       if (event.defaultPrevented) return;
       const definition = definitionOf(event);
@@ -201,9 +206,11 @@ export function useShortcuts(options: UseShortcutsOptions): void {
       const isHandled = runners[definition.action.kind]({ definition, options: optionsRef.current, event, commentCursorRef });
       if (isHandled) event.preventDefault();
     }
+    document.addEventListener('keydown', keepHardReload, true);
     document.addEventListener('keydown', swallowHeldKey, true);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      document.removeEventListener('keydown', keepHardReload, true);
       document.removeEventListener('keydown', swallowHeldKey, true);
       document.removeEventListener('keydown', handleKeyDown);
     };

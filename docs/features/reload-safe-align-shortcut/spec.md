@@ -33,7 +33,7 @@ No new symbol. `SHORTCUTS` keeps one entry per id; the registry test pins that n
 
 ### Failure handling
 
-SuperDoc 2.23.0 might bind Mod-r or Mod-Shift-r in its own text-align keymap and prevent default before the app sees the key (it does so for ⌘⇧L). A text search of the published `superdoc` and `@superdoc/docx-engine` bundles found no `Mod-r`, `Mod-Shift-r` or equivalent literal, but the engine is minified, so the E2E is the proof: it presses Mod+R and Mod+Shift+R with the caret in the editor and asserts the event is not `defaultPrevented`. If it ever fails, the smallest fix is a capture-phase listener on the document that stops propagation of those two keys without calling `preventDefault`.
+**Found by the E2E, 2026-10-21:** SuperDoc's docx-engine keydown handler on the editing surface calls `preventDefault` on Mod+Shift+R (seen with a wrapped `Event.prototype.preventDefault` and its stack); Mod+R is not touched, on a Mac or elsewhere. `useShortcuts` therefore registers a capture-phase listener on the document that stops propagation of Mod+Shift+R without calling `preventDefault`, so the engine never sees the key and the browser hard-reloads. The registry gets no entry for it.
 
 ## Open questions → answers
 

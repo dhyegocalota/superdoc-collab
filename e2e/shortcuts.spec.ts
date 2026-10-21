@@ -99,14 +99,18 @@ function textAlignOf(page: Page): Promise<string> {
 
 async function reloadKeyDefaultPrevented({ page, keys }: { page: Page; keys: string }): Promise<boolean | undefined> {
   await page.evaluate(() => {
-    const flags = window as Window & { reloadKeyPrevented?: boolean };
-    flags.reloadKeyPrevented = undefined;
-    window.addEventListener('keydown', (event) => {
-      if (event.code === 'KeyR') flags.reloadKeyPrevented = event.defaultPrevented;
-    });
+    const flags = window as Window & { reloadKeyEvent?: KeyboardEvent };
+    flags.reloadKeyEvent = undefined;
+    window.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.code === 'KeyR') flags.reloadKeyEvent = event;
+      },
+      true,
+    );
   });
   await pressWithModifier({ page, keys });
-  return page.evaluate(() => (window as Window & { reloadKeyPrevented?: boolean }).reloadKeyPrevented);
+  return page.evaluate(() => (window as Window & { reloadKeyEvent?: KeyboardEvent }).reloadKeyEvent?.defaultPrevented);
 }
 
 test('Mod+Alt+R aligns right and the reload keys are left alone', async ({ browser }) => {

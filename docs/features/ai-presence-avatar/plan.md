@@ -22,17 +22,17 @@ G1 first (the payload), then G2 (the row and the E2E).
 
 ### G1
 
-- [ ] **Step 1:** `AgentSessions` reports the users whose AI is present on a document (running, or finished less than the linger ago); failing test first.
-- [ ] **Step 2:** `onlineUserIds` ignores agent sockets; failing test first.
-- [ ] **Step 3:** the members route returns `agents`; failing test first.
-- [ ] **Step 4:** `AGENT_PRESENCE_LINGER_MS` is read from the environment and passed to `AgentSessions`.
+- [x] **Step 1:** `AgentSessions` reports the users whose AI is present on a document (running, or finished less than the linger ago); failing test first.
+- [x] **Step 2:** `onlineUserIds` ignores agent sockets; failing test first.
+- [x] **Step 3:** the members route returns `agents`; failing test first.
+- [x] **Step 4:** `AGENT_PRESENCE_LINGER_MS` is read from the environment and passed to `AgentSessions`.
 
 ### G2
 
-- [ ] **Step 5:** `Members` renders the agents after the humans, not jumpable, keyed by the agent author key; failing test first.
-- [ ] **Step 6:** `use-members` exposes `agents`; the header passes them (minimal additive edit to `document-page.tsx` and `editor-header.tsx`).
-- [ ] **Step 7:** E2E in `e2e/agent.spec.ts`: the AI avatar appears beside the owner and disappears after the linger; `e2e/stack.ts` shortens the linger.
-- [ ] **Step 8:** README, rules and install guide facts updated.
+- [x] **Step 5:** `Members` renders the agents after the humans, not jumpable, keyed by the agent author key; failing test first.
+- [x] **Step 6:** `use-members` exposes `agents`; the header passes them (minimal additive edit to `document-page.tsx` and `editor-header.tsx`).
+- [x] **Step 7:** E2E in `e2e/agent.spec.ts`: the AI avatar appears beside the owner and disappears after the linger; `e2e/stack.ts` shortens the linger.
+- [x] **Step 8:** README, rules and install guide facts updated.
 
 ## Failure modes
 

@@ -138,6 +138,7 @@ export async function startTestServer({
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes,
     maxBootstrapWaitMs,
+    agentPresenceLingerMs: AGENT_PRESENCE_LINGER_MS,
     roomHeapBudgetMegabytes,
     heavyConversionsPerHour,
   };

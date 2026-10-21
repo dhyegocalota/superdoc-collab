@@ -30,8 +30,8 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 - [ ] The AI avatar is not focusable as a jump target; Tab skips it
 - [ ] Reload mid-edit: expected: the avatar reappears after the reload while the linger lasts
 - [ ] Console and network clean: zero console errors, zero failed requests
-- [ ] Desktop width: expected: humans then AIs in one row, overflow menu lists them past five
-- [ ] Narrow width (375 px): expected: the row collapses to three with the +N menu
+- [ ] Desktop width: expected: humans then AIs in one row, AIs sit after the humans and the +N menu, never inside it
+- [ ] Narrow width (375 px): expected: humans collapse to three with the +N menu, the AI avatar stays beside them
 - [ ] Screenshots at `.pr-media/ai-presence-avatar/`; video at `.pr-media/ai-presence-avatar/walk.webm`
 
 ## Edge cases found during execution

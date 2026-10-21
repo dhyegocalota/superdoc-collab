@@ -1,4 +1,5 @@
-import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentMember } from '@superdoc-collab/types';
+import { agentAuthorKey } from '@superdoc-collab/history/timeline';
+import { JUMP_FAILED_NOTICE_MS, MEMBERS_PRESENCE_DEBOUNCE_MS, type DocumentAgent, type DocumentMember } from '@superdoc-collab/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
 import type { SuperDoc, SuperDocAwarenessUpdatePayload } from 'superdoc';
@@ -21,7 +22,7 @@ import {
   SELF_MEMBER_REASON,
 } from './editor-copy';
 import { membersQueryKey } from './editor-api';
-import { overflowCountLabel } from './members-copy';
+import { agentOwnerLabel, overflowCountLabel } from './members-copy';
 import { JumpOutcome, useMemberCursors } from './use-member-cursors';
 
 const MAX_MEMBERS_WITHOUT_MENU = 5;
@@ -53,6 +54,14 @@ function jumpReasonOf({
 
 function MemberAvatar({ member }: { member: DocumentMember }) {
   return <UserAvatar name={member.user.name} colorSlot={member.colorSlot} size={UserAvatarSize.Large} isAgent={false} isOnline />;
+}
+
+function AgentAvatar({ agent }: { agent: DocumentAgent }) {
+  return (
+    <span role="img" aria-label={memberLabel(agentOwnerLabel(agent.user.name))}>
+      <UserAvatar name={agent.user.name} colorSlot={agent.colorSlot} size={UserAvatarSize.Large} isAgent isOnline />
+    </span>
+  );
 }
 
 function MemberButton({ state, onJump }: { state: JumpState; onJump: (member: DocumentMember) => JumpOutcome }) {
@@ -135,6 +144,7 @@ function MembersMenu({ states, onJump }: { states: JumpState[]; onJump: (member:
 export function Members({
   documentId,
   members,
+  agents,
   currentUserId,
   superdoc,
   editorContainer,
@@ -142,6 +152,7 @@ export function Members({
 }: {
   documentId: string;
   members: DocumentMember[];
+  agents: DocumentAgent[];
   currentUserId: string | null;
   superdoc: SuperDoc | null;
   editorContainer: HTMLElement | null;
@@ -188,11 +199,14 @@ export function Members({
   const rest = hasMenu ? states.slice(besideMenu) : [];
 
   return (
-    <div role="group" aria-label={onlineMembersLabel(states.length)} className="flex items-center gap-1">
+    <div role="group" aria-label={onlineMembersLabel(states.length + agents.length)} className="flex items-center gap-1">
       {visible.map((state) => (
         <MemberButton key={state.member.user.id} state={state} onJump={jump} />
       ))}
       {hasMenu && <MembersMenu states={rest} onJump={jump} />}
+      {agents.map((agent) => (
+        <AgentAvatar key={agentAuthorKey(agent.user.id)} agent={agent} />
+      ))}
       <p role="status" className="sr-only">
         {announcement}
       </p>

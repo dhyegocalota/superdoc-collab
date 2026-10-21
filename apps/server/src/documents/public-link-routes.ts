@@ -8,7 +8,7 @@ const INVALID_PUBLIC_FLAG_MESSAGE = 'The public flag must be true or false';
 const PUBLIC_PATH = `/:documentId/${DocumentResource.Public}`;
 
 export function createPublicLinkRoutes({ services }: { services: AppServices }): Hono<SignedIn> {
-  const { documents } = services;
+  const { documents, publicConnections } = services;
   const routes = new Hono<SignedIn>();
 
   routes.get(PUBLIC_PATH, (context) => {
@@ -22,6 +22,7 @@ export function createPublicLinkRoutes({ services }: { services: AppServices }):
     const parsed = publicFlagSchema.safeParse(await context.req.json().catch(() => null));
     if (!parsed.success) return context.json({ error: INVALID_PUBLIC_FLAG_MESSAGE }, HttpStatus.BadRequest);
     documents.setPublic({ documentId, isPublic: parsed.data.isPublic });
+    if (!parsed.data.isPublic) publicConnections.close(documentId);
     return context.json(parsed.data);
   });
 

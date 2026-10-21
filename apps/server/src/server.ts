@@ -25,6 +25,7 @@ import {
 import { KeyedSlidingWindow } from './limits/keyed-sliding-window';
 import { OpenBudget } from './limits/open-budget';
 import { agentRoomMode } from './agent/agent-room-mode';
+import { createPublicConnections } from './collaboration/public-connections';
 import { createRoomModes } from './collaboration/room-modes';
 import { cachedDocumentXmlBytes } from './documents/cached-document-xml-bytes';
 import { createHeavyRoomAdmission } from './collaboration/heavy-room-admission';
@@ -365,6 +366,7 @@ function createServices({
     roomBootstrap,
     openBudget,
     uploadBudget: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: environment.uploadsPerMinute, now }),
+    publicConnections: createPublicConnections({ hocuspocus }),
     publicReads: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_READS_PER_MINUTE, now }),
     publicSockets: new KeyedSlidingWindow({ windowMs: MINUTE_MS, maxEvents: PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE, now }),
     heavyUploadBudget,

@@ -23,6 +23,7 @@ import { createMcpRoutes } from '../agent/mcp-route';
 import type { Environment } from '../config/environment';
 import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import type { OpenBudget } from '../limits/open-budget';
+import type { PublicConnections } from '../collaboration/public-connections';
 import type { DocumentRuntime } from '../collaboration/collaboration-runtime';
 import type { HeavyRoomAdmission } from '../collaboration/heavy-room-admission';
 import type { DocumentsRepository } from '../documents/documents-repository';
@@ -79,6 +80,7 @@ export type AppServices = {
   heavyRooms: HeavyRoomAdmission;
   openBudget: OpenBudget;
   uploadBudget: KeyedSlidingWindow;
+  publicConnections: PublicConnections;
   publicReads: KeyedSlidingWindow;
   publicSockets: KeyedSlidingWindow;
   heavyUploadBudget: KeyedSlidingWindow;

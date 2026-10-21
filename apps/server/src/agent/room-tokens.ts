@@ -10,22 +10,37 @@ const EXPECTED_PARTS = 2;
 
 type RoomTokenClaims = { userId: string; documentId: string; actor: ClientActor; attempt: string | null; expiresAt: number };
 
-function sign({ secret, payload }: { secret: string; payload: string }): Buffer {
-  const key = createHmac(SIGNATURE_DIGEST, secret).update(ROOM_TOKEN_KEY_LABEL).digest();
+function sign({ secret, label, payload }: { secret: string; label: string; payload: string }): Buffer {
+  const key = createHmac(SIGNATURE_DIGEST, secret).update(label).digest();
   return createHmac(SIGNATURE_DIGEST, key).update(payload).digest();
 }
 
-function parseClaims(payload: string): RoomTokenClaims | null {
+function parseClaims<Claims>(payload: string): Claims | null {
   try {
-    return JSON.parse(Buffer.from(payload, 'base64url').toString()) as RoomTokenClaims;
+    return JSON.parse(Buffer.from(payload, 'base64url').toString()) as Claims;
   } catch {
     return null;
   }
 }
 
-function signClaims({ secret, claims }: { secret: string; claims: RoomTokenClaims }): string {
+export function sealClaims<Claims extends object>({ secret, label, claims }: { secret: string; label: string; claims: Claims }): string {
   const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
-  return `${payload}${PARTS_SEPARATOR}${sign({ secret, payload }).toString('base64url')}`;
+  return `${payload}${PARTS_SEPARATOR}${sign({ secret, label, payload }).toString('base64url')}`;
+}
+
+export function openClaims<Claims>({ secret, label, token }: { secret: string; label: string; token: string }): Claims | null {
+  const parts = token.split(PARTS_SEPARATOR);
+  if (parts.length !== EXPECTED_PARTS) return null;
+  const [payload, signature] = parts as [string, string];
+  const expected = sign({ secret, label, payload });
+  const presented = Buffer.from(signature, 'base64url');
+  if (presented.length !== expected.length) return null;
+  if (!timingSafeEqual(presented, expected)) return null;
+  return parseClaims<Claims>(payload);
+}
+
+function signClaims({ secret, claims }: { secret: string; claims: RoomTokenClaims }): string {
+  return sealClaims({ secret, label: ROOM_TOKEN_KEY_LABEL, claims });
 }
 
 function verifyClaims({
@@ -41,14 +56,7 @@ function verifyClaims({
   actor: ClientActor;
   now: number;
 }): RoomTokenClaims | null {
-  const parts = token.split(PARTS_SEPARATOR);
-  if (parts.length !== EXPECTED_PARTS) return null;
-  const [payload, signature] = parts as [string, string];
-  const expected = sign({ secret, payload });
-  const presented = Buffer.from(signature, 'base64url');
-  if (presented.length !== expected.length) return null;
-  if (!timingSafeEqual(presented, expected)) return null;
-  const claims = parseClaims(payload);
+  const claims = openClaims<RoomTokenClaims>({ secret, label: ROOM_TOKEN_KEY_LABEL, token });
   if (!claims) return null;
   const isForDocument = claims.documentId === documentId && claims.actor === actor;
   const isLive = claims.expiresAt > now;

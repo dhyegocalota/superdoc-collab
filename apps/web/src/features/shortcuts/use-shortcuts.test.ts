@@ -338,3 +338,10 @@ test('Ctrl+Alt+R aligns right', () => {
   expect(execute).toHaveBeenCalledWith('right');
   expect(event.defaultPrevented).toBe(true);
 });
+
+test('Ctrl+Shift+R never reaches an editing surface that would consume it', () => {
+  renderShortcuts();
+  const surface = appendField('textarea', '');
+  surface.addEventListener('keydown', (event) => event.preventDefault());
+  expect(pressKey({ target: surface, code: 'KeyR', key: 'R', ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(false);
+});

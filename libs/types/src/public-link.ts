@@ -73,3 +73,6 @@ export type PublicDocument = { id: string; title: string };
 export type PublicOpened =
   { access: PublicAccess.Member } | { access: PublicAccess.Visitor; document: PublicDocument; viewer: PublicViewer; roomToken: string };
 export type PublicSummary = { summary: LatestSummary | null };
+
+export type PublicMember = { name: string; colorSlot: AuthorColorSlot };
+export type PublicMembers = { members: PublicMember[]; visitors: PublicViewer[] };

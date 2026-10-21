@@ -60,6 +60,7 @@ export enum VersionResource {
 }
 
 export const PUBLIC_SUMMARY_SEGMENT = 'summary';
+export const PUBLIC_MEMBERS_SEGMENT = 'members';
 export const TAB_QUERY_KEY = 'tab';
 
 const TAB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -97,6 +98,10 @@ export function publicApiPath(documentId: string): string {
 
 export function publicSummaryApiPath(documentId: string): string {
   return `${publicApiPath(documentId)}/${PUBLIC_SUMMARY_SEGMENT}`;
+}
+
+export function publicMembersApiPath(documentId: string): string {
+  return `${publicApiPath(documentId)}/${PUBLIC_MEMBERS_SEGMENT}`;
 }
 
 export function shareLinkAcceptPath(token: string): string {

@@ -99,7 +99,12 @@ test.each([HttpMethod.Post, HttpMethod.Put, HttpMethod.Patch, HttpMethod.Delete]
 test('nothing but the document and its summary exists under the public path', async () => {
   const { server, documentId } = await publicRoom();
   const triggers = spyOnEveryTrigger(server);
-  const resources = [...Object.values(DocumentResource), 'edits', 'summaries/selection', 'timeline/edits'];
+  const resources = [
+    ...Object.values(DocumentResource).filter((resource) => resource !== DocumentResource.Members),
+    'edits',
+    'summaries/selection',
+    'timeline/edits',
+  ];
   const answers = await Promise.all(resources.map((resource) => send({ server, path: `${publicApiPath(documentId)}/${resource}` })));
   expect(answers.map((answer) => answer.status)).toEqual(resources.map(() => HttpStatus.NotFound));
   triggers.forEach((trigger) => expect(trigger).not.toHaveBeenCalled());

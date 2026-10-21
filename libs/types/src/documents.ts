@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AuthorColorSlot } from './author-colors';
+import type { PublicViewer } from './public-link';
 import {
   BYTES_PER_KILOBYTE,
   BOOTSTRAP_MS_PER_MEGABYTE,
@@ -201,6 +202,7 @@ export type DocumentAgent = { user: UserReference; name: string; colorSlot: Auth
 export type DocumentMembers = {
   members: DocumentMember[];
   agents: DocumentAgent[];
+  visitors: PublicViewer[];
   isCurrentUserOnline: boolean;
 };
 export type ShareLinks = Record<ShareLinkRole, string>;

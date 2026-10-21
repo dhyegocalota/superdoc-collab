@@ -196,8 +196,8 @@ importers:
         specifier: 2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1)(react@19.3.1)
       superdoc:
-        specifier: 2.23.0
-        version: 2.23.0(@hocuspocus/provider@2.15.3)(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33)
+        specifier: 2.24.0
+        version: 2.24.0(@hocuspocus/provider@2.15.3)(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33)
       tailwind-merge:
         specifier: 3.7.0
         version: 3.7.0
@@ -3365,8 +3365,8 @@ packages:
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
     dev: false
 
-  /@superdoc/docx-engine@0.22.0(@hocuspocus/provider@2.15.3)(vue@3.5.44)(y-websocket@3.1.0)(yjs@13.6.33):
-    resolution: {integrity: sha512-uKQ11Heqd259ecJW3wklo9gPaHmlJhDa6Q+d8fhMmy9Z8gRWeK0lXyRNZDtWyfpJ8vF9cuL65CSaABN3AJtl5Q==}
+  /@superdoc/docx-engine@0.23.0(@hocuspocus/provider@2.15.3)(vue@3.5.44)(y-websocket@3.1.0)(yjs@13.6.33):
+    resolution: {integrity: sha512-B6QoXeEVKLmFwI0kBbWaNYv0m7nJBDuutRDp9cPXhIY1pAw312oK3onSYDBwiOEbLfs/bHsfRBj++RSJNmg/vQ==}
     peerDependencies:
       '@hocuspocus/provider': ^2.13.6
       '@liveblocks/client': ^3.15.5
@@ -6676,8 +6676,8 @@ packages:
       ts-interface-checker: 0.1.13
     dev: true
 
-  /superdoc@2.23.0(@hocuspocus/provider@2.15.3)(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33):
-    resolution: {integrity: sha512-k3emVUTN6XcHwfWbu4IvpAdOQjSL1jxA1l0e4g3DDFOAhTB031YwIeWI4zceteJibFLXSrAMJICZ1fhxJ3xZ2w==}
+  /superdoc@2.24.0(@hocuspocus/provider@2.15.3)(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33):
+    resolution: {integrity: sha512-LXhx4H+BmnjhgV5FBe39wYHl2b7x20JRxox9vKRnUsarmkEVxx0CNlYwHeFELni3it9pE74GRlmeTpaOK52Tmg==}
     peerDependencies:
       '@hocuspocus/provider': ^2.13.6
       '@liveblocks/client': ^3.15.5
@@ -6696,7 +6696,7 @@ packages:
         optional: true
     dependencies:
       '@hocuspocus/provider': 2.15.3(y-protocols@1.0.7)(yjs@13.6.33)
-      '@superdoc/docx-engine': 0.22.0(@hocuspocus/provider@2.15.3)(vue@3.5.44)(y-websocket@3.1.0)(yjs@13.6.33)
+      '@superdoc/docx-engine': 0.23.0(@hocuspocus/provider@2.15.3)(vue@3.5.44)(y-websocket@3.1.0)(yjs@13.6.33)
       '@types/mdast': 4.0.4
       '@types/ws': 8.18.2
       buffer-crc32: 1.0.0

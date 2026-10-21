@@ -1,6 +1,6 @@
 # Reload-safe align shortcut
 
-**Status:** Approved
+**Status:** Building
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-21
 **ADRs:** none

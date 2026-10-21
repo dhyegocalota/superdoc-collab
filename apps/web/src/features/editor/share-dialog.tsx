@@ -1,4 +1,4 @@
-import { LINK_COPIED_MESSAGE, SECOND_MS, ShareLinkRole, type ShareLinks } from '@superdoc-collab/types';
+import { COPIED_NOTICE_MS, LINK_COPIED_MESSAGE, ShareLinkRole, type ShareLinks } from '@superdoc-collab/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PublicLinkSection } from '@/features/sharing/public-link-section';
 import { PeopleWithAccess } from './people-with-access';
 import { fetchShareLinks, rotateShareLink, shareLinksQueryKey } from './editor-api';
 import {
@@ -24,7 +25,7 @@ import {
 
 const SHARE_ROLES = Object.values(ShareLinkRole);
 
-export const COPIED_NOTICE_MS = 3 * SECOND_MS;
+export { COPIED_NOTICE_MS };
 
 type CopiedLink = { role: ShareLinkRole };
 
@@ -144,6 +145,7 @@ export function ShareDialog({ documentId }: { documentId: string }) {
               onReset={() => forgetCopied(role)}
             />
           ))}
+        <PublicLinkSection documentId={documentId} />
         <PeopleWithAccess documentId={documentId} />
       </DialogContent>
     </Dialog>

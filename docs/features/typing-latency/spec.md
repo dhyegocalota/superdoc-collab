@@ -29,6 +29,8 @@ What ships: this measurement, the E2E `e2e/typing-latency.spec.ts` as a regressi
 
 A one-paragraph document: 24 ms median. Keystrokes in the middle of the large document: 48 ms median with 1 s spikes (default).
 
+Production (Railway, 8 GB, main 55676e5c, the default options), the owner's 9.5 MB document uploaded through the dialog by a device reporting 8 GB: first text 11.6 s, editable at 67 s, then ten keystrokes at the start: median 870 ms, max 1,256 ms.
+
 ## Issue draft for SuperDoc
 
 Title: a keystroke in a 56,800-paragraph document lays out the whole document (about 1 s per key). Body: SuperDoc v2 with the layout engine, a DOCX of 9.5 MB (10 MB of `document.xml`, 2,185 pages) opened in a collaborative editor; ten keystrokes at the start of the document cost a median of 1,089 ms from keydown to the character on the page (Chrome 130, Apple silicon). A CPU profile over the ten keystrokes puts 7.5 s of 15.7 s in `docx-engine` (`advance` 2.6 s inclusive, `getBoundingClientRect` 0.55 s, `querySelectorAll` 0.17 s) and 6.3 s in the browser's layout and paint; the host page contributes 0.3 s. `flowMode: 'semantic'` gives 683 ms, `virtualization: { enabled: true, window: 1 }` 929 ms, `useLayoutEngine: false` 658 ms. Is there a way to lay out only the pages around the edit, or to defer the rest of the document's layout to idle time? A DOCX that reproduces it is attached (the fixture builder in this repository's `e2e/fixtures/large-docx.ts`).

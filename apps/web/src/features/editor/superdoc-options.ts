@@ -31,7 +31,7 @@ export enum DocumentMode {
   Suggesting = 'suggesting',
 }
 
-export type CollaborationUser = Pick<SessionUser, 'id' | 'name' | 'email'>;
+export type CollaborationUser = Pick<SessionUser, 'id' | 'name'>;
 
 export function superdocOptions({
   container,
@@ -75,7 +75,7 @@ export function superdocOptions({
         },
       },
     ],
-    user: { id: user.id, name: user.name, email: user.email, color: userColor },
+    user: { id: user.id, name: user.name, color: userColor },
     colors: paletteColors,
     telemetry: SUPERDOC_TELEMETRY,
     zoom: FIT_WIDTH_ZOOM,

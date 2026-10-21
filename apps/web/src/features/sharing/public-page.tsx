@@ -28,7 +28,6 @@ import {
   PUBLIC_RELOAD_LABEL,
   PUBLIC_RETRY_LABEL,
   PUBLIC_UNAVAILABLE_MESSAGE,
-  PUBLIC_VIEWER_EMAIL,
   PUBLIC_VIEW_ONLY_LABEL,
   publicViewerLabel,
 } from './public-copy';
@@ -63,7 +62,7 @@ function PublicDocumentView({ opened, onReload }: { opened: VisitorAccess; onRel
   });
   const [hasTransportFailed, setHasTransportFailed] = useState(false);
   const [hasEditorFailed, setHasEditorFailed] = useState(false);
-  const user = useMemo(() => ({ id: viewer.id, name: viewer.name, email: PUBLIC_VIEWER_EMAIL }), [viewer]);
+  const user = useMemo(() => ({ id: viewer.id, name: viewer.name }), [viewer]);
   const handleTransportReport = useCallback(
     (report: TransportReport): void => {
       if (report.reading !== TransportReading.Failed) return;

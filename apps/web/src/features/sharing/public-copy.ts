@@ -21,7 +21,6 @@ export const PUBLIC_RETRY_LABEL = 'Try again';
 export const PUBLIC_CONNECTION_FAILED_MESSAGE = 'The live connection to this document was lost.';
 export const PUBLIC_RELOAD_LABEL = 'Reload';
 export const PUBLIC_LOAD_FAILED_MESSAGE = 'The document could not be opened.';
-export const PUBLIC_VIEWER_EMAIL = '';
 
 export function publicViewerLabel(name: string): string {
   return `You are ${name}`;

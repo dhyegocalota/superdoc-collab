@@ -1,8 +1,9 @@
 import { MessageType } from '@hocuspocus/server';
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import type { WebSocket } from 'ws';
 
 const PSEUDONYM_DIGEST = 'sha256';
+const PSEUDONYM_PARTS_SEPARATOR = ':';
 const PSEUDONYM_LENGTH = 16;
 const VARINT_CONTINUATION_BIT = 0x80;
 const VARINT_PAYLOAD_MASK = 0x7f;
@@ -35,37 +36,43 @@ function readEntries({ bytes, offset, remaining }: { bytes: Buffer; offset: numb
   return [{ clientId: clientId.value, clock: clock.value, state }, ...readEntries({ bytes, offset: end, remaining: remaining - 1 })];
 }
 
-function pseudonymOf(id: unknown): string | undefined {
+function pseudonymOf({ id, secret, roomName }: { id: unknown; secret: string; roomName: string }): string | undefined {
   if (typeof id !== 'string') return undefined;
-  return createHash(PSEUDONYM_DIGEST).update(id).digest('hex').slice(0, PSEUDONYM_LENGTH);
+  return createHmac(PSEUDONYM_DIGEST, secret)
+    .update(`${roomName}${PSEUDONYM_PARTS_SEPARATOR}${id}`)
+    .digest('hex')
+    .slice(0, PSEUDONYM_LENGTH);
 }
 
-function scrubbedState(state: unknown): unknown {
+function scrubbedState({ state, secret, roomName }: { state: unknown; secret: string; roomName: string }): unknown {
   if (typeof state !== 'object' || state === null) return state;
   const { userId, user, ...rest } = state as Record<string, unknown>;
-  const pseudonymousUserId = pseudonymOf(userId);
+  const pseudonymousUserId = pseudonymOf({ id: userId, secret, roomName });
   const withUserId = pseudonymousUserId === undefined ? rest : { ...rest, userId: pseudonymousUserId };
   if (typeof user !== 'object' || user === null) return withUserId;
   const { id, email: _email, ...visible } = user as Record<string, unknown>;
-  const pseudonymousId = pseudonymOf(id);
+  const pseudonymousId = pseudonymOf({ id, secret, roomName });
   return { ...withUserId, user: pseudonymousId === undefined ? visible : { id: pseudonymousId, ...visible } };
 }
 
-function encodedEntry({ clientId, clock, state }: AwarenessEntry): number[] {
-  const json = [...Buffer.from(JSON.stringify(scrubbedState(state)))];
+function encodedEntry({ entry, secret, roomName }: { entry: AwarenessEntry; secret: string; roomName: string }): number[] {
+  const { clientId, clock, state } = entry;
+  const json = [...Buffer.from(JSON.stringify(scrubbedState({ state, secret, roomName })))];
   return [...varUint(clientId), ...varUint(clock), ...varUint(json.length), ...json];
 }
 
 export function scrubAwarenessFrame({ frame, secret }: { frame: Uint8Array; secret: string }): Uint8Array {
-  void secret;
   const bytes = Buffer.from(frame);
   const roomNameLength = readVarUint({ bytes, offset: 0 });
   const roomNameEnd = roomNameLength.next + roomNameLength.value;
+  const roomName = bytes.subarray(roomNameLength.next, roomNameEnd).toString();
   const type = readVarUint({ bytes, offset: roomNameEnd });
   if (type.value !== MessageType.Awareness) return frame;
   const payloadLength = readVarUint({ bytes, offset: type.next });
   const count = readVarUint({ bytes, offset: payloadLength.next });
-  const entries = readEntries({ bytes, offset: count.next, remaining: count.value }).flatMap(encodedEntry);
+  const entries = readEntries({ bytes, offset: count.next, remaining: count.value }).flatMap((entry) =>
+    encodedEntry({ entry, secret, roomName }),
+  );
   const payload = [...varUint(count.value), ...entries];
   return Uint8Array.from([...bytes.subarray(0, type.next), ...varUint(payload.length), ...payload]);
 }

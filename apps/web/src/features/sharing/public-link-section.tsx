@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { fetchPublicFlag, publicFlagQueryKey, switchPublicFlag } from './public-api';
 import {
   PUBLIC_LINK_ADDRESS_LABEL,
+  PUBLIC_LINK_CONTENT_NOTICE,
   PUBLIC_LINK_COPY_LABEL,
   PUBLIC_LINK_DESCRIPTION,
   PUBLIC_LINK_LOAD_FAILED_MESSAGE,
@@ -45,6 +46,7 @@ function PublicLinkAddress({ documentId }: { documentId: string }) {
   return (
     <div className="space-y-2">
       <p className="text-sm text-muted-foreground">{PUBLIC_LINK_PRESENCE_NOTICE}</p>
+      <p className="text-sm text-muted-foreground">{PUBLIC_LINK_CONTENT_NOTICE}</p>
       <div className="flex gap-2">
         <Input ref={inputRef} readOnly value={address} aria-label={PUBLIC_LINK_ADDRESS_LABEL} />
         <Button variant="outline" onClick={copy}>

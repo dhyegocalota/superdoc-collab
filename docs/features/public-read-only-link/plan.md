@@ -31,7 +31,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### G1: the flag and its owner switch
 
-- [ ] **Step 1:** red test that `DocumentsRepository` reads and writes `isPublic` (false by default, per document) and that `GET|PUT /api/documents/:documentId/public` is owner only (editor 403, reader 403, stranger 404, invalid body 400); migration 0009, schema column, repository methods, routes.
+- [x] **Step 1:** red test that `DocumentsRepository` reads and writes `isPublic` (false by default, per document) and that `GET|PUT /api/documents/:documentId/public` is owner only (editor 403, reader 403, stranger 404, invalid body 400); migration 0009, schema column, repository methods, routes. — evidence: red 215e9b20, green 08e000ad
 
 ### G2: identity and token
 

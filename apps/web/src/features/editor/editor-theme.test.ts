@@ -26,13 +26,12 @@ test('Default has no theme, so the app keeps its own look', () => {
   expect(editorThemeConfig(DEFAULT_EDITOR_THEME_CHOICE)).toBeNull();
 });
 
-test.each([EditorThemePreset.Ocean, EditorThemePreset.Forest, EditorThemePreset.Sunset, EditorThemePreset.Mono])(
-  '%s writes a light and a dark accent',
-  (preset) => {
-    const { light, dark } = PRESET_ACCENTS[preset];
-    expect(editorThemeConfig({ preset })?.vars?.['--sd-editor-accent']).toBe(`light-dark(${light}, ${dark})`);
-  },
-);
+const ACCENT_PRESETS = [EditorThemePreset.Ocean, EditorThemePreset.Forest, EditorThemePreset.Sunset, EditorThemePreset.Mono] as const;
+
+test.each(ACCENT_PRESETS)('%s writes a light and a dark accent', (preset) => {
+  const { light, dark } = PRESET_ACCENTS[preset];
+  expect(editorThemeConfig({ preset })?.vars?.['--sd-editor-accent']).toBe(`light-dark(${light}, ${dark})`);
+});
 
 test('a custom accent is the same in light and dark', () => {
   expect(editorThemeConfig({ accent: '#336699' })?.vars?.['--sd-editor-accent']).toBe('light-dark(#336699, #336699)');

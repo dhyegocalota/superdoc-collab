@@ -35,7 +35,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### G2: identity and token
 
-- [x] **Step 2:** red test for `PublicAnimal`, `anonymousVisitorName`, `publicVisitorOf` (name `Anonymous <Animal>`, animal and colour slot derived from the visitor id, stable per id); `libs/types/src/public-link.ts`. — evidence: red 32c99a86, green 2139a928
+- [x] **Step 2:** red test for `PublicAnimal`, `anonymousVisitorName`, `anonymousViewerOf` and `signedInViewerOf` (name `Anonymous <Animal>`, animal and colour slot derived from the visitor id, stable per id); `libs/types/src/public-link.ts`. — evidence: red 32c99a86, green 2139a928
 - [x] **Step 3:** red test for the public room token (verifies for its document and visitor, expires, refuses another document, refuses an agent or bootstrap token and is refused as one); sign and verify with their own key label. — evidence: red bcc7504d, green f376daf2
 
 ### G3: the public HTTP surface
@@ -46,14 +46,14 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### G4: the public socket
 
-- [ ] **Step 7:** red test that a public token admits a read-only socket at `/collaboration/public`, never a member row, with the Origin, token, flag and window checks (no token, expired, another document, agent token, flag off, Origin missing, window spent).
-- [ ] **Step 8:** red test that a Yjs update sent from a public connection is not applied to the room and not appended to the update log, with `readOnly` forced off in a second test (the `onChange` refusal alone holds), and that a visitor's awareness frame is silenced.
-- [ ] **Step 9:** red test that switching the flag off closes open public sockets and a token minted before cannot join afterwards.
+- [x] **Step 7:** red test that a public token admits a read-only socket at `/collaboration/public`, never a member row, with the Origin, token, flag and window checks (no token, expired, another document, agent token, flag off, Origin missing, window spent). — evidence: red 3e08d95d, green 4d2fbdc1
+- [x] **Step 8:** red test that a Yjs update sent from a public connection is not applied to the room and not appended to the update log, with `readOnly` forced off in a second test (the `onChange` refusal alone holds), and that a visitor's awareness frame is silenced. — evidence: pin bb26aff9 (green on arrival, the guards landed in 4d2fbdc1); mutation checks in the tester briefing
+- [x] **Step 9:** red test that switching the flag off closes open public sockets and a token minted before cannot join afterwards. — evidence: red a85c952b, green 34184cec
 
 ### G5: the web
 
-- [ ] **Step 10:** red test for the Share dialog switch (owner sees it, reads the flag, switches it, copies the public link, the copy names who can see the editors) and `public-api.ts`.
-- [ ] **Step 11:** red test for the public page (member redirect, not-found state, `View only` chip, no toolbar, no share, no Summarize, no edits panel, latest summary card present or absent, preparing state, rate-limit state) and the route outside `RequireSession`.
+- [x] **Step 10:** red test for the Share dialog switch (owner sees it, reads the flag, switches it, copies the public link, the copy names who can see the editors) and `public-api.ts`. — evidence: red f8bbe60a, green 37458ef4
+- [x] **Step 11:** red test for the public page (member redirect, not-found state, `View only` chip, no toolbar, no share, no Summarize, no edits panel, latest summary card present or absent, preparing state, rate-limit state) and the route outside `RequireSession`. — evidence: red 1b7d66ec, green d9f7833a
 - [ ] **Step 12:** wire the visitor into the editor (additive props on `superdoc-editor.tsx` and `superdoc-options.ts`: socket path and token), Playwright spec `e2e/public-link.spec.ts`.
 
 ### G6: docs

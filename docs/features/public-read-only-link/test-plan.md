@@ -4,31 +4,32 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## The failing test first
 
-- [ ] `apps/server/src/documents/public-routes.test.ts::an owner switches a document public` — input: owner `PUT /api/documents/:id/public {isPublic:true}`; expected: 200 `{isPublic:true}` and `GET` returns the same
-- [ ] `apps/server/src/collaboration/public-socket.test.ts::an update from a public connection is never applied nor logged` — input: a visitor socket inserts text; expected: the room text and the update log unchanged
+- [ ] `apps/server/src/documents/public-link-routes.test.ts::an owner switches a document public and reads the flag back` — input: owner `PUT /api/documents/:id/public {isPublic:true}`; expected: 200 `{isPublic:true}` and `GET` returns the same
+- [ ] `apps/server/src/collaboration/public-socket-writes.test.ts::an update from a public connection is never applied to the room nor appended to the log` — input: a visitor socket inserts text; expected: the room text and the update log unchanged
 - [ ] Confirmed each fails for the right reason: the message `... is not implemented` or the missing route status, recorded in `tester-briefing.md`
 
 ## Unit
 
-- [ ] `documents-repository.test.ts` — input: a new document; expected: `isPublic` false; after `setPublic(true)` true; another document stays false
-- [ ] `public-routes.test.ts` — input: editor, reader, stranger, signed-out call `PUT .../public`; expected: 403, 403, 404, 401
-- [ ] `public-routes.test.ts` — input: `PUT` with body `{isPublic:"yes"}`; expected: 400 and the flag unchanged
-- [ ] `public-link.test.ts` — input: the same visitor id twice, two different ids; expected: same animal and colour for the same id; `Anonymous <Animal>` name from the enum
-- [ ] `public-room-tokens.test.ts` — input: a token for document A used for B, an expired token, an agent token, a bootstrap token, a public token presented as an agent token; expected: all refused
-- [ ] `insights-repository.test.ts` — input: three filter keys with different `updated_at`, one a failure, none; expected: the newest usable sentence with its date; a failure-only document gives null
-- [ ] `public-routes.test.ts` — input: `GET /api/public/:id` for a missing id and for a flag-off document; expected: the same status and the same body
-- [ ] `public-routes.test.ts` — input: `GET /api/public/:id` with the flag on, no cookie; expected: 200 `access: visitor`, `viewer.name` is `Anonymous <Animal>`, a room token, and no `@` anywhere in the body
-- [ ] `public-routes.test.ts` — input: the same call signed in as a non-member; expected: the real name, `isAnonymous` false
-- [ ] `public-routes.test.ts` — input: the same call signed in as a member; expected: `access: member`, no token
-- [ ] `public-routes.test.ts` — input: the call on an uncommitted room; expected: 503 with `Retry-After`; `openBudget` untouched on every call
-- [ ] `public-routes.test.ts` — input: `PUBLIC_READS_PER_MINUTE + 1` calls from one address; expected: the last is 429 with `Retry-After`
-- [ ] `public-routes.test.ts` — input: `POST /api/public/:id/summary`, `POST /api/documents/:id/summaries/selection` without a session; expected: 404 and 401, the model fake was never called
-- [ ] `public-routes.test.ts` — input: `GET` timeline, topics, versions, events, download, comments without a session; expected: 401 each, `topics.ensure` and the scheduler never called
-- [ ] `public-socket.test.ts` — input: no token, expired, another document, agent token, flag off, missing Origin; expected: refused each
-- [ ] `public-socket.test.ts` — input: a valid token; expected: connected, `connection.readOnly` true, no `document_members` row for the visitor, nothing in `onlineUserIds`
-- [ ] `public-socket.test.ts` — input: `PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE + 1` upgrades from one address; expected: the last answered 429
-- [ ] `public-socket.test.ts` — input: the owner switches the flag off while a visitor is connected; expected: the visitor socket closes with the access-revoked code; the same token cannot join again
-- [ ] `public-socket.test.ts` — input: a visitor awareness frame; expected: silenced, no entry reaches the room
+- [ ] `apps/server/src/documents/public-link-routes.test.ts::a new document is private and its flag is read and written per document` — input: a new document; expected: `isPublic` false; after `setPublic(true)` true; another document stays false
+- [ ] `apps/server/src/documents/public-link-routes.test.ts` — input: editor, reader, stranger, signed-out call `PUT .../public`; expected: 403, 403, 404, 401
+- [ ] `apps/server/src/documents/public-link-routes.test.ts` — input: `PUT` with body `{isPublic:"yes"}`, `{}` and no body; expected: 400 and the flag unchanged
+- [ ] `libs/types/src/public-link.test.ts` — input: the same visitor id twice, two different ids; expected: same animal and colour for the same id; `Anonymous <Animal>` name from the enum
+- [ ] `apps/server/src/collaboration/public-room-tokens.test.ts` — input: a token for document A used for B, an expired token, an agent token, a bootstrap token, a public token presented as an agent token; expected: all refused
+- [ ] `apps/server/src/insights/insights-repository.test.ts` — input: three filter keys with different `updated_at`, one a failure, none; expected: the newest usable sentence with its date; a failure-only document gives null
+- [ ] `apps/server/src/public/public-routes.test.ts` — input: `GET /api/public/:id` for a missing id and for a flag-off document; expected: the same status and the same body
+- [ ] `apps/server/src/public/public-routes.test.ts` — input: `GET /api/public/:id` with the flag on, no cookie; expected: 200 `access: visitor`, `viewer.name` is `Anonymous <Animal>`, a room token, and no `@` anywhere in the body
+- [ ] `apps/server/src/public/public-routes.test.ts` — input: the same call signed in as a non-member; expected: the real name, `animal` null
+- [ ] `apps/server/src/public/public-routes.test.ts` — input: the same call signed in as a member; expected: `access: member`, no token
+- [ ] `apps/server/src/public/public-routes.test.ts` — input: the call on an uncommitted room; expected: 503 with `Retry-After`; `openBudget` untouched on every call
+- [ ] `apps/server/src/public/public-routes.test.ts` — input: `PUBLIC_READS_PER_MINUTE + 1` calls from one address; expected: the last is 429 with `Retry-After`
+- [ ] `apps/server/src/public/public-allowlist.test.ts` — input: POST, PUT, PATCH, DELETE on `/api/public/:id` and `/api/public/:id/summary`, and `POST /api/documents/:id/summaries/selection` without a session; expected: 404 and 401, no trigger (topics, summarize, scheduler, versions, job budget) called
+- [ ] `public-allowlist.test.ts` — input: `GET` of every document resource (timeline, topics, versions, events, download, members, share links, summaries, thumbnail) and of the document itself, with a room token as bearer and no session; expected: 401 each, no trigger called
+- [ ] `apps/server/src/collaboration/public-socket.test.ts` — input: placeholder, garbage, expired, another document, agent token, private document, missing and foreign Origin, uncommitted room; expected: refused each
+- [ ] `apps/server/src/collaboration/public-socket.test.ts` — input: a valid token; expected: connected, `connection.readOnly` true, no `document_members` row for the visitor, the members list is the owner only
+- [ ] `apps/server/src/collaboration/public-socket.test.ts` — input: `PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE + 1` upgrades from one address; expected: the last answered 429
+- [ ] `apps/server/src/collaboration/public-flag-off.test.ts` — input: the owner switches the flag off while a visitor is connected; expected: the visitor socket closes with the access-revoked code; the same token cannot join again
+- [ ] `apps/server/src/collaboration/public-socket-writes.test.ts` — input: a visitor announces awareness; expected: silenced, the member's awareness holds no entry of the visitor
+- [ ] `apps/web/src/features/sharing/public-link-section.test.tsx` and `public-page.test.tsx` — the Share dialog switch (read, switch on and off, refused, not loaded, copy) and the public page (view only, no tools, socket path and token, summary card or none, member redirect, not available, 429, preparing, access denied, connection failure and reload)
 
 ## E2E (Playwright specs)
 

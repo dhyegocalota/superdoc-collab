@@ -50,9 +50,9 @@ flowchart LR
 - `GET|PUT /api/documents/:documentId/public` (owner): `{ isPublic: boolean }`.
 - `ApiPath.Public = /api/public`; `GET /api/public/:documentId` and `GET /api/public/:documentId/summary`. Every other method and path under it answers 404.
 - `AppRoute.Public = /public/:documentId`; `ApiPath.PublicCollaboration = /collaboration/public`.
-- `libs/types`: `PublicAnimal` enum, `anonymousVisitorName`, `PublicAccess`, `PublicDocument`, `PublicViewer`, `LatestSummary`; constants `PUBLIC_READS_PER_MINUTE`, `PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE`.
-- Server: `PublicRoomToken` sign and verify beside `room-tokens.ts`; `InsightsRepository.latestSelectionSummary(documentId)`; `closePublicConnections`.
-- Web: `features/sharing/public-page.tsx`, `public-api.ts`, `public-copy.ts`, the switch in `share-dialog.tsx`.
+- `libs/types`: `PublicAnimal` enum, `anonymousViewerOf`, `signedInViewerOf`, `publicUserIdOf`, `PublicAccess`, `PublicOpened`, `PublicDocument`, `PublicViewer`, `PublicSummary`, `LatestSummary`; constants `PUBLIC_READS_PER_MINUTE`, `PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE`, `PUBLIC_SUMMARY_REFRESH_MS`.
+- Server: `signPublicRoomToken` and `verifyPublicRoomToken` (the generic `sealClaims` and `openClaims` of `room-tokens.ts`, their own key label); `authenticatePublic`; `InsightsRepository.latestSelectionSummary(documentId)`; `PublicConnections.close(documentId)`; `CollaborationContext.visitor`.
+- Web: `features/sharing/public-page.tsx`, `public-api.ts`, `public-copy.ts`, `public-link-section.tsx` (the switch, inside `share-dialog.tsx`); `SuperDocEditor` takes an optional socket path and token.
 
 ### Failure handling
 

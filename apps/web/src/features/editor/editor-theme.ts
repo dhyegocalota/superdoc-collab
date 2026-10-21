@@ -19,7 +19,15 @@ const HOVER_MIX_PERCENT = 15;
 const LIGHT_TEXT_COLOR = '#ffffff';
 const DARK_TEXT_COLOR = '#0a0a0a';
 const LUMINANCE_WEIGHTS = { red: 0.2126, green: 0.7152, blue: 0.0722 };
-const LIGHT_BACKGROUND_LUMINANCE = 0.4;
+const LINEAR_THRESHOLD = 0.04045;
+const LINEAR_DIVISOR = 12.92;
+const GAMMA_OFFSET = 0.055;
+const GAMMA_DIVISOR = 1.055;
+const GAMMA_EXPONENT = 2.4;
+const CONTRAST_OFFSET = 0.05;
+const TINT_PERCENT = 10;
+const TINT_HOVER_PERCENT = 18;
+const TINT_ACTIVE_PERCENT = 28;
 const HEX_RADIX = 16;
 const MAX_CHANNEL = 255;
 const RED_START = 1;
@@ -56,16 +64,30 @@ export function serializeEditorThemeChoice(choice: EditorThemeChoice): string {
   return choice.preset;
 }
 
-function channelOf({ hex, start }: { hex: string; start: number }): number {
-  return parseInt(hex.slice(start, start + CHANNEL_LENGTH), HEX_RADIX) / MAX_CHANNEL;
+function linearChannelOf({ hex, start }: { hex: string; start: number }): number {
+  const channel = parseInt(hex.slice(start, start + CHANNEL_LENGTH), HEX_RADIX) / MAX_CHANNEL;
+  if (channel <= LINEAR_THRESHOLD) return channel / LINEAR_DIVISOR;
+  return ((channel + GAMMA_OFFSET) / GAMMA_DIVISOR) ** GAMMA_EXPONENT;
+}
+
+function luminanceOf(hex: string): number {
+  return (
+    LUMINANCE_WEIGHTS.red * linearChannelOf({ hex, start: RED_START }) +
+    LUMINANCE_WEIGHTS.green * linearChannelOf({ hex, start: GREEN_START }) +
+    LUMINANCE_WEIGHTS.blue * linearChannelOf({ hex, start: BLUE_START })
+  );
+}
+
+export function contrastRatio({ foreground, background }: { foreground: string; background: string }): number {
+  const [lighter, darker] = [luminanceOf(foreground), luminanceOf(background)].sort((first, second) => second - first);
+  return (lighter! + CONTRAST_OFFSET) / (darker! + CONTRAST_OFFSET);
 }
 
 export function readableTextOn(accent: string): string {
-  const luminance =
-    LUMINANCE_WEIGHTS.red * channelOf({ hex: accent, start: RED_START }) +
-    LUMINANCE_WEIGHTS.green * channelOf({ hex: accent, start: GREEN_START }) +
-    LUMINANCE_WEIGHTS.blue * channelOf({ hex: accent, start: BLUE_START });
-  return luminance > LIGHT_BACKGROUND_LUMINANCE ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR;
+  const lightContrast = contrastRatio({ foreground: LIGHT_TEXT_COLOR, background: accent });
+  const darkContrast = contrastRatio({ foreground: DARK_TEXT_COLOR, background: accent });
+  if (lightContrast >= darkContrast) return LIGHT_TEXT_COLOR;
+  return DARK_TEXT_COLOR;
 }
 
 function accentOf(choice: EditorThemeChoice): Accent | null {
@@ -80,6 +102,10 @@ export function pickerColorOf(choice: EditorThemeChoice): string {
   return accent.light;
 }
 
+function tintOf(percent: number): string {
+  return `color-mix(in oklab, var(--sd-editor-accent) ${percent}%, var(--background))`;
+}
+
 export function editorThemeConfig(choice: EditorThemeChoice): ThemeConfig | null {
   const accent = accentOf(choice);
   if (!accent) return null;
@@ -88,13 +114,12 @@ export function editorThemeConfig(choice: EditorThemeChoice): ThemeConfig | null
     vars: {
       '--sd-editor-accent': `light-dark(${accent.light}, ${accent.dark})`,
       '--sd-editor-accent-hover': `color-mix(in oklab, var(--sd-editor-accent), light-dark(black, white) ${HOVER_MIX_PERCENT}%)`,
+      '--sd-editor-tint': tintOf(TINT_PERCENT),
+      '--sd-editor-tint-hover': tintOf(TINT_HOVER_PERCENT),
+      '--sd-editor-tint-active': tintOf(TINT_ACTIVE_PERCENT),
       '--sd-editor-accent-text': `light-dark(${readableTextOn(accent.light)}, ${readableTextOn(accent.dark)})`,
     },
   };
-}
-
-export function contrastRatio(_colors: { foreground: string; background: string }): number {
-  throw new Error('contrastRatio is not implemented');
 }
 
 export function swatchTestId(preset: EditorThemePreset): string {

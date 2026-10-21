@@ -61,7 +61,9 @@ async function awaitSettled({ page }: { page: Page }): Promise<number> {
   return page.evaluate(
     ({ key, timeoutMs }) => {
       const state = (window as unknown as Record<string, TypingState>)[key]!;
-      const timeout = new Promise<number>((_, reject) => setTimeout(() => reject(new Error('the typed text never reached the page')), timeoutMs));
+      const timeout = new Promise<number>((_, reject) =>
+        setTimeout(() => reject(new Error('the typed text never reached the page')), timeoutMs),
+      );
       return Promise.race([state.settled, timeout]);
     },
     { key: TYPING_STATE_KEY, timeoutMs: SETTLE_TIMEOUT_MS },
@@ -77,7 +79,13 @@ async function longTasksAfterQuiet({ page }: { page: Page }): Promise<number[]> 
   return page.evaluate((key) => [...(window as unknown as Record<string, TypingState>)[key]!.longTaskDurations], TYPING_STATE_KEY);
 }
 
-export async function typeAndMeasure({ page, letters }: { page: Page; letters: string }): Promise<{ settledMs: number[]; longestTaskMs: number }> {
+export async function typeAndMeasure({
+  page,
+  letters,
+}: {
+  page: Page;
+  letters: string;
+}): Promise<{ settledMs: number[]; longestTaskMs: number }> {
   await clearLongTasks({ page });
   const settledMs: number[] = [];
   for (const [index, letter] of Array.from(letters).entries()) {

@@ -62,8 +62,8 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### G7: visitors in the members row (last; do not start before `ai-presence-avatar` merged)
 
-- [ ] **Step 14:** red test for `GET /api/public/:documentId/members` (display name, avatar, colour, online only; no id of a user, no email), the runtime's online public visitors, and members seeing `Anonymous <Animal>` in their row.
-- [ ] **Step 15:** the public page shows the members row and the editors' live cursors; E2E asserts the owner sees `Anonymous …` and the anonymous visitor sees the owner online.
+- [x] **Step 14:** red test for `GET /api/public/:documentId/members` (display name, avatar, colour, online only; no id of a user, no email), the runtime's online public visitors, and members seeing `Anonymous <Animal>` in their row. — evidence: red 6798f48e..dc75fd2e (server red above), green server 'feat(public): visitors...', web green 9bf0b38c
+- [x] **Step 15:** the public page shows the members row and the editors' live cursors; E2E asserts the owner sees `Anonymous …` and the anonymous visitor sees the owner online. — evidence: e2e/public-link.spec.ts, 7 passed
 
 ## Failure modes
 

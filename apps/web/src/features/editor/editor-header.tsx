@@ -5,6 +5,7 @@ import {
   type DocumentAgent,
   type DocumentMember,
   type OpenedDocument,
+  type PublicViewer,
 } from '@superdoc-collab/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bot, Ellipsis, Search } from 'lucide-react';

@@ -1,6 +1,6 @@
 # Tester briefing: Public read-only link
 
-Written by the developer sub-agent when its steps are done. The developer does not run `test-plan.md` and does not declare the feature works. Steps 14 and 15 (visitors in the members row) are not built: they wait for the lane `ai-presence-avatar` to merge.
+Written by the developer sub-agent when its steps are done. The developer does not run `test-plan.md` and does not declare the feature works. Steps 14 and 15 (visitors in the members row) are built on top of the merge of `ai-presence-avatar`.
 
 ## What changed
 
@@ -74,7 +74,11 @@ The tests of `public-socket-writes.test.ts` landed green because the guards came
 
 ## Known gaps
 
-- Steps 14 and 15: the public members endpoint, visitors in the members row of the owner, the members row and live cursors on the public page, and the E2E for them.
-- The animal avatar duplicates the six colour classes of `UserAvatar` to avoid editing a file the lane `ai-presence-avatar` may touch; fold them together when that lane has merged.
+- Visitors are polled every `MEMBERS_REFRESH_MS` (their awareness frames are silenced, so no awareness event refreshes the owner's row): a visitor shows up to 5 s late.
+- `GET /api/public/:id/members` lists visitors with the real name of a signed-in non-member; that is by design (ADR 0050).
 - The per-address windows keep one entry per address in memory (the helper is shared with the upload budget).
 - Real rendering of the visitor view in SuperDoc (viewing mode, no toolbar, remote carets of editors) has only a stub in unit tests: the Playwright walk is the proof.
+
+## Steps 14 and 15
+
+Red commits: `test(public): visitors and online people...` (server: public members route 404, members answer without `visitors`) and `dc75fd2e` (web: avatar ignores the animal, no visitor in the row, no members row on the public page). Green: the server commit after the first and `9bf0b38c`. The animal avatar is folded into `UserAvatar` (`animal` prop, icons in `lib/animal-icons.ts`). E2E `the owner sees the visitor as an animal, the visitor sees the owner online and the owner caret`: 7 specs passed in 44.4 s; the caret of the owner is visible to the visitor (`REMOTE_CARET_SELECTOR`).

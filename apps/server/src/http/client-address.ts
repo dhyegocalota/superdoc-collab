@@ -37,6 +37,27 @@ export function withClientAddress({
   return new Request(request, { headers });
 }
 
+const IPV6_GROUP_COUNT = 8;
+const IPV6_PREFIX_GROUPS = 4;
+const IPV6_COMPRESSION = '::';
+const IPV6_SEPARATOR = ':';
+const ZONE_SEPARATOR = '%';
+const IPV4_MARKER = '.';
+const LEADING_ZEROS = /^0+(?=.)/;
+const IPV6_PREFIX_SUFFIX = '/64';
+
+function groupsOf(part: string): string[] {
+  return part.split(IPV6_SEPARATOR).filter((group) => group !== '');
+}
+
 export function addressWindowKeyOf(address: string): string {
-  throw new Error(`addressWindowKeyOf is not implemented for ${address}`);
+  if (!address.includes(IPV6_SEPARATOR) || address.includes(IPV4_MARKER)) return address;
+  const [unzoned = address] = address.split(ZONE_SEPARATOR);
+  const [head = '', tail] = unzoned.split(IPV6_COMPRESSION);
+  const headGroups = groupsOf(head);
+  const tailGroups = tail === undefined ? [] : groupsOf(tail);
+  const zeroGroups = Array.from({ length: IPV6_GROUP_COUNT - headGroups.length - tailGroups.length }, () => '0');
+  const groups = tail === undefined ? headGroups : [...headGroups, ...zeroGroups, ...tailGroups];
+  const prefix = groups.slice(0, IPV6_PREFIX_GROUPS).map((group) => group.toLowerCase().replace(LEADING_ZEROS, ''));
+  return `${prefix.join(IPV6_SEPARATOR)}${IPV6_PREFIX_SUFFIX}`;
 }

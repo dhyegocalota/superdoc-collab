@@ -54,6 +54,12 @@ function headerOf(bytes: Buffer): { roomNameLength: VarUint; messageType: VarUin
   return { roomNameLength, messageType };
 }
 
+export function messageTypeOf(frame: RawData): number | null {
+  const header = headerOf(bufferOf(frame));
+  if (header === null || header.messageType === null) return null;
+  return header.messageType.value;
+}
+
 export function frameBucketOf(frame: RawData): FrameBucket {
   const header = headerOf(bufferOf(frame));
   if (header?.messageType?.value === MessageType.Awareness) return FrameBucket.Awareness;

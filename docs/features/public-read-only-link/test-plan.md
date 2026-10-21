@@ -57,7 +57,15 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## Edge cases found during execution
 
-Empty on purpose. The tester adds one checkbox per new case (input, exact expected outcome) and a regression test for each.
+From the security review (each has its regression test):
+
+- [ ] `awareness-scrub.test.ts`, `public-socket-guards.test.ts::a visitor receives the awareness of a member without the email or the ids` — input: a member sets awareness `user` with id, email, name, colour and `userId`; expected: the visitor's awareness state for that member holds name and colour, a pseudonym id and no email, and the member's own state still holds the email and the id
+- [ ] `public-socket-guards.test.ts::a visitor that sends a broadcast stateless message is closed and nobody receives it` — input: a visitor sends message type BroadcastStateless; expected: closed with 1008 and `PUBLIC_MESSAGE_REASON`, the member's `stateless` handler never called
+- [ ] `public-socket-guards.test.ts::a visitor message of type %s is closed` — input: Stateless, SyncStatus, Auth; expected: closed with 1008
+- [ ] `public-socket-guards.test.ts::a visitor frame over the public size cap closes the socket` — input: a frame of `PUBLIC_MAX_SOCKET_MESSAGE_BYTES + 1`; expected: close code 1009
+- [ ] `keyed-sliding-window.test.ts` — input: more keys than `maxKeys`; expected: the least recently used key is forgotten, a recently used one survives
+- [ ] `client-address.test.ts::addressWindowKeyOf` — input: IPv6 addresses of one /64 written in different ways, of two /64s, IPv4, IPv4-mapped, loopback, a zone id; expected: one key per /64, IPv4 unchanged
+- [ ] Playwright MCP: the visitor's network tab and websocket frames carry no `@` and no member id after the owner (with an email) has typed
 
 ## Adversarial review
 

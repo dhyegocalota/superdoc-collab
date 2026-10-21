@@ -413,11 +413,13 @@ async function stopServer({
   services: ServerServices;
   databases: Databases;
   httpServer: ServerType;
-  sockets: WebSocketServer;
+  sockets: WebSocketServer[];
 }): Promise<void> {
   await closeCollaboration(services);
-  sockets.clients.forEach((client) => client.terminate());
-  sockets.close();
+  sockets.forEach((socketServer) => {
+    socketServer.clients.forEach((client) => client.terminate());
+    socketServer.close();
+  });
   closeAllConnectionsWhenSupported(httpServer);
   await closeServer(httpServer);
   closeDatabases(databases);

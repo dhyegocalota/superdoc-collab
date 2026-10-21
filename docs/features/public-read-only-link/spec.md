@@ -44,6 +44,8 @@ flowchart LR
 4. Updates from a public socket are refused by the read-only flag; `onChange` refuses again for a visitor context and appends nothing. Awareness frames from a visitor are silenced, so a visitor has no caret.
 5. `GET /api/public/:documentId/summary` returns the most recently stored selection summary of the document (any filter key) with its date, or `null`. It reads one row; it computes nothing.
 
+6. What a visitor receives and may send (security review of 2026-10-21): the awareness frames the server relays to a public socket are rewritten on the way out and keep only what a caret needs (`name`, `color`, selection); the `email` of every member never reaches a visitor, and the user `id` and `userId` are replaced by a 16-hex SHA-256 pseudonym (SuperDoc keys a remote caret by them, the visitor needs them distinct, not real). The browser keeps sending them in its own awareness, because SuperDoc takes the author's email from the same `user` object. A public socket may send only Sync, Awareness, QueryAwareness and Close messages; anything else (a stateless or broadcast stateless message above all) closes it with 1008 and `PUBLIC_MESSAGE_REASON`, and a public upgrade is cut at `PUBLIC_MAX_SOCKET_MESSAGE_BYTES` (1 MiB), because a visitor sends only a state vector. The per-address windows hold at most `KEYED_WINDOW_MAX_KEYS` addresses (least recently used first) and key an IPv6 address by its /64.
+
 ### Interfaces
 
 - `documents.is_public` integer boolean, not null, default 0 (migration 0009).

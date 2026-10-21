@@ -9,6 +9,7 @@ import {
   HEAVY_ROOMS_USER_CAP_REASON,
   HttpStatus,
   MAX_SOCKET_MESSAGE_BYTES,
+  PUBLIC_MAX_SOCKET_MESSAGE_BYTES,
   POLICY_VIOLATION_CLOSE_CODE,
   RETRY_AFTER_HEADER,
   secondsRoundedUp,
@@ -23,10 +24,11 @@ import {
 import { WebSocket, WebSocketServer, type PerMessageDeflateOptions, type RawData, type ServerOptions } from 'ws';
 import type { Auth } from '../auth/auth';
 import { readSession } from '../auth/session';
-import { clientAddressOf, FORWARDED_FOR_HEADER } from '../http/client-address';
+import { addressWindowKeyOf, clientAddressOf, FORWARDED_FOR_HEADER } from '../http/client-address';
 import type { KeyedSlidingWindow } from '../limits/keyed-sliding-window';
 import { describeError } from '../logging/describe-error';
 import type { VersionEndpoint } from '../history/versions-service';
+import { scrubOutgoingAwareness } from './awareness-scrub';
 import { AuthReply, authReplyOf, deniedReasonOf } from './auth-reply';
 import { SocketMessageLimit } from './socket-message-limit';
 import { isAgentUpgrade, isBootstrapUpgrade, isLoopbackAddress, isPublicUpgrade, upgradePathname } from './upgrade-path';
@@ -50,6 +52,10 @@ const SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
   maxPayload: MAX_SOCKET_MESSAGE_BYTES,
   perMessageDeflate: SOCKET_COMPRESSION_OPTIONS,
   closeTimeout: SOCKET_CLOSE_GRACE_MS,
+};
+const PUBLIC_SOCKET_SERVER_OPTIONS: ServerOptions & { closeTimeout: number } = {
+  ...SOCKET_SERVER_OPTIONS,
+  maxPayload: PUBLIC_MAX_SOCKET_MESSAGE_BYTES,
 };
 const SOCKET_ERROR_MESSAGE = 'Collaboration socket failed';
 const SOCKET_RATE_LIMIT_LOG = 'Collaboration socket closed for sending too many messages';
@@ -111,8 +117,9 @@ export function attachCollaboration({
   publicAdmission: PublicAdmission;
   path: string;
   allowedOrigin: string;
-}): WebSocketServer {
+}): WebSocketServer[] {
   const sockets = new WebSocketServer(SOCKET_SERVER_OPTIONS);
+  const publicSockets = new WebSocketServer(PUBLIC_SOCKET_SERVER_OPTIONS);
   const messageLimit = new SocketMessageLimit();
   function closeOnBreach(this: WebSocket, frame: RawData): void {
     if (!messageLimit.breached({ socket: this, frame })) return;
@@ -120,7 +127,7 @@ export function attachCollaboration({
     this.removeAllListeners(MESSAGE_EVENT);
     this.close(POLICY_VIOLATION_CLOSE_CODE, SOCKET_RATE_LIMIT_REASON);
   }
-  function reactToAuthReply(webSocket: WebSocket): void {
+  function reactToAuthReply({ webSocket, isPublicSocket }: { webSocket: WebSocket; isPublicSocket: boolean }): void {
     const send = webSocket.send.bind(webSocket) as (...parameters: unknown[]) => void;
     webSocket.send = ((...parameters: unknown[]) => {
       const reply = authReplyOf(parameters[0] as Uint8Array);
@@ -128,6 +135,7 @@ export function attachCollaboration({
       send(...parameters);
       if (reply === AuthReply.Other) return;
       Reflect.deleteProperty(webSocket, 'send');
+      if (isPublicSocket && reply === AuthReply.Authenticated) scrubOutgoingAwareness(webSocket);
       if (reply !== AuthReply.Denied) return;
       console.warn(SOCKET_DENIED_LOG);
       const deniedReason = deniedReasonOf(parameters[0] as Uint8Array);
@@ -165,17 +173,19 @@ export function attachCollaboration({
     socket,
     head,
     endpoint,
+    socketServer = sockets,
   }: {
     request: IncomingMessage;
     socket: Duplex;
     head: Buffer;
     endpoint: VersionEndpoint | null;
+    socketServer?: WebSocketServer;
   }): void {
     const isBootstrapSocket = request.url !== undefined && isBootstrapUpgrade(request.url);
-    sockets.handleUpgrade(request, socket, head, (webSocket) => {
+    socketServer.handleUpgrade(request, socket, head, (webSocket) => {
       webSocket.on('error', terminateOnError);
       webSocket.on(MESSAGE_EVENT, closeOnBreach);
-      reactToAuthReply(webSocket);
+      reactToAuthReply({ webSocket, isPublicSocket: socketServer === publicSockets });
       if (endpoint) messageLimit.markAuthenticated(webSocket);
       withholdOverclaims({ webSocket, isBootstrapSocket });
       if (endpoint) return versionRooms.handle({ endpoint, webSocket, request });
@@ -228,19 +238,21 @@ export function attachCollaboration({
   function upgradePublic({ request, socket, head }: { request: IncomingMessage; socket: Duplex; head: Buffer }): void {
     const { remoteAddress } = request.socket;
     if (remoteAddress === undefined) return void socket.destroy();
-    const address = clientAddressOf({
-      forwardedFor: request.headers[FORWARDED_FOR_HEADER],
-      remoteAddress,
-      trustProxy: publicAdmission.trustProxy,
-      trustedProxyHops: publicAdmission.trustedProxyHops,
-    });
+    const address = addressWindowKeyOf(
+      clientAddressOf({
+        forwardedFor: request.headers[FORWARDED_FOR_HEADER],
+        remoteAddress,
+        trustProxy: publicAdmission.trustProxy,
+        trustedProxyHops: publicAdmission.trustedProxyHops,
+      }),
+    );
     const waitMs = publicAdmission.window.waitMs(address);
     if (waitMs !== null) {
       socket.on('error', destroyOnSocketError);
       return void socket.end(tooManyRequestsResponse(secondsRoundedUp(waitMs)));
     }
     publicAdmission.window.record(address);
-    upgrade({ request, socket, head, endpoint: null });
+    upgrade({ request, socket, head, endpoint: null, socketServer: publicSockets });
   }
   httpServer.on('upgrade', (request, socket, head) => {
     if (!request.url) return socket.destroy();
@@ -255,5 +267,5 @@ export function attachCollaboration({
     if (pathname !== path) return socket.destroy();
     void upgradeMember({ request, socket, head });
   });
-  return sockets;
+  return [sockets, publicSockets];
 }

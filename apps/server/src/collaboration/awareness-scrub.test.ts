@@ -32,7 +32,8 @@ test('an awareness frame loses the email and the ids of its users and keeps thei
   const scrubbed = scrubAwarenessFrame(awarenessFrame([{ clientId: 7, clock: 2, state }]));
   const text = Buffer.from(scrubbed).toString();
   expect([text.includes('@'), text.includes('user-1'), text.includes('email')]).toEqual([false, false, false]);
-  expect(text).toContain('"user":{"name":"Ana","color":"#ff0000"}');
+  expect(text).toMatch(/"user":\{"id":"[0-9a-f]{16}","name":"Ana","color":"#ff0000"\}/);
+  expect(text).toMatch(/"userId":"[0-9a-f]{16}"/);
   expect(text).toContain('"cursor":{"anchor":3}');
 });
 
@@ -44,7 +45,7 @@ test('every entry is scrubbed, a removed client stays removed and a long state s
   ];
   const scrubbed = scrubAwarenessFrame(awarenessFrame(states.map((state, index) => ({ clientId: index + 1, clock: 1, state }))));
   const text = Buffer.from(scrubbed).toString();
-  expect([text.includes('@'), text.includes('"id"')]).toEqual([false, false]);
+  expect([text.includes('@'), text.includes('"a"'), text.includes('"b"')]).toEqual([false, false, false]);
   expect(text).toContain(LONG_STATE_PADDING);
   expect(text).toContain('null');
   expect(text).toContain('Bruno');

@@ -1,4 +1,4 @@
-import { Hocuspocus } from '@hocuspocus/server';
+import { Hocuspocus, MessageType } from '@hocuspocus/server';
 import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
 import { isBootstrapCommitted, materialize, type UpdateLog } from '@superdoc-collab/history';
 import {
@@ -9,6 +9,7 @@ import {
   MINUTE_MS,
   RoomMode,
   POLICY_VIOLATION_CLOSE_CODE,
+  PUBLIC_MESSAGE_REASON,
   SECOND_MS,
   SOCKET_AWARENESS_ENTRIES_REASON,
   SOCKET_AWARENESS_IDS_REASON,
@@ -34,7 +35,7 @@ import { authenticateMember, CollaborationAuthenticationError } from './authenti
 import { overfullConnections } from './awareness-client-cap';
 import { trackAwarenessOwners } from './awareness-origin';
 import { AwarenessOwners } from './awareness-owners';
-import { awarenessEntriesOf, silenceAwarenessEntries } from './frame-bucket';
+import { awarenessEntriesOf, messageTypeOf, silenceAwarenessEntries } from './frame-bucket';
 import { createClientDeclarer } from './client-declarations';
 import type { CollaborationContext } from './collaboration-context';
 import type { RoomBootstrap } from './room-bootstrap';
@@ -71,6 +72,17 @@ class MalformedAwarenessError extends Error {
     super(SOCKET_AWARENESS_ENTRIES_REASON);
   }
 }
+
+class VisitorMessageError extends Error {
+  readonly code = POLICY_VIOLATION_CLOSE_CODE;
+  readonly reason = PUBLIC_MESSAGE_REASON;
+
+  constructor() {
+    super(PUBLIC_MESSAGE_REASON);
+  }
+}
+
+const VISITOR_MESSAGE_TYPES = new Set<number>([MessageType.Sync, MessageType.Awareness, MessageType.QueryAwareness, MessageType.CLOSE]);
 
 class CollaborationSingleDocumentError extends Error {
   readonly code = POLICY_VIOLATION_CLOSE_CODE;
@@ -292,6 +304,9 @@ export function createCollaborationServer({
       const isStaleAttempt = bootstrapAttempt !== null && !roomBootstrap.isCurrent({ documentId, attempt: bootstrapAttempt });
       if (isStaleAttempt) connection.readOnly = true;
       const frame = Buffer.from(update.buffer, update.byteOffset, update.byteLength);
+      const messageType = messageTypeOf(frame);
+      const isRefusedVisitorMessage = visitor !== null && (messageType === null || !VISITOR_MESSAGE_TYPES.has(messageType));
+      if (isRefusedVisitorMessage) throw new VisitorMessageError();
       const entries = awarenessEntriesOf(frame);
       if (entries === null) {
         console.warn(AWARENESS_MALFORMED_LOG);

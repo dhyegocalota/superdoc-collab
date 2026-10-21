@@ -17,7 +17,7 @@ export const CREDITS_URL = `${REPOSITORY_URL}/blob/main/docs/credits.md`;
 export const CREDITED_NAMES = 'SuperDoc, Hocuspocus, Yjs, Better Auth, Drizzle, Hono, Vite, shadcn/ui and Claude Code';
 
 export const SUPERDOC_NAME = 'SuperDoc';
-export const SUPERDOC_VERSION = '2.23.0';
+export const SUPERDOC_VERSION = '2.24.0';
 export const SUPERDOC_URL = 'https://www.superdoc.dev';
 export const BUILT_WITH = `${SUPERDOC_NAME} ${SUPERDOC_VERSION}, Hocuspocus, Yjs, React, Hono and SQLite`;
 

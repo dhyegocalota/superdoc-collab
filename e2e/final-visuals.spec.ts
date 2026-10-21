@@ -37,6 +37,7 @@ import {
   goToCursorLabel,
   memberLabel,
   movedToCursorMessage,
+  PDF_FAILED_MESSAGE,
   PREPARING_PDF_MESSAGE,
   SAVE_TITLE_LABEL,
   TIMELINE_TOGGLE_LABEL,
@@ -92,6 +93,7 @@ import {
   waitForSummarizeResponse,
 } from './timeline';
 import { expectNoSidewaysScroll } from './layout';
+import { readDocumentXml, TrackedChangeKind, type SeedTrackedChange } from '../libs/history/src';
 
 const [anaUser, brunoUser, caioUser, daniUser] = DEMO_USERS;
 const PARAGRAPHS = [BUDGET_PARAGRAPH, HIRING_PARAGRAPH];
@@ -122,6 +124,13 @@ const ANA_EDIT = ' from Ana';
 const SUMMARY_TIMEOUT_MS = 30_000;
 const WAITING_TIMEOUT_MS = 30_000;
 const PRINT_TIMEOUT_MS = 60_000;
+const DATE_UTC_ATTRIBUTE = 'w16du:dateUtc';
+const WORD_TRACKED_INSERTION: SeedTrackedChange = {
+  kind: TrackedChangeKind.Insert,
+  author: 'Word Author',
+  date: '2026-10-21T10:00:00Z',
+  text: ' tracked in Word',
+};
 const BRIEF_PATH = resolve('docs/brief/superdoc-eng-sample-project.docx');
 const LONG_DOCUMENT_PARAGRAPH_COUNT = 60;
 const LONG_DOCUMENT_MIN_PAGES = 4;
@@ -373,6 +382,26 @@ test('Download PDF of the uploaded brief prints only when every page has text', 
   await uploadBrief(ana.page);
   await downloadPdf(ana.page);
   await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: 1 });
+});
+
+test('Download PDF of a document with a tracked change from Word prints, and Download .docx hands out a well-formed document', async ({
+  browser,
+}) => {
+  const ana = await signedInContext({ browser, user: anaUser! });
+  await ana.page.addInitScript(stubPrint, PREPARING_PDF_MESSAGE);
+  await uploadSeed({ page: ana.page, paragraphs: PARAGRAPHS, trackedChanges: [WORD_TRACKED_INSERTION] });
+  const download = ana.page.waitForEvent('download');
+  await downloadButton(ana.page).click();
+  const exportedXml = await readDocumentXml(readFileSync(await (await download).path()));
+  expect(exportedXml).toContain(DATE_UTC_ATTRIBUTE);
+  const isWellFormed = await ana.page.evaluate(
+    (xml) => new DOMParser().parseFromString(xml, 'application/xml').getElementsByTagName('parsererror').length === 0,
+    exportedXml,
+  );
+  expect(isWellFormed).toBe(true);
+  await downloadPdf(ana.page);
+  await expectPrintedWithEveryPageFilled({ page: ana.page, minPages: 1 });
+  await expect(ana.page.getByText(PDF_FAILED_MESSAGE)).toHaveCount(0);
 });
 
 test('Dark in the account menu applies to the page and survives a reload', async ({ browser }) => {

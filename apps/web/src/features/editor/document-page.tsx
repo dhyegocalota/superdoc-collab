@@ -1,6 +1,7 @@
 import {
   ConnectionFailureReason,
   ConnectionState,
+  DOCX_EXTENSION,
   DocumentRole,
   OPEN_PROGRESS_DELAY_MS,
   RoomMode,
@@ -24,6 +25,7 @@ import { PanelPosition, usePanelPosition } from '@/features/timeline/use-panel-p
 import { useImportedHistorySummary } from '@/features/timeline/use-imported-history-summary';
 import { useSummarize } from '@/features/timeline/use-summarize';
 import { useTimeTravel } from '@/features/timeline/use-time-travel';
+import { downloadBlob } from '@/lib/download-blob';
 import { useDocumentTitle } from '@/lib/use-document-title';
 import { useIsPhoneLayout } from '@/lib/use-is-phone-layout';
 import { useTimeZone } from '@/lib/use-time-zone';
@@ -31,6 +33,7 @@ import { useRequiredParam } from '@/lib/use-required-param';
 import { cn } from '@/lib/utils';
 import { EditorHeader } from './editor-header';
 import { EditorStatus } from './editor-status';
+import { repairExportedDocx } from './repair-exported-docx';
 import { DIMMED_EDITOR_AREA_CLASS, EditorSurface } from './editor-surface';
 import { EditorToolbarRow } from './editor-toolbar-row';
 import { ExitConfirmationDialog } from './exit-confirmation-dialog';
@@ -75,7 +78,7 @@ export function DocumentPage() {
   const openedAfterMount = isFetchedAfterMount ? opened : undefined;
   const { data: file, error: fileError } = useDocumentFile({ documentId, roomMode: openedAfterMount?.roomMode });
   const { lastEditAt, markEdit } = useLastEditAt();
-  const { members, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
+  const { members, agents, isUnavailable, isCurrentUserOnline, membersAnsweredAt, isSessionEnded } = useMembers(documentId);
   const {
     state: connectionState,
     failureReason: reportedFailureReason,
@@ -214,7 +217,11 @@ export function DocumentPage() {
     function downloadLiveDocument(): void {
       if (!superdoc) return;
       setHasExportFailed(false);
-      superdoc.export({ exportedName: title, triggerDownload: true }).catch(() => setHasExportFailed(true));
+      superdoc
+        .export({ triggerDownload: false })
+        .then(repairExportedDocx)
+        .then((blob) => downloadBlob({ blob, fileName: `${title}${DOCX_EXTENSION}` }))
+        .catch(() => setHasExportFailed(true));
     }
 
     const isLoadingRequestedVersion = timeTravel.isLoading && timeTravel.requestedSequence !== null;
@@ -234,6 +241,7 @@ export function DocumentPage() {
         <EditorHeader
           opened={opened}
           members={members}
+          agents={agents}
           currentUserId={user ? user.id : null}
           superdoc={superdoc}
           editorContainer={editorContainer}

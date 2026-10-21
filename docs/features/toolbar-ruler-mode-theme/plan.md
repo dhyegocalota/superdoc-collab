@@ -56,5 +56,5 @@ G1 to G4 in order: G3 needs the hook of G2, the E2E needs everything.
 - [x] **Tester briefing:** a developer wrote `tester-briefing.md`.
 - [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
 - [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
-- [ ] **/check-ui:** screenshots and video recorded and uploaded (only if UI was touched).
+- [ ] ~~**/check-ui:** screenshots and video recorded and uploaded (only if UI was touched).~~ cut by the owner's lean process on 2026-10-21; the tester's screenshots stand in.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.

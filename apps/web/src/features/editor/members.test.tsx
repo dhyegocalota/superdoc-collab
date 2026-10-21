@@ -1,4 +1,11 @@
-import { DocumentRole, MEMBERS_PRESENCE_DEBOUNCE_MS, type AuthorColorSlot, type DocumentMember } from '@superdoc-collab/types';
+import {
+  agentAuthorName,
+  DocumentRole,
+  MEMBERS_PRESENCE_DEBOUNCE_MS,
+  type AuthorColorSlot,
+  type DocumentAgent,
+  type DocumentMember,
+} from '@superdoc-collab/types';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -20,6 +27,7 @@ import {
 import { initialsOf } from '@/lib/initials';
 import { membersQueryKey } from './editor-api';
 import { Members } from './members';
+import { agentOwnerLabel } from './members-copy';
 
 const CURRENT_USER_ID = 'u1';
 const DOCUMENT_ID = 'doc-1';
@@ -87,12 +95,25 @@ function addCaret({ name, color }: { name: string; color: string }): void {
   overlay.append(caret);
 }
 
-function renderMembers({ members, isPastVersion = false }: { members: DocumentMember[]; isPastVersion?: boolean }) {
+function agentOf(member: DocumentMember): DocumentAgent {
+  return { user: member.user, name: agentAuthorName(member.user.name), colorSlot: member.colorSlot, online: true };
+}
+
+function renderMembers({
+  members,
+  agents = [],
+  isPastVersion = false,
+}: {
+  members: DocumentMember[];
+  agents?: DocumentAgent[];
+  isPastVersion?: boolean;
+}) {
   return render(
     <QueryClientProvider client={queryClient}>
       <Members
         documentId={DOCUMENT_ID}
         members={members}
+        agents={agents}
         currentUserId={CURRENT_USER_ID}
         superdoc={superdoc}
         editorContainer={editor}
@@ -200,6 +221,7 @@ test('a burst of presence changes during a members fetch invalidates once withou
       <Members
         documentId={DOCUMENT_ID}
         members={[ana, bruno, dario]}
+        agents={[]}
         currentUserId={CURRENT_USER_ID}
         superdoc={superdoc}
         editorContainer={editor}
@@ -368,4 +390,34 @@ test('the overflow count ignores offline members', () => {
 test('the row is a group whose label names the online count', () => {
   renderMembers({ members: [ana, bruno, clara, dario] });
   expect(screen.getByRole('group', { name: onlineMembersLabel(3) })).toBeInTheDocument();
+});
+
+test('the AI of the current user shows beside the current user, never merged with them', () => {
+  renderMembers({ members: [ana, bruno], agents: [agentOf(ana)] });
+  expect(screen.getByRole('button', { name: memberLabel('Ana') })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Ana')) })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: onlineMembersLabel(3) })).toBeInTheDocument();
+});
+
+test('the AI avatar follows the humans, carries the AI badge and the slot of its person', () => {
+  renderMembers({ members: [ana, bruno], agents: [agentOf(bruno)] });
+  const avatar = screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Bruno')) });
+  const row = screen.getByRole('group');
+  expect(row.lastElementChild?.previousElementSibling).toBe(avatar);
+  expect(within(avatar).getByText(initialsOf('Bruno'))).toHaveClass('bg-author-4');
+  expect(within(avatar).getByRole('img')).toBeInTheDocument();
+});
+
+test('the AI avatar is not a button and describes no cursor to jump to', () => {
+  renderMembers({ members: [ana, bruno], agents: [agentOf(bruno)] });
+  const avatar = screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Bruno')) });
+  expect(within(avatar).queryByRole('button')).not.toBeInTheDocument();
+  expect(avatar.closest('button')).toBeNull();
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+});
+
+test('two people with an AI each show two distinct AI avatars', () => {
+  renderMembers({ members: [ana, bruno], agents: [agentOf(ana), agentOf(bruno)] });
+  expect(screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Ana')) })).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: memberLabel(agentOwnerLabel('Bruno')) })).toBeInTheDocument();
 });

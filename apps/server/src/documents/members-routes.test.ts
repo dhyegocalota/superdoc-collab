@@ -1,6 +1,6 @@
-import { ApiPath, DocumentResource, DocumentRole, TAB_QUERY_KEY, type DocumentMembers } from '@superdoc-collab/types';
+import { agentAuthorName, ApiPath, DocumentResource, DocumentRole, TAB_QUERY_KEY, type DocumentMembers } from '@superdoc-collab/types';
 import { randomUUID } from 'node:crypto';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { connectToDocument, documentWithOwner, memberWithRole } from '../testing/collaboration-client';
 import { commitBootstrap as commitRoom } from '../testing/committed-room';
 import { pathOf, request } from '../testing/documents-client';
@@ -59,5 +59,25 @@ test.each([
   const answer: DocumentMembers = await (await request({ server, cookie: owner.cookie, path })).json();
   expect(answer.isCurrentUserOnline).toBe(true);
   client.close();
+  await server.stop();
+});
+
+test('members lists the AI of a member while it is present, even with the person offline, and no one else', async () => {
+  const { server, documentId, owner } = await documentWithOwner();
+  const reader = await memberWithRole({ server, documentId, role: DocumentRole.Reader });
+  const stranger = randomUUID();
+  vi.spyOn(server.services.agentSessions, 'presentUserIds').mockReturnValue(new Set([owner.id, stranger]));
+  const path = pathOf({ documentId, resource: DocumentResource.Members });
+  const answer: DocumentMembers = await (await request({ server, cookie: reader.cookie, path })).json();
+  const ownerMember = answer.members.find((member) => member.user.id === owner.id)!;
+  expect(ownerMember.online).toBe(false);
+  expect(answer.agents).toEqual([
+    {
+      user: ownerMember.user,
+      name: agentAuthorName(ownerMember.user.name),
+      colorSlot: ownerMember.colorSlot,
+      online: true,
+    },
+  ]);
   await server.stop();
 });

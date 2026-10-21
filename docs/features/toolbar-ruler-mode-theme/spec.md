@@ -1,6 +1,6 @@
 # Toolbar: ruler, document mode and theme
 
-**Status:** Building
+**Status:** Shipped 2026-10-21
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-21
 **ADRs:** none

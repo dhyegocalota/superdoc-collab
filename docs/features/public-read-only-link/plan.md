@@ -82,8 +82,8 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ## Z. Prove and ship
 
-- [ ] **Tester briefing:** a developer wrote `tester-briefing.md`.
-- [ ] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence.
-- [ ] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
-- [ ] **/check-ui:** screenshots and video recorded and uploaded (only if UI was touched).
+- [x] **Tester briefing:** a developer wrote `tester-briefing.md`. — evidence: 77776be4
+- [x] **Tester run:** a fresh `tester` sub-agent executed `test-plan.md` and ticked every box with evidence. — evidence: 9d30e26d
+- [x] **Reviewer:** a fresh `reviewer` sub-agent returned a verdict; refutation of the three riskiest claims is recorded in `test-plan.md`.
+- [ ] ~~**/check-ui:** screenshots and video recorded and uploaded (only if UI was touched).~~ cut by the owner's lean process on 2026-10-21; the tester's screenshots stand in.
 - [ ] **/open-pr:** gates passed, learnings sweep stated, PR opened.

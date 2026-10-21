@@ -1,6 +1,6 @@
 # Public read-only link
 
-**Status:** Building
+**Status:** Shipped 2026-10-21
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-21
 **ADRs:** [0050](../../adr/0050-anonymous-read-access-through-a-public-link.md), [0010](../../adr/0010-documents-ownership-and-share-links.md), [0017](../../adr/0017-share-links-reissued-when-the-secret-changes.md), [0025](../../adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md), [0041](../../adr/0041-the-summary-card-shows-the-sentence-as-it-is-written.md), [0044](../../adr/0044-version-builds-are-budgeted-per-user-and-capped-in-the-projection-queue.md)

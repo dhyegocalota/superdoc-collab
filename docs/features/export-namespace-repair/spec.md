@@ -1,6 +1,6 @@
 # Export namespace repair
 
-**Status:** Building
+**Status:** Shipped 2026-10-21
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-21 (owner's requirement 40, translated: "Download PDF" fails in production on documents with tracked changes from Word)
 **ADRs:** none

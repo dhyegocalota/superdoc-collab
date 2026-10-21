@@ -107,6 +107,12 @@ test('the context menu gets the shortcut provider', () => {
   expect(optionsFor(document.createElement('div'))).toMatchObject({ ui: { contextMenu: { menuProvider: expect.any(Function) } } });
 });
 
+test('the toolbar keeps the ruler and the document mode, and still hides the measurement unit', () => {
+  expect(TOOLBAR_EXCLUDED_ITEMS).not.toContain('ruler');
+  expect(TOOLBAR_EXCLUDED_ITEMS).not.toContain('document-mode');
+  expect(TOOLBAR_EXCLUDED_ITEMS).toContain('measurement-unit');
+});
+
 test('the user handed to SuperDoc carries no email, so no comment or tracked change is stamped with one', () => {
   const options = superdocOptions({
     container: document.createElement('div'),

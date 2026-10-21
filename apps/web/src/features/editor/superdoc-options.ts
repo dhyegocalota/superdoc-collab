@@ -15,9 +15,7 @@ const PREVIEW_DOCUMENT_ID = 'preview';
 export const TOOLBAR_EXCLUDED_ITEMS = [
   'track-changes-accept-selection',
   'track-changes-reject-selection',
-  'ruler',
   'measurement-unit',
-  'document-mode',
   'search',
   'linked-style',
   'copy-format',

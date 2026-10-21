@@ -1,6 +1,6 @@
 # Typing latency: a keystroke in the 9.5 MB document costs about a second in SuperDoc's layout engine, and no editor setting brings it under 150 ms
 
-**Status:** Building
+**Status:** Shipped 2026-10-20
 **Tier:** 🟢
 **Owner approval:** approved 2026-10-20 (requirement 39). The owner typed in the 9.5 MB document in production and saw seconds per keystroke and a frozen screen.
 **ADRs:** none; every SuperDoc layout option was measured and none is adopted.

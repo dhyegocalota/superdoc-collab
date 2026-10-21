@@ -1,6 +1,6 @@
 # HARNESS — how work happens in this repo
 
-**Placement rule.** An imperative about *how to work* belongs here. A fact that *describes the system* belongs in `.claude/rules/<domain>.md`. A *decision* and its alternatives belong in `docs/adr/`. A *trap* belongs in `docs/learnings/`.
+**Placement rule.** An imperative about *how to work* belongs here. A fact that *describes the system* belongs in `.claude/rules/<domain>.md`. A *decision* and its alternatives belong in `docs/adr/`. A *trap* belongs in `docs/learnings/`. A rule cites files that exist today and the versions the manifests install; when code moves or a dependency is bumped, its rule changes in the same commit (`rules.test.ts` in the `shape` gate).
 
 ```
 AGENTS.md            facts and conventions, pointers to this file          (CLAUDE.md, GEMINI.md link here)

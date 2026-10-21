@@ -7,18 +7,16 @@ paths:
 
 # Testing
 
-Citations to `poc/...` name files of the proof of concept removed on 2026-10-17; the facts stand, the evidence is summarized in ADR 0001–0004.
-
 ## Tools
-- Vitest for unit tests (`pnpm test:unit`), Playwright with headless Chromium for E2E (`pnpm test:e2e`). (poc/package.json, poc/RESULTS.md)
+- Vitest for unit tests (`pnpm test:unit`), Playwright with headless Chromium for E2E (`pnpm test:e2e`). (package.json, playwright.config.ts)
 
 ## Universal invariant
-Every E2E asserts: all clients converge, server text equals client text, replay equals live (state vector), and `sum(inserted) - sum(deleted) == final length - initial length`. (poc/TEST-PLAN.md)
+Every E2E asserts: all clients converge, server text equals client text, replay equals live (state vector), and `sum(inserted) - sum(deleted) == final length - initial length`. (ADR 0001)
 
 ## Conventions
 - Test names are in present tense and never start with "should". (project convention)
-- No `sleep`; wait on conditions with `expect.poll`, `toPass` or `waitForFunction`. (project convention, poc/tests/harness.ts)
-- Under concurrency, judge completion by length, never by marker order, because the caret can land out of order. (poc/RESULTS.md, `reachesLength` in poc/tests/harness.ts)
+- No `sleep`; wait on conditions with `expect.poll`, `toPass` or `waitForFunction`. (project convention)
+- Under concurrency, judge completion by length, never by marker order, because the caret can land out of order. (docs/learnings/2026-10-15-click-steals-editor-focus-under-load.md)
 - Mock the LLM provider; no test calls a real model. (ADR 0006)
 
 ## What a useful test is

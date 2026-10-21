@@ -3,7 +3,7 @@
 - Status: Accepted | Proposed | Superseded by [NNNN](NNNN-slug.md)
 - Date: YYYY-MM-DD
 - Deciders: Dhyego Calota (owner); Claude (advisor)
-- Inspired by: <links to POC results, benchmarks, learnings, external docs>
+- Inspired by: <links to spike results, benchmarks, learnings, external docs>
 
 ## Context
 

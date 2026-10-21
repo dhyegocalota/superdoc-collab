@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import { SUMMARIZE_EDITS_LABEL, SUMMARIZING_LABEL } from '@/features/timeline/timeline-copy';
 import { ACCENT_COLOR_LABEL, EDITOR_THEME_PRESET_LABELS, THEME_LABEL } from './editor-copy';
-import { EditorThemePreset, PRESET_ACCENTS } from './editor-theme';
+import { EditorThemePreset, PRESET_ACCENTS, swatchTestId } from './editor-theme';
 import { EditorToolbarRow } from './editor-toolbar-row';
 
 const TOOLBAR_CONTAINER_TEST_ID = 'toolbar-container';
@@ -100,12 +100,15 @@ test('the Theme button opens the five presets and the accent picker, and a prese
   renderRow();
   await userEvent.click(screen.getByRole('button', { name: THEME_LABEL }));
   Object.values(EditorThemePreset).forEach((preset) => {
-    expect(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[preset] })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: EDITOR_THEME_PRESET_LABELS[preset] })).toBeInTheDocument();
   });
   expect(screen.getByLabelText(ACCENT_COLOR_LABEL)).toHaveAttribute('type', 'color');
-  expect(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Default] })).toBeChecked();
-  await userEvent.click(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Ocean] }));
-  expect(screen.getByRole('radio', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Ocean] })).toBeChecked();
+  expect(screen.getByRole('button', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Default], pressed: true })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Ocean] }));
+  expect(screen.getByRole('button', { name: EDITOR_THEME_PRESET_LABELS[EditorThemePreset.Ocean], pressed: true })).toBeInTheDocument();
+  expect(screen.getByTestId(swatchTestId(EditorThemePreset.Ocean))).toHaveStyle({
+    backgroundColor: PRESET_ACCENTS[EditorThemePreset.Ocean].light,
+  });
   expect(screen.getByLabelText(ACCENT_COLOR_LABEL)).toHaveValue(PRESET_ACCENTS[EditorThemePreset.Ocean].light);
 });
 
@@ -114,6 +117,6 @@ test('picking an accent colour unchecks every preset and applies the colour', ()
   fireEvent.click(screen.getByRole('button', { name: THEME_LABEL }));
   fireEvent.input(screen.getByLabelText(ACCENT_COLOR_LABEL), { target: { value: CUSTOM_ACCENT } });
   expect(screen.getByLabelText(ACCENT_COLOR_LABEL)).toHaveValue(CUSTOM_ACCENT);
-  expect(screen.queryAllByRole('radio', { checked: true })).toHaveLength(0);
+  expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
   expect(document.documentElement).toHaveClass('sd-theme-editor');
 });

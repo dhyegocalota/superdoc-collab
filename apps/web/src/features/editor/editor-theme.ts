@@ -96,3 +96,7 @@ export function editorThemeConfig(choice: EditorThemeChoice): ThemeConfig | null
 export function contrastRatio(_colors: { foreground: string; background: string }): number {
   throw new Error('contrastRatio is not implemented');
 }
+
+export function swatchTestId(preset: EditorThemePreset): string {
+  return `theme-swatch-${preset}`;
+}

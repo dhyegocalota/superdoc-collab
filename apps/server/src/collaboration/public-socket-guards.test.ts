@@ -95,13 +95,14 @@ test('a visitor that sends more than one write-shaped sync message is closed, af
   await server.stop();
 });
 
-test('a visitor may ask for the state as often as it likes', async () => {
+test('a visitor that asks for the whole state over and over without answering is closed', async () => {
   const { server, documentId } = await publicRoom();
   const visitor = await connectAsVisitor({ server, token: await visitorToken({ server, documentId }), documentId });
   const syncStep1 = frameOf({ documentId, type: MessageType.Sync, body: [SYNC_STEP1, ...varUint(EMPTY_UPDATE.length), ...EMPTY_UPDATE] });
-  Array.from({ length: SYNC_STEP2_FLOOD }).forEach(() => socketOf(visitor).send(syncStep1));
-  await expect.poll(() => visitor.provider.isSynced).toBe(true);
-  expect(socketOf(visitor).readyState).toBe(socketOf(visitor).OPEN);
-  visitor.close();
+  const socket = socketOf(visitor);
+  const sendRaw = socket.send.bind(socket);
+  socket.send = () => undefined;
+  Array.from({ length: SYNC_STEP2_FLOOD }).forEach(() => sendRaw(syncStep1));
+  expect(await visitor.closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: PUBLIC_MESSAGE_REASON });
   await server.stop();
 });

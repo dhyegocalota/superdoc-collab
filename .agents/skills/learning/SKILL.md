@@ -29,7 +29,7 @@ Format and promotion rules: `.claude/HARNESS.md` section 8. Two modes.
 3. Signal is the symptom as you will see it, never the diagnosis. If the Signal names the cause, rewrite it.
 4. Cause is one paragraph. Do is the move that avoids the trap.
 5. Anchor must name at least one file, commit or test. If you cannot name one, ask the owner or find it before writing.
-6. Add a row to the index table in `docs/learnings/README.md` under its area (collaboration, history, testing, tooling): date, title, file, last revisited.
+6. Add a row to the index table in `docs/learnings/README.md` under its area (collaboration, history, testing, tooling), in date order: date, title, file, last revisited. `document-indexes.test.ts` fails on a missing row or an area out of date order.
 7. Decide on promotion (below) in the same change.
 
 ## Revisit

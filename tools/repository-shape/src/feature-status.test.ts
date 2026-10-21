@@ -92,6 +92,13 @@ describe('feature status', () => {
     expect([...slugs.flatMap((slug) => rowViolations({ rows, slug })), ...orphanRows]).toEqual([]);
   });
 
+  test('shipped rows of the index follow their ship dates', () => {
+    const shippedDates = indexRows()
+      .filter((row) => row.status.startsWith(SHIPPED_PREFIX))
+      .map((row) => row.status.slice(SHIPPED_PREFIX.length));
+    expect(shippedDates).toEqual([...shippedDates].sort());
+  });
+
   test('no blank line splits a table of the index', () => {
     expect(readRepositoryFile(FEATURES_INDEX)).not.toMatch(TABLE_BREAK_PATTERN);
   });

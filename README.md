@@ -2,7 +2,7 @@
 
 A collaborative DOCX editor that records every edit and shows who changed what, and when: a timeline per topic, time travel to any moment, and model-written summaries of the edits you select. Built on SuperDoc for its take-home brief ([`docs/brief/`](docs/brief/superdoc-eng-sample-project.docx)).
 
-**Live demo:** <https://superdoc.dhyegocalota.com.br>. Accounts are by invitation: sign in as `ana@example.com` with the password from the delivery message, and open a second browser as `bruno@example.com` to edit together.
+**Live demo:** <https://superdoc.dhyegocalota.com.br>. Accounts are by invitation: sign up with an invite link from the delivery message, then share a document with a second account to edit together.
 
 ![Ana types two paragraphs, an AI client connected through OAuth inserts one and rewrites another, tracked changes signed Ana · AI appear, a hatched layer joins the timeline, and Connected apps lists the client](docs/media/readme/ai-edit.gif)
 
@@ -41,7 +41,7 @@ Install https://github.com/dhyegocalota/superdoc-collab by following docs/agent-
 ENV_FILE=../.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true docker compose -f docker/docker-compose.local.yml up --build -d
 ```
 
-Open <http://localhost:3000> and sign in as `ana@example.com` / `superdoc-demo`. The demo users are Ana, Bruno, Caio and Dani at `example.com`, all with that password. `docker compose -f docker/docker-compose.local.yml down -v` resets everything. Topics and summaries need `OPENROUTER_API_KEY`; without it the app works and the chart shows one band per author.
+Open <http://localhost:3000> and sign in as `ana@example.com` / `superdoc-demo`. The demo users are Ana, Bruno, Caio and Dani at `example.com`, all with that password. `ENV_FILE=../.env.example APP_ORIGIN=http://localhost:3000 SEED_DEMO_USERS=true docker compose -f docker/docker-compose.local.yml down -v` resets everything. Topics and summaries need `OPENROUTER_API_KEY`; without it the app works and the chart shows one band per author.
 
 A sample document with five days of edits by four authors, "SuperDoc Collab: a guided tour", appears for the first admin who claims an instance, and Admin → Users has a Create the showcase document button to add another.
 

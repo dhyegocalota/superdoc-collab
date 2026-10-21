@@ -64,8 +64,8 @@ Size the service's memory before you rely on large files: Railway's service **Se
 ## 4. Domain and origin
 
 ```bash
-railway domain superdoc.dhyegocalota.com.br --port 3000
-railway variables --set APP_ORIGIN=https://superdoc.dhyegocalota.com.br
+railway domain <your domain> --port 3000
+railway variables --set APP_ORIGIN=https://<your domain>
 railway up --detach
 ```
 

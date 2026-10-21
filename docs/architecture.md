@@ -10,6 +10,7 @@ flowchart TB
     editor["SuperDoc editor<br/>live document, cursors, awareness"]
     viewer["Version viewer<br/>read-only SuperDoc in an iframe"]
     panel["Timeline panel<br/>streamgraph · filter · top edits · summaries"]
+    public["Public reader<br/>read-only, no account"]
   end
 
   subgraph server["One Node process, one port (Hono + Hocuspocus)"]
@@ -19,6 +20,7 @@ flowchart TB
     rooms["Version rooms<br/>one read-only room per version"]
     mcp["MCP server<br/>AI clients act as the person who authorized them"]
     worker[["Projection worker thread<br/>Yjs replay → edit events, version marks"]]
+    sdk[["SDK hosts, one per lane<br/>convert an uploaded DOCX and seed its room"]]
     insights["Insights worker<br/>topics · per-topic sentences · selection summaries<br/>process-wide caps"]
     log[("history.sqlite<br/>update log · snapshots · identities")]
     read[("read-model.sqlite<br/>edit events · version marks · cursor")]
@@ -30,11 +32,13 @@ flowchart TB
 
   editor <-- "WebSocket /collaboration" --> hocus
   viewer <-- "WebSocket /collaboration/versions/‹id›/‹sequence›" --> rooms
+  public <-- "WebSocket /collaboration/public, never writes" --> hocus
   panel -- "GET /api/documents/‹id›/timeline · events · versions · summaries" --> hono
   hono --> auth --> authDb
   hono -- "/api/mcp" --> mcp
   mcp -- "loopback /collaboration/agent" --> hocus
   hono -- "upload · download" --> files
+  files --> sdk -- "loopback /collaboration/bootstrap" --> hocus
   hocus -- "every Yjs update, with its connection's user" --> log
   log -- "1.5 s throttle" --> worker --> read
   read --> hono
@@ -44,7 +48,7 @@ flowchart TB
   insights --> authDb
 ```
 
-One Node process on one port: Hono serves the API, the MCP endpoint and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. The history library holds the update log, the projection and the read model; one worker thread projects the log into edit events. The web app is a React and Vite SPA. See [ADR 0001](adr/0001-event-sourcing-over-yjs.md), [ADR 0004](adr/0004-stack.md), [ADR 0005](adr/0005-authentication-with-better-auth.md), [ADR 0009](adr/0009-design-system.md) and [ADR 0025](adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md).
+One Node process on one port: Hono serves the API, the MCP endpoint and the built SPA, and Hocuspocus serves the collaboration WebSocket. Better Auth stores users and sessions in SQLite through Drizzle and better-sqlite3. The history library holds the update log, the projection and the read model; one worker thread projects the log into edit events. After an upload the server converts the DOCX itself, through the SuperDoc SDK in a light and a heavy lane, and seeds the room before anyone opens it ([ADR 0048](adr/0048-the-server-bootstraps-the-room-after-the-upload.md)). The web app is a React and Vite SPA. See [ADR 0001](adr/0001-event-sourcing-over-yjs.md), [ADR 0004](adr/0004-stack.md), [ADR 0005](adr/0005-authentication-with-better-auth.md), [ADR 0009](adr/0009-design-system.md) and [ADR 0025](adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md).
 
 Data lives under `DATABASE_DIR`: the auth database (users, sessions, invites, documents, members, share links, topics and summaries), the history database (update log, snapshots, identities), the read model (edit events, version marks and the projection cursor) and the uploaded files. Documents projected before version marks existed are rebuilt at startup, and their versions answer 202 until then.
 
@@ -53,9 +57,9 @@ Data lives under `DATABASE_DIR`: the auth database (users, sessions, invites, do
 - **Accounts.** Sign-up is by invitation: the first account claims the instance as administrator and every later one needs a single-use invite from the admin page that expires after 7 days. The app sends no email, so an administrator creates a password reset link for any user from the users table; the link works once, expires after an hour, opens a public page where the person chooses a new password, and ends the user's other sessions ([ADR 0020](adr/0020-invite-only-accounts-with-a-first-claim-admin.md)).
 - **Showcase document.** The first administrator to claim an instance finds "SuperDoc Collab: a guided tour", a document whose imported tracked changes span five days and four authors, so the first timeline is full. Admin → Users has a button that creates another one for instances claimed earlier.
 - **Documents.** Upload a `.docx` (up to 10 MB) or create a blank document; the list shows "Mine" and "Shared with me" with the owner, the last update and your role. An empty list shows a drop zone and a New document button, and a `.docx` dropped anywhere on the page uploads. Rename, download and delete from the editor header (delete is owner only). While the title is being edited, Save and Cancel sit beside the input as well as Enter and Escape. Download offers DOCX and PDF; the PDF prints from a same-origin frame that lays out every page, blank ones included ([ADR 0035](adr/0035-the-pdf-prints-from-a-same-origin-frame-with-its-own-viewport.md)).
-- **Live editing.** Documents open in SuperDoc with several people editing at once, and an editor's caret is placed at the start of the document when it opens, for the creator and for people who join later. The header shows the members who are online now; a member who left drops out of the row.
+- **Live editing.** Documents open in SuperDoc with several people editing at once, and an editor's caret is placed at the start of the document when it opens, for the creator and for people who join later. The header shows the members who are online now; a member who left drops out of the row. The toolbar adds a ruler, the Editing, Suggesting and Viewing modes, and a theme with five presets and an accent colour.
 - **Leaving with unsynced edits.** Edits made while the connection was lost, or a title still being edited, count as unsynced. Closing the tab shows the browser's own prompt. Navigating away or signing out opens a dialog with Stay, Download and Leave, and recovering the connection closes it.
-- **Sharing.** The owner gets an edit link and a read-only link, copies them from the Share dialog and can rotate either one. Anyone signed in who opens a link joins with that link's access; a rotation invalidates the link and keeps the members it already admitted. The dialog lists everyone with access, and the owner removes any member but themself: the person's sockets close at once, their next poll shows the unavailable state and the document leaves their list. Readers see edits live but cannot type, and a reader can open a document only after an owner or editor has opened it once.
+- **Sharing.** The owner gets an edit link and a read-only link, copies them from the Share dialog and can rotate either one. Anyone signed in who opens a link joins with that link's access; a rotation invalidates the link and keeps the members it already admitted. The dialog lists everyone with access, and the owner removes any member but themself: the person's sockets close at once, their next poll shows the unavailable state and the document leaves their list. Readers see edits live but cannot type. The owner can also turn on **Anyone with the link can view**: `/public/‹id›` opens the document read-only without an account, with live cursors and an anonymous name per visitor, and nothing public can write ([ADR 0050](adr/0050-anonymous-read-access-through-a-public-link.md)).
 - **AI clients.** A remote MCP server at `/api/mcp` lets an AI client that a person authorizes through OAuth read the history, edit in tracked mode, export and share as that person. Its edits are signed "Name · AI" and form a hatched layer in the timeline, and the person revokes the client under Settings → Connected apps ([ADR 0025](adr/0025-mcp-clients-authorize-with-oauth-and-join-rooms-by-room-token.md)).
 - **About.** A public page at `/about` names the author, the source, the licence and the credits, and is linked from the account menu. The page shell carries the description, Open Graph and Twitter tags, the icons, a web manifest and JSON-LD metadata, and `robots.txt` keeps the app's private paths out of search.
 - **History capture.** Every Yjs update is appended to a log with the connection's user, identities are bound to authors from SuperDoc's awareness, and a projection turns the log into edit events (who inserted or deleted what, in which block, when). The events are served in pages of 500; tracked changes and comments already in an uploaded file are imported with their original authors and dates; a comment shows in the bin's edit list as a comment. A bin of only imported events opens the document as uploaded, and the first open of such a document by an editor runs Summarize by itself and opens the edits panel.

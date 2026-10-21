@@ -41,6 +41,7 @@ Invalidation first: it removes most of the idle traffic and brings the chart's l
 
 ## Product
 
+- **Agent edits streamed live.** An AI client's edit lands in one transaction today, so the whole replacement appears at once. Streamed into the room as the model writes it, with its own cursor and the "Name · AI" mark, people would watch the agent type beside them, the way they watch a colleague, and could stop it mid-sentence.
 - **Compare two versions.** Any two marks side by side, the difference rendered as tracked changes.
 - **Paragraph blame.** The read model already records the block of every edit; a margin shows who wrote each paragraph and when.
 - **Audit trail.** An export of every edit with its author, actor and time, for contracts and compliance reviews.

@@ -36,11 +36,14 @@ With Node 24 and pnpm:
 
 ```bash
 cp .env.example .env
+sed -i.bak "s|^APP_ORIGIN=.*|APP_ORIGIN=http://localhost:3000|" .env
 pnpm install
 pnpm build
 scripts/with-env.sh pnpm seed
-WEB_DIST_DIR=apps/web/dist scripts/with-env.sh pnpm --filter @superdoc-collab/server start
+WEB_DIST_DIR="$PWD/apps/web/dist" scripts/with-env.sh pnpm --filter @superdoc-collab/server start
 ```
+
+Open <http://localhost:3000> and sign in as `ana@example.com` / `superdoc-demo`; the seed creates the demo users. The server runs inside `apps/server`, so the path to the web build is absolute and the data lands in `apps/server/data`.
 
 Topics and summaries need `OPENROUTER_API_KEY` in `.env`; without it the app works and the chart shows one band per author.
 
@@ -98,4 +101,4 @@ The server reads these from the environment; there is no dotenv loader. [`.env.e
 
 ## Recovery
 
-- **One administrator by claim.** Only the first account becomes admin; others are promoted from `/admin`. An instance claimed without an admin (the role write failed) is recovered with `railway ssh -- node dist/admin-promote.js <email>` or `docker compose exec app node dist/admin-promote.js <email>`.
+- **One administrator by claim.** Only the first account becomes admin; others are promoted from `/admin`. An instance claimed without an admin (the role write failed) is recovered with `railway ssh -- node dist/admin-promote.js <email>` or `docker compose --env-file .env -f docker/docker-compose.local.yml exec app node dist/admin-promote.js <email>`.

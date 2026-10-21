@@ -74,7 +74,6 @@ export class AgentSessions implements AgentDocumentSessions {
   private readonly now: () => number;
   private readonly maxSessions: number;
   private readonly idleMs: number;
-  private readonly presenceLingerMs: number;
   private readonly openTimeoutMs: number;
   private readonly tokenLifetimeMs: number;
   private active = 0;
@@ -90,7 +89,6 @@ export class AgentSessions implements AgentDocumentSessions {
     createClient = createHostClient,
     maxSessions = MAX_AGENT_SESSIONS,
     idleMs = AGENT_SESSION_IDLE_MS,
-    presenceLingerMs = AGENT_PRESENCE_LINGER_MS,
     openTimeoutMs = AGENT_SESSION_OPEN_TIMEOUT_MS,
   }: {
     issueRoomToken: (options: { userId: string; documentId: string }) => string;
@@ -102,7 +100,6 @@ export class AgentSessions implements AgentDocumentSessions {
     createClient?: () => AgentSessionsClient;
     maxSessions?: number;
     idleMs?: number;
-    presenceLingerMs?: number;
     openTimeoutMs?: number;
   }) {
     this.issueRoomToken = issueRoomToken;
@@ -115,7 +112,6 @@ export class AgentSessions implements AgentDocumentSessions {
     this.maxSessions = maxSessions;
     this.idle = new LruMap({ isOverBudget: (entries) => entries.size + this.active > maxSessions });
     this.idleMs = idleMs;
-    this.presenceLingerMs = presenceLingerMs;
     this.openTimeoutMs = openTimeoutMs;
   }
 
@@ -161,7 +157,7 @@ export class AgentSessions implements AgentDocumentSessions {
 
   private isPresent({ endedAt }: AgentActivity): boolean {
     if (endedAt === null) return true;
-    return this.now() - endedAt < this.presenceLingerMs;
+    return this.now() - endedAt < AGENT_PRESENCE_LINGER_MS;
   }
 
   private async runOnSession<Result>(options: SessionWork<Result>): Promise<Result> {

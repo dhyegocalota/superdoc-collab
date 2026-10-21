@@ -21,12 +21,13 @@ When an AI client edits a document through MCP, nothing in the top bar says so. 
 - Showing a cursor for the AI or jumping to it.
 - Showing AI presence to visitors without membership (a sibling lane adds `visitors` to the same response).
 - Changing the five-minute session idle close.
+- Showing the avatar for a share-link rotation through MCP: it does not go through `sessions.run`, so it records no presence.
 
 ## Design
 
 ### Data flow
 
-The AI tools run through `AgentSessions.run`. `AgentSessions` records, per person and document, the time the last tool call ended and whether one is running. `GET /api/documents/:id/members` lists an agent for every member whose AI is running a tool call or finished one less than `AGENT_PRESENCE_LINGER_MS` (60 s) ago. `onlineUserIds` ignores sockets whose actor is the agent. The web reads the `agents` list from the same 5 s members poll.
+The AI tools run through `AgentSessions.run`. `AgentSessions` records, per person and document, the time the last tool call ended and whether one is running. `GET /api/documents/:id/members` lists an agent for every member whose AI is running a tool call or finished one less than `AGENT_PRESENCE_LINGER_MS` (60 s) ago. `onlineUserIds` ignores sockets whose actor is the agent; the MCP `list_members` tool uses it too, so the calling agent's own person shows offline unless that person has a human socket. The web reads the `agents` list from the same 5 s members poll.
 
 ### Interfaces
 
@@ -39,9 +40,9 @@ GET /api/documents/:id/members
 }
 ```
 
-`AGENT_PRESENCE_LINGER_MS` lives in `libs/types/src/constants.ts`; it is the default of the `presenceLingerMs` option of `AgentSessions`, which unit tests shorten with fake timers. The agent's colour slot is the one of its author key, which resolves to the owner's slot.
+`AGENT_PRESENCE_LINGER_MS` lives in `libs/types/src/constants.ts`; `AgentSessions` reads it directly, and unit tests move the clock through its `now` option. The agent's colour slot is the one of its author key, which resolves to the owner's slot.
 
-Web: agents render after the humans, `UserAvatar` with `isAgent`, key by `<userId>#agent`, accessible name "<Name>'s AI, online", not a button (no caret, no jump). The current user's own AI is shown. The overflow menu counts agents.
+Web: agents render after the humans, `UserAvatar` with `isAgent`, key by `<userId>#agent`, accessible name "<Name>'s AI, online", not a button (no caret, no jump). The current user's own AI is shown. Agents always stay visible after the `+N` menu and are never folded into it; the group's online count includes them.
 
 ### Failure handling
 
@@ -58,4 +59,4 @@ Web: agents render after the humans, `UserAvatar` with `isAgent`, key by `<userI
 
 ## Test strategy summary
 
-Unit: `AgentSessions` activity and linger with fake timers; the runtime ignores agent sockets; the members route lists agents; `Members` renders, keys and does not make the AI jumpable. E2E: the AI client edits and its avatar appears beside the owner's, then goes after a short linger.
+Unit: `AgentSessions` activity and linger with an injected clock; the runtime ignores agent sockets; the members route lists agents; `Members` renders, keys and does not make the AI jumpable. E2E: the AI client edits and its avatar appears beside the owner's.

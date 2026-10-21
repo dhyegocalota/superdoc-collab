@@ -8,6 +8,7 @@ import {
   isTabId,
   MINUTE_MS,
   RoomMode,
+  MAX_VISITOR_SYNC_STEP_ONE_MESSAGES,
   POLICY_VIOLATION_CLOSE_CODE,
   PUBLIC_MESSAGE_REASON,
   SECOND_MS,
@@ -189,6 +190,7 @@ export function createCollaborationServer({
   const impersonationTimers = new ImpersonationTimers();
   const refusedConnections = new WeakSet<CollaborationContext>();
   const visitorWriteShapedMessages = new WeakMap<CollaborationContext, number>();
+  const visitorStepOneMessages = new WeakMap<CollaborationContext, number>();
   const documentNameBySocket = new WeakMap<IncomingMessage, string>();
   const admitters: Record<
     SocketKind,
@@ -313,6 +315,13 @@ export function createCollaborationServer({
       if (isRefusedVisitorMessage) throw new VisitorMessageError();
       const syncStep = syncStepOf(frame);
       const isVisitorWriteShaped = visitor !== null && syncStep !== null && syncStep !== SYNC_STEP_ONE;
+      const isVisitorStepOne = visitor !== null && syncStep === SYNC_STEP_ONE;
+      if (isVisitorStepOne) {
+        const seen = visitorStepOneMessages.get(connectionContext);
+        const stepOneMessages = seen === undefined ? 1 : seen + 1;
+        visitorStepOneMessages.set(connectionContext, stepOneMessages);
+        if (stepOneMessages > MAX_VISITOR_SYNC_STEP_ONE_MESSAGES) throw new VisitorMessageError();
+      }
       if (isVisitorWriteShaped) {
         const seen = visitorWriteShapedMessages.get(connectionContext);
         const writeShapedMessages = seen === undefined ? 1 : seen + 1;

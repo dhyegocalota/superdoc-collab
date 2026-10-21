@@ -40,7 +40,7 @@ Author this list with every box empty. A sub-agent ticks its own line. A wrong s
 
 ### G3: the public HTTP surface
 
-- [ ] **Step 4:** red test for `InsightsRepository.latestSelectionSummary` (most recent usable row by `updated_at` across filter keys, failures and empty sentences skipped, none gives null).
+- [x] **Step 4:** red test for `InsightsRepository.latestSelectionSummary` (most recent usable row by `updated_at` across filter keys, failures and empty sentences skipped, none gives null). — evidence: red 67f5cc89, green 901f62bc
 - [ ] **Step 5:** red test for `GET /api/public/:documentId` (visitor payload with room token and `Anonymous <Animal>`, signed-in non-member real name, member gets `access: member`, missing and flag-off give the same 404 body, no open budget spent, uncommitted room 503, per-address window 429, no email in the body).
 - [ ] **Step 6:** red test for `GET /api/public/:documentId/summary` and the allowlist (POST summarize refused, timeline, topics, versions, events, download and comments unreachable without a session and never computed, `topics.ensure` not called, any other path under `/api/public` 404).
 

@@ -4,6 +4,14 @@ import { AUTHOR_COLOR_SLOT_COUNT, authorColorHash, authorColorSlot, type AuthorC
 
 export const publicFlagSchema = z.object({ isPublic: z.boolean() });
 
+export const PUBLIC_RATE_LIMITED_MESSAGE = 'Too many requests for this public document';
+export const PUBLIC_PREPARING_MESSAGE = 'This document is still being prepared';
+
+export enum PublicAccess {
+  Member = 'member',
+  Visitor = 'visitor',
+}
+
 export type PublicFlag = z.infer<typeof publicFlagSchema>;
 
 export enum PublicAnimal {
@@ -55,3 +63,8 @@ export function signedInViewerOf({ visitorId, name }: { visitorId: string; name:
 }
 
 export type LatestSummary = { sentence: string; authors: SummaryAuthor[]; computedAtSequence: number; updatedAt: number };
+
+export type PublicDocument = { id: string; title: string };
+export type PublicOpened =
+  { access: PublicAccess.Member } | { access: PublicAccess.Visitor; document: PublicDocument; viewer: PublicViewer; roomToken: string };
+export type PublicSummary = { summary: LatestSummary | null };

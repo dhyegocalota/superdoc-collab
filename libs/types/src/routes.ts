@@ -9,6 +9,7 @@ export enum AppRoute {
   Documents = '/documents',
   Document = '/documents/:documentId',
   Share = '/share/:token',
+  Public = '/public/:documentId',
   VersionView = '/documents/:documentId/versions/:sequence/view',
   OAuthConsent = '/oauth/consent',
   ConnectedApps = '/settings/connected-apps',
@@ -29,6 +30,8 @@ export enum ApiPath {
   Mcp = '/api/mcp',
   AgentCollaboration = '/collaboration/agent',
   BootstrapCollaboration = '/collaboration/bootstrap',
+  PublicCollaboration = '/collaboration/public',
+  Public = '/api/public',
   Setup = '/api/setup',
   Invites = '/api/invites',
   Admin = '/api/admin',
@@ -65,6 +68,7 @@ export function isTabId(value: string): boolean {
 }
 
 const EDITS_SEGMENT = 'edits';
+const PUBLIC_SUMMARY_SEGMENT = 'summary';
 const SELECTION_SEGMENT = 'selection';
 const COLLABORATION_VERSIONS_SEGMENT = 'versions';
 const VERSION_VIEW_SEGMENT = 'view';
@@ -81,6 +85,18 @@ export function documentApiPath({ documentId, resource }: { documentId: string; 
 
 export function sharePagePath(token: string): string {
   return `${AppRoute.Share.replace(':token', encodeURIComponent(token))}`;
+}
+
+export function publicPagePath(documentId: string): string {
+  return AppRoute.Public.replace(':documentId', encodeURIComponent(documentId));
+}
+
+export function publicApiPath(documentId: string): string {
+  return `${ApiPath.Public}/${encodeURIComponent(documentId)}`;
+}
+
+export function publicSummaryApiPath(documentId: string): string {
+  return `${publicApiPath(documentId)}/${PUBLIC_SUMMARY_SEGMENT}`;
 }
 
 export function shareLinkAcceptPath(token: string): string {

@@ -9,12 +9,12 @@ export function clientAddressOf({
   trustProxy,
   trustedProxyHops,
 }: {
-  forwardedFor: string | null | undefined;
+  forwardedFor: string | string[] | null | undefined;
   remoteAddress: string;
   trustProxy: boolean;
   trustedProxyHops: number;
 }): string {
-  const forwardedAddress = forwardedFor?.split(FORWARDED_SEPARATOR).at(-trustedProxyHops)?.trim();
+  const forwardedAddress = forwardedFor?.toString().split(FORWARDED_SEPARATOR).at(-trustedProxyHops)?.trim();
   return trustProxy && forwardedAddress ? forwardedAddress : remoteAddress;
 }
 

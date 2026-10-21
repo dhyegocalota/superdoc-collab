@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { addressWindowKeyOf, CLIENT_ADDRESS_HEADER, withClientAddress } from './client-address';
+import { addressWindowKeyOf, publicAddressKeyOf, CLIENT_ADDRESS_HEADER, withClientAddress } from './client-address';
 
 const remoteAddress = '192.168.1.5';
 
@@ -73,5 +73,23 @@ describe('addressWindowKeyOf', () => {
   test('loopback and a zone id are keyed without panic', () => {
     expect(addressWindowKeyOf('::1')).toBe(addressWindowKeyOf('0:0:0:0:0:0:0:1'));
     expect(addressWindowKeyOf('fe80::1%en0')).toBe(addressWindowKeyOf('fe80::2'));
+  });
+});
+
+describe('publicAddressKeyOf', () => {
+  test('the trusted forwarded address is keyed by its /64', () => {
+    const key = publicAddressKeyOf({
+      forwardedFor: '198.51.100.1, 2001:db8:1:2:aaaa::1',
+      remoteAddress: '10.0.0.1',
+      trustProxy: true,
+      trustedProxyHops: 1,
+    });
+    expect(key).toBe(addressWindowKeyOf('2001:db8:1:2::'));
+  });
+
+  test('the socket address is keyed when no proxy is trusted', () => {
+    expect(publicAddressKeyOf({ forwardedFor: '198.51.100.1', remoteAddress: '203.0.113.9', trustProxy: false, trustedProxyHops: 1 })).toBe(
+      '203.0.113.9',
+    );
   });
 });

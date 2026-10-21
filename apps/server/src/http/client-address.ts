@@ -61,3 +61,7 @@ export function addressWindowKeyOf(address: string): string {
   const prefix = groups.slice(0, IPV6_PREFIX_GROUPS).map((group) => group.toLowerCase().replace(LEADING_ZEROS, ''));
   return `${prefix.join(IPV6_SEPARATOR)}${IPV6_PREFIX_SUFFIX}`;
 }
+
+export function publicAddressKeyOf(parameters: Parameters<typeof clientAddressOf>[0]): string {
+  throw new Error(`publicAddressKeyOf is not implemented for ${parameters.remoteAddress}`);
+}

@@ -12,6 +12,10 @@ import { publicRoom, visitorToken } from '../testing/public-room';
 import { SUPERDOC_ROOM_PREFIX } from './room-name';
 
 const TOO_BIG_CLOSE_CODE = 1009;
+const SYNC_STEP1 = 0;
+const SYNC_STEP2 = 1;
+const EMPTY_UPDATE = [0, 0];
+const SYNC_STEP2_FLOOD = 5;
 const AWARENESS_FIELD = 'user';
 const SECRET_EMAIL = 'ana@example.com';
 const SECRET_ID = 'secret-user-id';
@@ -79,5 +83,25 @@ test('a visitor frame over the public size cap closes the socket and a normal on
   socketOf(visitor).send(Buffer.alloc(PUBLIC_MAX_SOCKET_MESSAGE_BYTES + 1));
   expect((await visitor.closed).code).toBe(TOO_BIG_CLOSE_CODE);
   expect(TOO_BIG_CLOSE_CODE).not.toBe(ACCESS_REVOKED_CLOSE_CODE);
+  await server.stop();
+});
+
+test('a visitor that sends more than one write-shaped sync message is closed, after the one its handshake needs', async () => {
+  const { server, documentId } = await publicRoom();
+  const visitor = await connectAsVisitor({ server, token: await visitorToken({ server, documentId }), documentId });
+  const syncStep2 = frameOf({ documentId, type: MessageType.Sync, body: [SYNC_STEP2, ...varUint(EMPTY_UPDATE.length), ...EMPTY_UPDATE] });
+  Array.from({ length: SYNC_STEP2_FLOOD }).forEach(() => socketOf(visitor).send(syncStep2));
+  expect(await visitor.closed).toEqual({ code: POLICY_VIOLATION_CLOSE_CODE, reason: PUBLIC_MESSAGE_REASON });
+  await server.stop();
+});
+
+test('a visitor may ask for the state as often as it likes', async () => {
+  const { server, documentId } = await publicRoom();
+  const visitor = await connectAsVisitor({ server, token: await visitorToken({ server, documentId }), documentId });
+  const syncStep1 = frameOf({ documentId, type: MessageType.Sync, body: [SYNC_STEP1, ...varUint(EMPTY_UPDATE.length), ...EMPTY_UPDATE] });
+  Array.from({ length: SYNC_STEP2_FLOOD }).forEach(() => socketOf(visitor).send(syncStep1));
+  await expect.poll(() => visitor.provider.isSynced).toBe(true);
+  expect(socketOf(visitor).readyState).toBe(socketOf(visitor).OPEN);
+  visitor.close();
   await server.stop();
 });

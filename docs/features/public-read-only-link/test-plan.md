@@ -1,0 +1,74 @@
+# Test plan: Public read-only link
+
+Every checkbox states the input and the exact expected outcome. A ticked box carries evidence after ` — evidence: ` (commit hash, log path, counts, screenshot path).
+
+## The failing test first
+
+- [ ] `apps/server/src/documents/public-routes.test.ts::an owner switches a document public` — input: owner `PUT /api/documents/:id/public {isPublic:true}`; expected: 200 `{isPublic:true}` and `GET` returns the same
+- [ ] `apps/server/src/collaboration/public-socket.test.ts::an update from a public connection is never applied nor logged` — input: a visitor socket inserts text; expected: the room text and the update log unchanged
+- [ ] Confirmed each fails for the right reason: the message `... is not implemented` or the missing route status, recorded in `tester-briefing.md`
+
+## Unit
+
+- [ ] `documents-repository.test.ts` — input: a new document; expected: `isPublic` false; after `setPublic(true)` true; another document stays false
+- [ ] `public-routes.test.ts` — input: editor, reader, stranger, signed-out call `PUT .../public`; expected: 403, 403, 404, 401
+- [ ] `public-routes.test.ts` — input: `PUT` with body `{isPublic:"yes"}`; expected: 400 and the flag unchanged
+- [ ] `public-link.test.ts` — input: the same visitor id twice, two different ids; expected: same animal and colour for the same id; `Anonymous <Animal>` name from the enum
+- [ ] `public-room-tokens.test.ts` — input: a token for document A used for B, an expired token, an agent token, a bootstrap token, a public token presented as an agent token; expected: all refused
+- [ ] `insights-repository.test.ts` — input: three filter keys with different `updated_at`, one a failure, none; expected: the newest usable sentence with its date; a failure-only document gives null
+- [ ] `public-routes.test.ts` — input: `GET /api/public/:id` for a missing id and for a flag-off document; expected: the same status and the same body
+- [ ] `public-routes.test.ts` — input: `GET /api/public/:id` with the flag on, no cookie; expected: 200 `access: visitor`, `viewer.name` is `Anonymous <Animal>`, a room token, and no `@` anywhere in the body
+- [ ] `public-routes.test.ts` — input: the same call signed in as a non-member; expected: the real name, `isAnonymous` false
+- [ ] `public-routes.test.ts` — input: the same call signed in as a member; expected: `access: member`, no token
+- [ ] `public-routes.test.ts` — input: the call on an uncommitted room; expected: 503 with `Retry-After`; `openBudget` untouched on every call
+- [ ] `public-routes.test.ts` — input: `PUBLIC_READS_PER_MINUTE + 1` calls from one address; expected: the last is 429 with `Retry-After`
+- [ ] `public-routes.test.ts` — input: `POST /api/public/:id/summary`, `POST /api/documents/:id/summaries/selection` without a session; expected: 404 and 401, the model fake was never called
+- [ ] `public-routes.test.ts` — input: `GET` timeline, topics, versions, events, download, comments without a session; expected: 401 each, `topics.ensure` and the scheduler never called
+- [ ] `public-socket.test.ts` — input: no token, expired, another document, agent token, flag off, missing Origin; expected: refused each
+- [ ] `public-socket.test.ts` — input: a valid token; expected: connected, `connection.readOnly` true, no `document_members` row for the visitor, nothing in `onlineUserIds`
+- [ ] `public-socket.test.ts` — input: `PUBLIC_SOCKET_ADMISSIONS_PER_MINUTE + 1` upgrades from one address; expected: the last answered 429
+- [ ] `public-socket.test.ts` — input: the owner switches the flag off while a visitor is connected; expected: the visitor socket closes with the access-revoked code; the same token cannot join again
+- [ ] `public-socket.test.ts` — input: a visitor awareness frame; expected: silenced, no entry reaches the room
+
+## E2E (Playwright specs)
+
+- [ ] `e2e/public-link.spec.ts::an anonymous reader sees the text live and cannot type` — steps: owner switches public and types; an anonymous context opens `/public/:id`; expected: the text appears, typing changes nothing, the `View only` chip shows
+- [ ] `e2e/public-link.spec.ts::the latest summary shows` — steps: owner summarizes; anonymous opens; expected: the summary card shows the stored sentence
+- [ ] `e2e/public-link.spec.ts::turning the flag off disconnects` — steps: anonymous viewing; owner switches off; expected: the anonymous page shows the not-found state
+- [ ] `e2e/public-link.spec.ts::visitors and online people` (step 15) — steps: owner and anonymous both open; expected: the owner row shows `Anonymous <Animal>`; the anonymous page shows the owner online
+
+## Prove it for real — Playwright MCP
+
+- [ ] Happy path with two browsers (owner, anonymous): owner opens Share, switches `Anyone with the link can view`, copies the link; anonymous opens it; expected: the Reader view, `View only`, live text as the owner types
+- [ ] Flag off → not found: anonymous opens `/public/:id` for a document never made public; expected: the not-found state, same as a random UUID
+- [ ] Flag toggled off while viewing: owner switches off; expected: the anonymous page leaves the document within five seconds
+- [ ] Anonymous update dropped: anonymous clicks into the text and types; expected: nothing is inserted anywhere, the owner's text unchanged
+- [ ] Public POST summarize refused: from the anonymous page console, `fetch('/api/documents/<id>/summaries/selection', {method:'POST'})`; expected: 401
+- [ ] Timeline and topics unreachable: the same console fetch for `/timeline` and `/topics`; expected: 401 each
+- [ ] No emails in the payload: network tab of the public page; expected: no `@` in any response
+- [ ] Rate limit hit: reload the public page past the window; expected: the rate-limit copy and `Retry-After` honoured
+- [ ] Member redirect: the owner opens `/public/:id` signed in; expected: the page lands on `/documents/:id`
+- [ ] Signed-in non-member: a third user opens the link; expected: their real name and avatar, still read-only
+- [ ] No summary → no card: a document never summarized; expected: no summary card on the public page
+- [ ] Console and network clean: zero console errors, zero failed requests other than the deliberate refusals above
+- [ ] Desktop width 1280 and narrow width 375: the public page lays out without horizontal scroll
+- [ ] Screenshots at `.pr-media/public-read-only-link/`; video beside them
+
+## Edge cases found during execution
+
+Empty on purpose. The tester adds one checkbox per new case (input, exact expected outcome) and a regression test for each.
+
+## Adversarial review
+
+The reviewer picks the three claims most likely to be wrong and tries to refute each.
+
+- [ ] Claim 1: a visitor can never write — attack: send a raw sync update on the public socket, with and without `readOnly`; result:
+- [ ] Claim 2: nothing public starts model, projection or version work — attack: walk every route under `/api` without a session and count worker jobs; result:
+- [ ] Claim 3: a missing id and a flag-off id are indistinguishable — attack: compare status, body, headers and timing; result:
+
+## Coverage honesty
+
+What is not tested and why.
+
+- The per-address window keeps one window per address in memory — the helper is shared with the upload budget; the accepted risk is memory growth under an address-rotating flood, bounded by the rate of new addresses a single host can present.
+- Real SuperDoc rendering of a visitor's cursor colour — only the Playwright walk sees it.

@@ -29,6 +29,7 @@ const EXPECTED_KEYS = [
   'OPEN_UNCOMMITTED_PER_MINUTE',
   'UPLOADS_PER_MINUTE',
   'MAX_HEAVY_CONVERSIONS_PER_HOUR',
+  'AGENT_PRESENCE_LINGER_MS',
 ];
 const PRINT_ENVIRONMENT_SCRIPT = `import('./e2e/stack.ts').then((stack) => console.log(JSON.stringify(stack.stackEnvironment(${JSON.stringify({ port: SCENARIO_PORT, databaseDir: DATABASE_DIRECTORY, fakeOpenRouterOrigin: FAKE_OPENROUTER_ORIGIN })}))))`;
 

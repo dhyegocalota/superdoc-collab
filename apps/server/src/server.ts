@@ -207,6 +207,7 @@ function createAgentSessions({
     collaborationUrl: () => `${LOOPBACK_WEBSOCKET_ORIGIN}:${listeningPort.value}${ApiPath.AgentCollaboration}`,
     roleOf: ({ userId, documentId }) => documents.findRole({ documentId, userId }),
     locateRoom: ({ documentId, userId }) => ({ roomMode: agentRoomMode({ runtime, documentId, userId }) }),
+    presenceLingerMs: environment.agentPresenceLingerMs,
   });
 }
 

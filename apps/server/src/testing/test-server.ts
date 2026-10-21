@@ -7,6 +7,7 @@ import {
   UTC_TIME_ZONE,
   type SessionUser,
   inviteTokenOf,
+  AGENT_PRESENCE_LINGER_MS,
   MAX_BOOTSTRAP_WAIT_MS,
   MAX_HEAVY_CONVERSIONS_PER_HOUR,
 } from '@superdoc-collab/types';
@@ -73,6 +74,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     bootstrapHostHeapMegabytes: null,
     memoryLimitMegabytes: null,
     maxBootstrapWaitMs: MAX_BOOTSTRAP_WAIT_MS,
+    agentPresenceLingerMs: AGENT_PRESENCE_LINGER_MS,
     roomHeapBudgetMegabytes: null,
     heavyConversionsPerHour: MAX_HEAVY_CONVERSIONS_PER_HOUR,
   };

@@ -3,7 +3,7 @@
 **Status:** Approved
 **Tier:** 🟡
 **Owner approval:** approved 2026-10-21
-**ADRs:** [0028](../../adr/0028-agent-edits-through-the-sdk-host-socket.md), [0029](../../adr/0029-agent-authorship-is-a-separate-author-key.md), [0032](../../adr/0032-presence-is-server-driven.md)
+**ADRs:** [0028](../../adr/0028-the-actor-not-the-name-marks-an-ai-in-our-interface.md), [0029](../../adr/0029-agent-edits-carry-a-human-or-agent-actor.md), [0032](../../adr/0032-connection-state-truth-callback-for-transitions-server-presence-for-recovery.md)
 **Not changing:** the SDK host socket and its idle close, the agent author key and its colour, who may edit, the jump-to-cursor behaviour for human members, the share dialog's "People with access" list
 
 ## Problem

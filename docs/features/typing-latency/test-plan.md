@@ -14,7 +14,7 @@ Every checkbox states the input and the exact expected outcome. A ticked box car
 
 ## E2E (Playwright specs)
 
-- [ ] `e2e/typing-latency.spec.ts::a keystroke in a 2,000-page document reaches the page in under 1.5 s at the start and under 500 ms in the middle, with no task over 1 s` — steps: upload the 9.5 MB fixture, join as a second author, type ten letters with the caret at the start, scroll to the middle, click a clause, press Home, type ten more; expected: the start median under 1.5 s, the middle median under 500 ms and the longest task under 1 s (the measured reality with margin, a guard against getting worse)
+- [ ] `e2e/typing-latency.spec.ts::a keystroke in a 2,000-page document reaches the page in under 1.5 s at the start and in the middle, with no task over 1 s` — steps: upload the 9.5 MB fixture, join as a second author, type ten letters with the caret at the start, scroll to the middle, click a clause, press Home, type ten more; expected: the start and middle medians under 1.5 s and the longest task under 1 s (measured: 1,089 ms at the start, 752 ms in the middle) (the measured reality with margin, a guard against getting worse)
 - [ ] `e2e/device-first.spec.ts`, `e2e/local-preview.spec.ts`, `e2e/backpressure.spec.ts`, `e2e/room-admission.spec.ts` serially with the new spec — expected: green, with the device-first times (uploader editable about 70 s, joiner about 77 s, first text about 10 s) holding
 
 ## Prove it for real — Playwright MCP

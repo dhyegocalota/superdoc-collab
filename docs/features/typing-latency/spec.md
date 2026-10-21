@@ -14,7 +14,7 @@ In the 9.5 MB document (56,800 paragraphs, 2,185 pages) every keystroke made Sup
 
 No editor option is adopted. Every SuperDoc layout setting that could plausibly cut the per-transaction layout was measured on the 9.5 MB fixture with the same probe (ten keystrokes at the start of the document, Playwright plus Chrome DevTools Protocol, one laptop under load, the typist joining as a second author). None brings the keystroke under 150 ms; the best three cut it by about 40% (`useLayoutEngine: false` 658 ms, `flowMode: 'semantic'` with the virtualization window 671 ms, `flowMode: 'semantic'` alone 683 ms) and change how lines flow or drop the page layout engine, both unmeasured for fidelity, so they are not shipped. A spike's reading of 102 ms with the virtualization window came from an ad-hoc override and did not reproduce with the option in the build (929 ms with the spike's own harness), so the option is not kept either.
 
-What ships: this measurement, the E2E `e2e/typing-latency.spec.ts` as a regression guard with the real numbers as bounds (median under 1.5 s at the start and under 500 ms in the middle of the 2,000-page document, no task longer than 1 s, so a change that makes it worse fails), a row in `docs/next.md`, and the issue draft below for SuperDoc.
+What ships: this measurement, the E2E `e2e/typing-latency.spec.ts` as a regression guard with the real numbers as bounds (median under 1.5 s at the start and in the middle of the 2,000-page document, no task longer than 1 s, so a change that makes it worse fails), a row in `docs/next.md`, and the issue draft below for SuperDoc.
 
 ## Measured
 
@@ -27,7 +27,7 @@ What ships: this measurement, the E2E `e2e/typing-latency.spec.ts` as a regressi
 | `useLayoutEngine: false` (the legacy layout) | 658 ms | 1,726 ms | 157 ms |
 | `experimental.v2WebSurface: 'dense-control'` | the tab crashed | | |
 
-A one-paragraph document: 24 ms median. Keystrokes in the middle of the large document: 48 ms median with 1 s spikes (default).
+A one-paragraph document: 24 ms median. Keystrokes in the middle of the large document, measured by the guard spec after scrolling there and clicking a clause: 752 ms median (default); the spike's earlier 48 ms reading for the middle came from a probe that had not scrolled.
 
 Production (Railway, 8 GB, main 55676e5c, the default options), the owner's 9.5 MB document uploaded through the dialog by a device reporting 8 GB: first text 11.6 s, editable at 67 s, then ten keystrokes at the start: median 870 ms, max 1,256 ms.
 

@@ -106,3 +106,9 @@ test('the preview options open the uploaded bytes read-only, fitted to the width
 test('the context menu gets the shortcut provider', () => {
   expect(optionsFor(document.createElement('div'))).toMatchObject({ ui: { contextMenu: { menuProvider: expect.any(Function) } } });
 });
+
+test('the toolbar keeps the ruler and the document mode, and still hides the measurement unit', () => {
+  expect(TOOLBAR_EXCLUDED_ITEMS).not.toContain('ruler');
+  expect(TOOLBAR_EXCLUDED_ITEMS).not.toContain('document-mode');
+  expect(TOOLBAR_EXCLUDED_ITEMS).toContain('measurement-unit');
+});

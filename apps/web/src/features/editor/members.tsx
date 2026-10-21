@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
 import type { SuperDoc, SuperDocAwarenessUpdatePayload } from 'superdoc';
 import { UserAvatar, UserAvatarSize } from '@/components/user-avatar';
+import { ViewerPresence } from '@/features/sharing/viewer-avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -207,13 +208,16 @@ export function Members({
   const rest = hasMenu ? states.slice(besideMenu) : [];
 
   return (
-    <div role="group" aria-label={onlineMembersLabel(states.length + agents.length)} className="flex items-center gap-1">
+    <div role="group" aria-label={onlineMembersLabel(states.length + agents.length + visitors.length)} className="flex items-center gap-1">
       {visible.map((state) => (
         <MemberButton key={state.member.user.id} state={state} onJump={jump} />
       ))}
       {hasMenu && <MembersMenu states={rest} onJump={jump} />}
       {agents.map((agent) => (
         <AgentAvatar key={agentAuthorKey(agent.user.id)} agent={agent} />
+      ))}
+      {visitors.map((visitor) => (
+        <ViewerPresence key={visitor.id} viewer={visitor} />
       ))}
       <p role="status" className="sr-only">
         {announcement}

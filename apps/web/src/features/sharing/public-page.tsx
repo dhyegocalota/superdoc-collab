@@ -32,6 +32,7 @@ import {
   PUBLIC_VIEW_ONLY_LABEL,
   publicViewerLabel,
 } from './public-copy';
+import { PublicMembers } from './public-members';
 import { PublicSummaryCard } from './public-summary-card';
 import { ViewerAvatar } from './viewer-avatar';
 
@@ -85,7 +86,8 @@ function PublicDocumentView({ opened, onReload }: { opened: VisitorAccess; onRel
           </>
         }
         right={
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <PublicMembers documentId={document.id} />
             <ViewerAvatar viewer={viewer} />
             <span className="hidden sm:inline">{publicViewerLabel(viewer.name)}</span>
           </div>

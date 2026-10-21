@@ -4,8 +4,10 @@ import {
   HttpMethod,
   HttpStatus,
   publicApiPath,
+  publicMembersApiPath,
   publicSummaryApiPath,
   type PublicFlag,
+  type PublicMembers,
   type PublicOpened,
   type PublicSummary,
 } from '@superdoc-collab/types';
@@ -14,6 +16,7 @@ import { documentQueryKey } from '@/features/documents/documents-api';
 import {
   PUBLIC_FLAG_SUBJECT,
   PUBLIC_LOAD_FAILED_MESSAGE,
+  PUBLIC_MEMBERS_SUBJECT,
   PUBLIC_OPEN_SUBJECT,
   PUBLIC_SUMMARY_SUBJECT,
   PUBLIC_UNAVAILABLE_MESSAGE,
@@ -61,4 +64,13 @@ export async function fetchPublicOpened(documentId: string): Promise<PublicOpene
 export async function fetchPublicSummary(documentId: string): Promise<PublicSummary> {
   const response = await apiGet(publicSummaryApiPath(documentId));
   return readJson<PublicSummary>({ response, subject: PUBLIC_SUMMARY_SUBJECT });
+}
+
+export async function fetchPublicMembers(documentId: string): Promise<PublicMembers> {
+  const response = await apiGet(publicMembersApiPath(documentId));
+  return readJson<PublicMembers>({ response, subject: PUBLIC_MEMBERS_SUBJECT });
+}
+
+export function publicMembersQueryKey(documentId: string): unknown[] {
+  return [...PUBLIC_QUERY_KEY, documentId, DocumentResource.Members];
 }

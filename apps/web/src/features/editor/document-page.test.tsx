@@ -192,6 +192,7 @@ function mockDocumentApi({
         body: {
           members: [],
           agents: [],
+          visitors: [],
           isCurrentUserOnline: isCurrentUserOnline(),
         },
         status: currentMembersStatus(),

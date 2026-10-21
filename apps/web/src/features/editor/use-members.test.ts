@@ -10,7 +10,7 @@ import { membersQueryKey } from './editor-api';
 import { useMembers } from './use-members';
 
 function membersAnswer({ isCurrentUserOnline }: { isCurrentUserOnline: boolean }): Response {
-  return jsonResponse({ body: { members: [], agents: [], isCurrentUserOnline } });
+  return jsonResponse({ body: { members: [], agents: [], visitors: [], isCurrentUserOnline } });
 }
 
 function renderMembers() {

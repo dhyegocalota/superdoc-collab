@@ -10,6 +10,7 @@ export const PUBLIC_LINK_LOAD_FAILED_MESSAGE = 'The public link setting could no
 export const PUBLIC_LINK_SWITCH_FAILED_MESSAGE = 'The public link could not be changed. Try again.';
 export const PUBLIC_FLAG_SUBJECT = 'Public link setting';
 export const PUBLIC_OPEN_SUBJECT = 'Public document request';
+export const PUBLIC_MEMBERS_SUBJECT = 'Public members request';
 export const PUBLIC_SUMMARY_SUBJECT = 'Public summary request';
 export const PUBLIC_VIEW_ONLY_LABEL = 'View only';
 export const PUBLIC_OPENING_MESSAGE = 'Opening the document';

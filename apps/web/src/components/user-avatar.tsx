@@ -1,5 +1,6 @@
 import type { AuthorColorSlot, PublicAnimal } from '@superdoc-collab/types';
 import { AgentMark } from '@/features/timeline/agent-mark';
+import { ANIMAL_ICONS } from '@/lib/animal-icons';
 import { initialsOf } from '@/lib/initials';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +34,8 @@ type UserAvatarProps = {
   animal?: PublicAnimal | null;
 };
 
-export function UserAvatar({ name, colorSlot, size, isAgent, isOnline }: UserAvatarProps) {
+export function UserAvatar({ name, colorSlot, size, isAgent, isOnline, animal }: UserAvatarProps) {
+  const glyph = animal ? ANIMAL_ICONS[animal] : initialsOf(name);
   return (
     <span
       className={cn(
@@ -42,7 +44,7 @@ export function UserAvatar({ name, colorSlot, size, isAgent, isOnline }: UserAva
         colorSlot === null ? NEUTRAL_COLOR_CLASS : COLOR_CLASSES[colorSlot],
       )}
     >
-      {initialsOf(name)}
+      {glyph}
       {isAgent && (
         <span className="absolute -right-1 -bottom-1 rounded-full bg-primary p-0.5 text-primary-foreground">
           <AgentMark name={name} />

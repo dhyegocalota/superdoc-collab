@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { CLIENT_ADDRESS_HEADER, withClientAddress } from './client-address';
+import { addressWindowKeyOf, CLIENT_ADDRESS_HEADER, withClientAddress } from './client-address';
 
 const remoteAddress = '192.168.1.5';
 
@@ -49,5 +49,29 @@ describe('withClientAddress', () => {
     const original = new Request('http://localhost/x', { method: 'POST', body: '{"a":1}' });
     const request = withClientAddress({ request: original, remoteAddress, trustProxy: false, trustedProxyHops });
     expect(await request.text()).toBe('{"a":1}');
+  });
+});
+
+describe('addressWindowKeyOf', () => {
+  test('an IPv4 address keys as itself', () => {
+    expect(addressWindowKeyOf('203.0.113.7')).toBe('203.0.113.7');
+  });
+
+  test('an IPv4-mapped IPv6 address keys as itself', () => {
+    expect(addressWindowKeyOf('::ffff:203.0.113.7')).toBe('::ffff:203.0.113.7');
+  });
+
+  test('addresses of one IPv6 /64 share a key, however they are written', () => {
+    const keys = ['2001:db8:abcd:12::1', '2001:0db8:abcd:0012:ffff:ffff:ffff:ffff', '2001:DB8:ABCD:12:1:2:3:4'].map(addressWindowKeyOf);
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  test('addresses of two IPv6 /64 networks do not share a key', () => {
+    expect(addressWindowKeyOf('2001:db8:abcd:12::1')).not.toBe(addressWindowKeyOf('2001:db8:abcd:13::1'));
+  });
+
+  test('loopback and a zone id are keyed without panic', () => {
+    expect(addressWindowKeyOf('::1')).toBe(addressWindowKeyOf('0:0:0:0:0:0:0:1'));
+    expect(addressWindowKeyOf('fe80::1%en0')).toBe(addressWindowKeyOf('fe80::2'));
   });
 });

@@ -81,3 +81,6 @@ export const NON_NEGATIVE_INTEGER_PATTERN = /^\d+$/;
 export function secondsRoundedUp(milliseconds: number): number {
   return Math.ceil(milliseconds / SECOND_MS);
 }
+export const PUBLIC_MAX_SOCKET_MESSAGE_BYTES = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE;
+export const PUBLIC_MESSAGE_REASON = 'Public readers may only sync and read awareness';
+export const KEYED_WINDOW_MAX_KEYS = 50_000;

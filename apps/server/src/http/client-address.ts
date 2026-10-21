@@ -36,3 +36,7 @@ export function withClientAddress({
   headers.set(CLIENT_ADDRESS_HEADER, clientAddressOf({ forwardedFor, remoteAddress, trustProxy, trustedProxyHops }));
   return new Request(request, { headers });
 }
+
+export function addressWindowKeyOf(address: string): string {
+  throw new Error(`addressWindowKeyOf is not implemented for ${address}`);
+}

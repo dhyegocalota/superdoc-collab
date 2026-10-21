@@ -6,7 +6,16 @@ export class KeyedSlidingWindow {
   private readonly maxEvents: number;
   private readonly now: () => number;
 
-  constructor({ windowMs, maxEvents, now = () => Date.now() }: { windowMs: number; maxEvents: number; now?: () => number }) {
+  constructor({
+    windowMs,
+    maxEvents,
+    now = () => Date.now(),
+  }: {
+    windowMs: number;
+    maxEvents: number;
+    maxKeys?: number;
+    now?: () => number;
+  }) {
     this.windowMs = windowMs;
     this.maxEvents = maxEvents;
     this.now = now;

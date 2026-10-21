@@ -168,6 +168,24 @@ export function connectAsBootstrap({
   return openProvider({ server, headers: {}, origin: undefined, token, documentId, document, path });
 }
 
+export function connectAsVisitor({
+  server,
+  token,
+  documentId,
+  document = new Y.Doc(),
+  origin = server.baseUrl,
+  path = ApiPath.PublicCollaboration,
+}: {
+  server: TestServer;
+  token: string;
+  documentId: string;
+  document?: Y.Doc;
+  origin?: string;
+  path?: string;
+}): Promise<CollaborationClient> {
+  return openProvider({ server, headers: {}, origin, token, documentId, document, path });
+}
+
 export function connectAgentToDocument({
   server,
   token,

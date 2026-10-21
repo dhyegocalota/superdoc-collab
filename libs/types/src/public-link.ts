@@ -42,11 +42,16 @@ export enum PublicAnimal {
 }
 
 const ANONYMOUS_NAME_PREFIX = 'Anonymous';
+const PUBLIC_USER_ID_PREFIX = 'public:';
 const ANIMALS = Object.values(PublicAnimal);
 
 class UnknownPublicAnimalError extends Error {}
 
 export type PublicViewer = { id: string; name: string; colorSlot: AuthorColorSlot; animal: PublicAnimal | null };
+
+export function publicUserIdOf(visitorId: string): string {
+  return `${PUBLIC_USER_ID_PREFIX}${visitorId}`;
+}
 
 export function anonymousVisitorName(animal: PublicAnimal): string {
   return `${ANONYMOUS_NAME_PREFIX} ${animal}`;

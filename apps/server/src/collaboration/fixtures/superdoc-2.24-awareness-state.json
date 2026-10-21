@@ -19,9 +19,7 @@
       "kind": "block"
     },
     "renderable": true,
-    "blockHints": [
-      "00000001"
-    ]
+    "blockHints": ["00000001"]
   },
   "operationIntent": "selecting",
   "extensions": {

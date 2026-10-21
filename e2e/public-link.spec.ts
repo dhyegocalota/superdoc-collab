@@ -162,7 +162,9 @@ test('no websocket frame a visitor receives carries the email of a member', asyn
   const frames: Buffer[] = [];
   anonymous.page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => frames.push(Buffer.from(payload))));
   await anonymous.page.goto(address);
-  await expect(liveEditorText(anonymous.page).filter({ hasText: PARAGRAPHS[0]! }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });
+  await expect(liveEditorText(anonymous.page).filter({ hasText: PARAGRAPHS[0]! }).first()).toBeVisible({
+    timeout: EDITOR_READY_TIMEOUT_MS,
+  });
   await insertInParagraph({ page: ana.page, paragraphText: PARAGRAPHS[0]!, text: LIVE_TEXT });
   await expect(anonymous.page.locator(REMOTE_CARET_SELECTOR).first()).toBeVisible({ timeout: PRESENCE_TIMEOUT_MS });
   await expect(editorText(anonymous.page).filter({ hasText: LIVE_TEXT.trim() }).first()).toBeVisible({ timeout: EDITOR_READY_TIMEOUT_MS });

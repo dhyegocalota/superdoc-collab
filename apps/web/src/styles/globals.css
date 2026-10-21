@@ -50,8 +50,8 @@ html:root {
   --sd-ui-toolbar-bg: var(--background);
   --sd-ui-hover-bg: var(--accent);
   --sd-ui-border: var(--border);
-  --sd-ui-action: var(--primary);
-  --sd-ui-action-hover: var(--primary);
+  --sd-ui-action: var(--sd-editor-accent, var(--primary));
+  --sd-ui-action-hover: var(--sd-editor-accent-hover, var(--primary));
   --sd-layout-page-bg: var(--paper);
   --sd-comment-bg: var(--card);
   --sd-comment-bg-hover: var(--popover);
@@ -81,7 +81,7 @@ html:root {
   --sd-ui-comments-timestamp-text: var(--muted-foreground);
   --sd-ui-toolbar-button-text: var(--foreground);
   --sd-ui-tooltip-text: var(--popover-foreground);
-  --sd-ui-action-text: var(--primary-foreground);
+  --sd-ui-action-text: var(--sd-editor-accent-text, var(--primary-foreground));
   --sd-ui-comments-input-bg: var(--card);
   --sd-ui-comments-tag-bg: var(--muted);
   --sd-ui-disabled-bg: var(--muted);

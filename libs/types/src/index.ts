@@ -16,3 +16,4 @@ export * from './author-colors';
 export * from './connection';
 export * from './showcase';
 export * from './layout';
+export * from './public-link';

@@ -67,6 +67,14 @@ export class DocumentsRepository {
     return found;
   }
 
+  isPublic(documentId: string): boolean {
+    throw new Error(`isPublic is not implemented for ${documentId}`);
+  }
+
+  setPublic({ documentId, isPublic }: { documentId: string; isPublic: boolean }): void {
+    throw new Error(`setPublic is not implemented for ${documentId} ${isPublic}`);
+  }
+
   rename({ documentId, title }: { documentId: string; title: string }): void {
     this.database.drizzle.update(documents).set({ title, updatedAt: new Date() }).where(eq(documents.id, documentId)).run();
   }

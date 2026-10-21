@@ -49,6 +49,7 @@ export enum DocumentResource {
   Summaries = 'summaries',
   Versions = 'versions',
   Thumbnail = 'thumbnail',
+  Public = 'public',
 }
 
 export enum VersionResource {

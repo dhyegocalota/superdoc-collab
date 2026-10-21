@@ -29,6 +29,7 @@ import type { DocumentsRepository } from '../documents/documents-repository';
 import { createDocumentsRoutes } from '../documents/documents-routes';
 import type { DocumentFileStorage } from '../documents/file-storage';
 import type { ShowcaseDocuments } from '../documents/showcase-documents';
+import { createPublicLinkRoutes } from '../documents/public-link-routes';
 import { createShareLinksRoutes } from '../documents/share-links-routes';
 import type { ShareLinksRepository } from '../documents/share-links';
 import { DocumentNotFoundError, DocumentRoleTooLowError } from '../documents/require-document-role';
@@ -166,6 +167,7 @@ export function createApp({ auth, environment, services }: { auth: Auth; environ
   app.route(ApiPath.Documents, createTimelineRoutes({ services }));
   app.route(ApiPath.Documents, createInsightsRoutes({ services }));
   app.route(ApiPath.Documents, createVersionsRoutes({ services }));
+  app.route(ApiPath.Documents, createPublicLinkRoutes({ services }));
   app.route(
     ApiPath.Documents,
     createDocumentsRoutes({

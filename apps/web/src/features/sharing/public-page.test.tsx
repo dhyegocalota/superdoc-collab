@@ -80,6 +80,12 @@ const SUMMARY: PublicSummary = {
   },
 };
 const NO_SUMMARY: PublicSummary = { summary: null };
+const CONNECTION_FAILED = {
+  code: 'collaboration-connection-failed',
+  collaborationReason: 'connection-failed',
+  error: new Error('refused'),
+  editor: null,
+};
 const ACCESS_DENIED = {
   code: 'collaboration-access-denied',
   collaborationReason: 'access-denied',
@@ -215,7 +221,7 @@ test('an access denial from the socket asks again and lands on not available whe
   expect(await screen.findByText(PUBLIC_UNAVAILABLE_MESSAGE)).toBeInTheDocument();
 });
 
-test('another connection failure shows a banner whose Reload asks for a new room token', async () => {
+test('a connection that fails after it synced asks for a new room token by itself', async () => {
   const freshViewer = anonymousViewerOf('visitor-2');
   const answers = [
     () => jsonResponse({ body: VISITOR }),
@@ -224,17 +230,25 @@ test('another connection failure shows a banner whose Reload asks for a new room
   mockPublicApi({ opened: () => answers.shift()!() });
   renderPublicPage();
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
-  const failure = {
-    code: 'collaboration-connection-failed',
-    collaborationReason: 'connection-failed',
-    error: new Error('refused'),
-    editor: null,
-  };
   act(() => constructedConfig().onCollaborationReady());
-  act(() => constructedConfig().onException(failure));
+  act(() => constructedConfig().onException(CONNECTION_FAILED));
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
+  expect(constructedConfig().documents[0]!.v2Collaboration.token).toBe('second-token');
+  expect(superDocDestroy).toHaveBeenCalled();
+});
+
+test('a connection that fails before it synced shows a banner whose Reload asks for a new room token', async () => {
+  const freshViewer = anonymousViewerOf('visitor-2');
+  const answers = [
+    () => jsonResponse({ body: VISITOR }),
+    () => jsonResponse({ body: { ...VISITOR, viewer: freshViewer, roomToken: 'second-token' } }),
+  ];
+  mockPublicApi({ opened: () => answers.shift()!() });
+  renderPublicPage();
+  await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(1));
+  act(() => constructedConfig().onException(CONNECTION_FAILED));
   expect(await screen.findByText(PUBLIC_CONNECTION_FAILED_MESSAGE)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: PUBLIC_RELOAD_LABEL }));
   await waitFor(() => expect(SuperDoc).toHaveBeenCalledTimes(2));
   expect(constructedConfig().documents[0]!.v2Collaboration.token).toBe('second-token');
-  expect(superDocDestroy).toHaveBeenCalled();
 });

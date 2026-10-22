@@ -109,6 +109,7 @@ export function attachCollaboration({
   publicAdmission,
   path,
   allowedOrigin,
+  now = Date.now,
 }: {
   httpServer: Server;
   auth: Auth;
@@ -117,10 +118,11 @@ export function attachCollaboration({
   publicAdmission: PublicAdmission;
   path: string;
   allowedOrigin: string;
+  now?: () => number;
 }): WebSocketServer[] {
   const sockets = new WebSocketServer(SOCKET_SERVER_OPTIONS);
   const publicSockets = new WebSocketServer(PUBLIC_SOCKET_SERVER_OPTIONS);
-  const messageLimit = new SocketMessageLimit();
+  const messageLimit = new SocketMessageLimit({ now });
   function closeOnBreach(this: WebSocket, frame: RawData): void {
     if (!messageLimit.breached({ socket: this, frame })) return;
     console.warn(SOCKET_RATE_LIMIT_LOG);

@@ -304,12 +304,14 @@ export async function signedInOwner({
   versionRoomPolicy,
   memoryLimitMegabytes,
   roomHeapBudgetMegabytes,
+  now,
 }: {
   languageModel?: LanguageModelChoice;
   versionRoomPolicy?: VersionRoomPolicy;
   memoryLimitMegabytes?: number | null;
   roomHeapBudgetMegabytes?: number | null;
+  now?: () => number;
 } = {}): Promise<{ server: TestServer; owner: TestUser }> {
-  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes, roomHeapBudgetMegabytes });
+  const server = await startTestServer({ languageModel, versionRoomPolicy, memoryLimitMegabytes, roomHeapBudgetMegabytes, now });
   return { server, owner: await signedInUser({ server, name: OWNER_NAME }) };
 }

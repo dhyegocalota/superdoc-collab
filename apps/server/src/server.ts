@@ -491,6 +491,7 @@ export async function startServer({
     },
     path: ApiPath.Collaboration,
     allowedOrigin: environment.appOrigin,
+    now,
   });
   return {
     httpServer,

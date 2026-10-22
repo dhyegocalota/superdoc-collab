@@ -205,13 +205,14 @@ export function connectAgentToDocument({
 export async function documentWithOwner({
   languageModel,
   versionRoomPolicy,
-}: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy } = {}): Promise<{
+  now,
+}: { languageModel?: LanguageModelChoice; versionRoomPolicy?: VersionRoomPolicy; now?: () => number } = {}): Promise<{
   server: TestServer;
   documentId: string;
   owner: TestUser;
   bootstrapToken: string;
 }> {
-  const { server, owner } = await signedInOwner({ languageModel, versionRoomPolicy });
+  const { server, owner } = await signedInOwner({ languageModel, versionRoomPolicy, now });
   const documentId = randomUUID();
   server.services.documents.create({ id: documentId, title: DOCUMENT_TITLE, ownerUserId: owner.id });
   const bootstrapToken = beginOwnerBootstrap({ server, documentId, owner });

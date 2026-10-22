@@ -292,7 +292,7 @@ describe('attachCollaboration', () => {
     expect(outcome).toBe('destroyed');
   });
   test('more awareness frames than the cap close the socket with 1008 and the reason', async () => {
-    const { server, documentId, owner } = await documentWithOwner();
+    const { server, documentId, owner } = await documentWithOwner({ now: frozenClock() });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const client = await connectToDocument({ server, cookie: owner.cookie, documentId });
     Array.from({ length: MAX_SOCKET_AWARENESS_FRAMES_PER_SECOND + 1 }).forEach((_, index) =>
@@ -509,6 +509,11 @@ describe('attachCollaboration', () => {
   );
 });
 
+function frozenClock(): () => number {
+  const frozenAt = Date.now();
+  return () => frozenAt;
+}
+
 async function openCountedSocket({
   answer = AUTHENTICATED_ANSWER,
   afterAnswer = () => undefined,
@@ -538,6 +543,7 @@ async function openCountedSocket({
     publicAdmission: PUBLIC_ADMISSION,
     path: ApiPath.Collaboration,
     allowedOrigin: ORIGIN,
+    now: frozenClock(),
   });
   await new Promise<void>((resolve) => httpServer.listen(0, LOOPBACK_HOST, resolve));
   const { port } = httpServer.address() as AddressInfo;

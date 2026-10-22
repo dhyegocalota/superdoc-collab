@@ -60,6 +60,7 @@ test('the toolbar toggles the ruler, switches the mode and keeps a theme across 
   await chooseMode({ page, mode: DocumentModeLabel.Viewing });
   await expect(modeToggle(page)).toContainText(DocumentModeLabel.Viewing);
   await expect(page.locator(EDITOR_INPUT_SELECTOR).first()).toHaveJSProperty('readOnly', true);
+  await expect(toolbarRow(page).locator(RULER_BUTTON_SELECTOR).first()).toHaveCSS('pointer-events', 'none');
 
   const defaultColor = await actionColor(page);
   const summarize = page.getByRole('button', { name: SUMMARIZE_EDITS_LABEL });

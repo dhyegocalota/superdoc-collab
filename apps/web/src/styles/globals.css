@@ -274,3 +274,9 @@ html:root.dark {
     }
   }
 }
+
+.superdoc-toolbar:has([data-item='btn-bold'].sd-disabled) [data-item='btn-ruler'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

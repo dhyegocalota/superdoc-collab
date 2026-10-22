@@ -175,8 +175,8 @@ test('rotating as an editor is 403', async () => {
 test('links stored under another secret are regenerated and work', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
-  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server' }).links(documentId);
-  const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!' });
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!', previousSecret: null });
   const newLinks = current.links(documentId);
   const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
   expect(newLinks[ShareLinkRole.Edit]).not.toBe(oldLinks[ShareLinkRole.Edit]);
@@ -187,11 +187,45 @@ test('links stored under another secret are regenerated and work', async () => {
 test('a token issued under another secret stops resolving before any read reissues it', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
-  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server' }).links(documentId);
-  const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!' });
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!', previousSecret: null });
   const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Read]))).toBeNull();
+  await server.stop();
+});
+
+test('links issued under the previous secret keep their URL and keep resolving after a rotation', async () => {
+  const { server, documentId } = await blankDocumentWithOwner();
+  const options = { database: server.database, appOrigin: server.baseUrl };
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const rotated = new ShareLinksRepository({
+    ...options,
+    secret: 'the-current-secret-of-the-server!',
+    previousSecret: 'the-previous-secret-of-the-server',
+  });
+  const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
+  expect(rotated.links(documentId)).toEqual(oldLinks);
+  expect(rotated.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toEqual({ documentId, role: ShareLinkRole.Edit });
+  expect(rotated.resolve(tokenOf(oldLinks[ShareLinkRole.Read]))).toEqual({ documentId, role: ShareLinkRole.Read });
+  await server.stop();
+});
+
+test('a link rotated after the secret rotation is issued under the current secret', async () => {
+  const { server, documentId } = await blankDocumentWithOwner();
+  const options = { database: server.database, appOrigin: server.baseUrl };
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const rotated = new ShareLinksRepository({
+    ...options,
+    secret: 'the-current-secret-of-the-server!',
+    previousSecret: 'the-previous-secret-of-the-server',
+  });
+  const newLinks = rotated.rotate({ documentId, role: ShareLinkRole.Edit });
+  const currentOnly = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!', previousSecret: null });
+  const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
+  expect(newLinks[ShareLinkRole.Edit]).not.toBe(oldLinks[ShareLinkRole.Edit]);
+  expect(currentOnly.resolve(tokenOf(newLinks[ShareLinkRole.Edit]))).toEqual({ documentId, role: ShareLinkRole.Edit });
+  expect(rotated.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
   await server.stop();
 });
 

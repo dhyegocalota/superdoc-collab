@@ -32,6 +32,7 @@ describe('loadEnvironment', () => {
       host: null,
       appOrigin: 'http://localhost:5173',
       authSecret: 'x'.repeat(32),
+      previousAuthSecret: null,
       databaseDirectory: '/tmp/data',
       trustProxy: false,
       trustedProxyHops: 1,
@@ -68,6 +69,19 @@ describe('loadEnvironment', () => {
   test.each(['0', '-1', '1.5', 'two'])('refuses to start with TRUSTED_PROXY_HOPS %s, naming the variable', (value) => {
     expect(() => loadEnvironment({ ...complete, TRUSTED_PROXY_HOPS: value })).toThrow(/TRUSTED_PROXY_HOPS/);
   });
+  test('has no previous secret when AUTH_SECRET_PREVIOUS is unset or empty', () => {
+    expect(loadEnvironment(complete).previousAuthSecret).toBeNull();
+    expect(loadEnvironment({ ...complete, AUTH_SECRET_PREVIOUS: '' }).previousAuthSecret).toBeNull();
+  });
+
+  test('reads AUTH_SECRET_PREVIOUS when it is set', () => {
+    expect(loadEnvironment({ ...complete, AUTH_SECRET_PREVIOUS: 'y'.repeat(32) }).previousAuthSecret).toBe('y'.repeat(32));
+  });
+
+  test('rejects a short AUTH_SECRET_PREVIOUS, naming the variable', () => {
+    expect(() => loadEnvironment({ ...complete, AUTH_SECRET_PREVIOUS: 'short' })).toThrow(/AUTH_SECRET_PREVIOUS/);
+  });
+
   test('rejects a short AUTH_SECRET', () => {
     expect(() => loadEnvironment({ ...complete, AUTH_SECRET: 'short' })).toThrow(/AUTH_SECRET/);
   });

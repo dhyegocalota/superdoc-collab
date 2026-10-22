@@ -35,3 +35,4 @@ A share token is derived from the server's signing secret and a per-link nonce; 
 ## Revisit when
 
 - Secrets become per-document or come from a key-management service with versions, which would allow old links to keep resolving during a rotation window.
+- Revisited 2026-10-22 by [0051](0051-rotating-auth-secret-keeps-the-previous-secret.md): an optional previous secret keeps links issued under it resolving through a rotation.

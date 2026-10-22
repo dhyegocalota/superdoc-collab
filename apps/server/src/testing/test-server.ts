@@ -63,6 +63,7 @@ export function testEnvironment({ databaseDirectory = temporaryDirectory() }: { 
     host: LOOPBACK_HOST,
     appOrigin: `http://${LOOPBACK_HOST}`,
     authSecret: TEST_AUTH_SECRET,
+    previousAuthSecret: null,
     databaseDirectory,
     trustProxy: true,
     trustedProxyHops: TRUSTED_PROXY_HOPS,
@@ -105,6 +106,8 @@ export async function startTestServer({
   maxBootstrapWaitMs = MAX_BOOTSTRAP_WAIT_MS,
   roomHeapBudgetMegabytes = null,
   heavyConversionsPerHour = MAX_HEAVY_CONVERSIONS_PER_HOUR,
+  authSecret = TEST_AUTH_SECRET,
+  previousAuthSecret = null,
 }: {
   trustProxy?: boolean;
   trustedProxyHops?: number;
@@ -119,13 +122,16 @@ export async function startTestServer({
   maxBootstrapWaitMs?: number;
   roomHeapBudgetMegabytes?: number | null;
   heavyConversionsPerHour?: number;
+  authSecret?: string;
+  previousAuthSecret?: string | null;
 } = {}): Promise<TestServer> {
   const port = await reserveFreePort();
   const environment: Environment = {
     port,
     host: LOOPBACK_HOST,
     appOrigin: `http://${LOOPBACK_HOST}:${port}`,
-    authSecret: TEST_AUTH_SECRET,
+    authSecret,
+    previousAuthSecret,
     databaseDirectory,
     trustProxy,
     trustedProxyHops,
@@ -164,6 +170,8 @@ export async function startTestServer({
       claim,
       showcaseOnClaim,
       now,
+      authSecret,
+      previousAuthSecret,
     });
   }
 }

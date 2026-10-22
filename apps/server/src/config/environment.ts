@@ -20,6 +20,12 @@ export class MissingEnvironmentVariableError extends Error {
   }
 }
 
+export class ShortEnvironmentSecretError extends Error {
+  constructor(name: string) {
+    super(`Environment variable ${name} must be at least ${AUTH_SECRET_MIN_LENGTH} characters long`);
+  }
+}
+
 export class InvalidOriginError extends Error {
   constructor({ name, value }: { name: string; value: string }) {
     super(`Environment variable ${name} must be a bare origin, received: ${value}`);
@@ -68,6 +74,7 @@ export type Environment = {
   host: string | null;
   appOrigin: string;
   authSecret: string;
+  previousAuthSecret: string | null;
   databaseDirectory: string;
   trustProxy: boolean;
   trustedProxyHops: number;
@@ -123,6 +130,13 @@ export function loadLlmSettings(source: NodeJS.ProcessEnv): LlmSettings {
   };
 }
 
+function previousAuthSecretOf(source: NodeJS.ProcessEnv): string | null {
+  const previous = presentOrNull(source.AUTH_SECRET_PREVIOUS);
+  if (previous === null) return null;
+  if (previous.length < AUTH_SECRET_MIN_LENGTH) throw new ShortEnvironmentSecretError('AUTH_SECRET_PREVIOUS');
+  return previous;
+}
+
 export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
   const missing = Object.keys(schema.shape).find((name) => source[name] === undefined);
   if (missing) throw new MissingEnvironmentVariableError(missing);
@@ -135,6 +149,7 @@ export function loadEnvironment(source: NodeJS.ProcessEnv): Environment {
     host: presentOrNull(source.HOST),
     appOrigin: parsed.APP_ORIGIN,
     authSecret: parsed.AUTH_SECRET,
+    previousAuthSecret: previousAuthSecretOf(source),
     databaseDirectory: parsed.DATABASE_DIR,
     trustProxy: parsed.TRUST_PROXY === BooleanFlag.True,
     trustedProxyHops: limitFrom({ name: 'TRUSTED_PROXY_HOPS', value: source.TRUSTED_PROXY_HOPS, fallback: TRUSTED_PROXY_HOPS }),

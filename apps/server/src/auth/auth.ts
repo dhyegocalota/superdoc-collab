@@ -28,6 +28,7 @@ import { impersonationExpiryPlugin } from './impersonation-expiry';
 import { registrationLimitsPlugin } from './registration-limits';
 
 const RATE_LIMIT_WINDOW_SECONDS = 10;
+const ROTATED_SECRET_VERSION = 1;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 const SIGN_IN_PATH = '/sign-in/email';
 const UPDATE_USER_PATH = '/update-user';
@@ -90,6 +91,14 @@ function defaultResourcePlugin(resource: string) {
   } satisfies BetterAuthPlugin;
 }
 
+type SecretOptions = { secret: string } | { secret: string; secrets: { version: number; value: string }[] };
+
+// NB ADR 0051: after a rotation better-auth signs with the current secret and still decrypts what the previous one encrypted, such as the JWT signing key.
+function secretOptionsOf(environment: Environment): SecretOptions {
+  if (environment.previousAuthSecret === null) return { secret: environment.authSecret };
+  return { secret: environment.previousAuthSecret, secrets: [{ version: ROTATED_SECRET_VERSION, value: environment.authSecret }] };
+}
+
 export function createAuth({
   database,
   environment,
@@ -106,7 +115,7 @@ export function createAuth({
   createShowcase?: CreateShowcase;
 }) {
   return betterAuth({
-    secret: environment.authSecret,
+    ...secretOptionsOf(environment),
     baseURL: environment.appOrigin,
     trustedOrigins: [environment.appOrigin],
     database: drizzleAdapter(database.drizzle, { provider: 'sqlite', schema: authSchema }),

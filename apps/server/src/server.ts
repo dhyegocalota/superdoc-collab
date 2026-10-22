@@ -331,7 +331,12 @@ function createServices({
     },
   });
   const timelinePipelines = new TimelinePipelineCache();
-  const shareLinks = new ShareLinksRepository({ database, secret: environment.authSecret, appOrigin: environment.appOrigin });
+  const shareLinks = new ShareLinksRepository({
+    database,
+    secret: environment.authSecret,
+    previousSecret: environment.previousAuthSecret,
+    appOrigin: environment.appOrigin,
+  });
   const insights = createInsights({ insightsRepository, scheduler, languageModel, environment, currentServices: () => services });
   const runtime = createCollaborationRuntime({
     hocuspocus,

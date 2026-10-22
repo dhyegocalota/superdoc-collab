@@ -1,6 +1,6 @@
 # AUTH_SECRET rotation
 
-**Status:** Building
+**Status:** Shipped 2026-10-22
 **Tier:** 🔴
 **Owner approval:** approved 2026-10-22 (owner, translated: "regenerate AUTH_SECRET, but keep the user invites with the same link")
 **ADRs:** [0051](../../adr/0051-rotating-auth-secret-keeps-the-previous-secret.md)

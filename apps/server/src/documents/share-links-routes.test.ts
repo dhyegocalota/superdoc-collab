@@ -175,7 +175,9 @@ test('rotating as an editor is 403', async () => {
 test('links stored under another secret are regenerated and work', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
-  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(
+    documentId,
+  );
   const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!', previousSecret: null });
   const newLinks = current.links(documentId);
   const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
@@ -187,7 +189,9 @@ test('links stored under another secret are regenerated and work', async () => {
 test('a token issued under another secret stops resolving before any read reissues it', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
-  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(
+    documentId,
+  );
   const current = new ShareLinksRepository({ ...options, secret: 'the-current-secret-of-the-server!', previousSecret: null });
   const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1) as string;
   expect(current.resolve(tokenOf(oldLinks[ShareLinkRole.Edit]))).toBeNull();
@@ -198,7 +202,9 @@ test('a token issued under another secret stops resolving before any read reissu
 test('links issued under the previous secret keep their URL and keep resolving after a rotation', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
-  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(
+    documentId,
+  );
   const rotated = new ShareLinksRepository({
     ...options,
     secret: 'the-current-secret-of-the-server!',
@@ -214,7 +220,9 @@ test('links issued under the previous secret keep their URL and keep resolving a
 test('a link rotated after the secret rotation is issued under the current secret', async () => {
   const { server, documentId } = await blankDocumentWithOwner();
   const options = { database: server.database, appOrigin: server.baseUrl };
-  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(documentId);
+  const oldLinks = new ShareLinksRepository({ ...options, secret: 'the-previous-secret-of-the-server', previousSecret: null }).links(
+    documentId,
+  );
   const rotated = new ShareLinksRepository({
     ...options,
     secret: 'the-current-secret-of-the-server!',
